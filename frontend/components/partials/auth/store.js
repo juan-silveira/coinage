@@ -7,15 +7,19 @@ export const loginUser = createAsyncThunk(
   'auth/loginUser',
   async ({ email, password }, { rejectWithValue }) => {
     try {
+      console.log("Store: Iniciando login para:", email);
       const response = await apiService.login(email, password);
+      console.log("Store: Resposta recebida:", response);
       
       // Salvar tokens e dados do usuário
       apiService.setToken(response.data.accessToken);
       apiService.setRefreshToken(response.data.refreshToken);
       apiService.setUser(response.data.user);
       
+      console.log("Store: Tokens salvos, retornando dados");
       return response.data;
     } catch (error) {
+      console.error("Store: Erro no login:", error);
       return rejectWithValue(error.message);
     }
   }
@@ -56,6 +60,7 @@ const getInitialAuthState = () => {
   if (typeof window !== "undefined") {
     const isAuth = apiService.isAuthenticated() && !apiService.isTokenExpired();
     const user = apiService.getUser();
+    console.log("Store: Estado inicial - isAuth:", isAuth, "user:", user);
     return {
       isAuth,
       user,

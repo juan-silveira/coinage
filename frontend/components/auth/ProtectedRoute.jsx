@@ -9,14 +9,18 @@ const ProtectedRoute = ({ children }) => {
   const { isAuth, loading, user } = useSelector((state) => state.auth);
 
   useEffect(() => {
+    console.log("ProtectedRoute: Estado atual - isAuth:", isAuth, "loading:", loading, "user:", user);
+    
     // Se não está autenticado e não está carregando, redirecionar para login
     if (!isAuth && !loading) {
+      console.log("ProtectedRoute: Redirecionando para login");
       router.push('/');
       return;
     }
 
     // Se está autenticado mas não tem dados do usuário, buscar
     if (isAuth && !user) {
+      console.log("ProtectedRoute: Buscando dados do usuário");
       dispatch(getCurrentUser());
     }
   }, [isAuth, loading, user, router, dispatch]);

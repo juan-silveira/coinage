@@ -34,13 +34,15 @@ const LoginForm = () => {
   // Redirecionar se já estiver autenticado
   useEffect(() => {
     if (isAuth) {
-      router.push("/analytics");
+      router.push("/banking");
     }
   }, [isAuth, router]);
 
   const onSubmit = async (data) => {
+    console.log("Tentando fazer login com:", data.email);
     try {
-      await dispatch(loginUser({ email: data.email, password: data.password })).unwrap();
+      const result = await dispatch(loginUser({ email: data.email, password: data.password })).unwrap();
+      console.log("Login bem-sucedido:", result);
       // O redirecionamento será feito pelo useEffect quando isAuth mudar
     } catch (error) {
       // O erro já é tratado no store

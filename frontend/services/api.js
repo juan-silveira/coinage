@@ -51,10 +51,13 @@ class ApiService {
 
   // Métodos de autenticação
   async login(email, password) {
-    return this.request('/auth/login', {
+    console.log("API Service: Fazendo requisição de login para:", `${this.baseURL}/auth/login`);
+    const response = await this.request('/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     });
+    console.log("API Service: Resposta do login:", response);
+    return response;
   }
 
   async logout() {
