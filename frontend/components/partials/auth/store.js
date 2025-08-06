@@ -96,13 +96,14 @@ export const authSlice = createSlice({
       })
       .addCase(loginUser.fulfilled, (state, action) => {
         state.loading = false;
-        state.isAuth = true;
         state.user = action.payload.user;
         state.error = null;
-        console.log("Store: Login fulfilled - isAuth:", state.isAuth, "user:", state.user);
+        console.log("Store: Login fulfilled - isFirstAccess:", action.payload.isFirstAccess, "user:", state.user);
         
         // Verificar se é primeiro acesso
         if (action.payload.isFirstAccess) {
+          // Não definir isAuth como true se for primeiro acesso
+          state.isAuth = false;
           toast.warning("Primeiro acesso detectado. É necessário alterar a senha.", {
             position: "top-right",
             autoClose: 3000,
@@ -114,6 +115,8 @@ export const authSlice = createSlice({
             theme: "light",
           });
         } else {
+          // Só definir isAuth como true se não for primeiro acesso
+          state.isAuth = true;
           toast.success("Login realizado com sucesso!", {
             position: "top-right",
             autoClose: 1500,
