@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Textinput from "@/components/ui/Textinput";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
@@ -7,47 +7,44 @@ import { useRouter } from "next/navigation";
 import Checkbox from "@/components/ui/Checkbox";
 import Link from "next/link";
 import { useSelector, useDispatch } from "react-redux";
-import { handleLogin } from "./store";
+import { loginUser } from "./store";
 import { toast } from "react-toastify";
+
 const schema = yup
   .object({
-    email: yup.string().email("Invalid email").required("Email is Required"),
-    password: yup.string().required("Password is Required"),
+    email: yup.string().email("Email inválido").required("Email é obrigatório"),
+    password: yup.string().required("Senha é obrigatória"),
   })
   .required();
+
 const LoginForm = () => {
   const dispatch = useDispatch();
-  const { users } = useSelector((state) => state.auth);
+  const { isAuth, loading, error } = useSelector((state) => state.auth);
+  const router = useRouter();
+  
   const {
     register,
     formState: { errors },
     handleSubmit,
   } = useForm({
     resolver: yupResolver(schema),
-    //
     mode: "all",
   });
-  const router = useRouter();
-  const onSubmit = (data) => {
-    const user = users.find(
-      (user) => user.email === data.email && user.password === data.password
-    );
-    if (user) {
-      dispatch(handleLogin(true));
-      setTimeout(() => {
-        router.push("/analytics");
-      }, 1500);
-    } else {
-      toast.error("Invalid credentials", {
-        position: "top-right",
-        autoClose: 1500,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true,
-        progress: undefined,
-        theme: "light",
-      });
+
+  // Redirecionar se já estiver autenticado
+  useEffect(() => {
+    if (isAuth) {
+      router.push("/analytics");
+    }
+  }, [isAuth, router]);
+
+  const onSubmit = async (data) => {
+    try {
+      await dispatch(loginUser({ email: data.email, password: data.password })).unwrap();
+      // O redirecionamento será feito pelo useEffect quando isAuth mudar
+    } catch (error) {
+      // O erro já é tratado no store
+      console.error("Erro no login:", error);
     }
   };
 
@@ -85,7 +82,13 @@ const LoginForm = () => {
         </Link>
       </div>
 
-      <button className="btn btn-dark block w-full text-center">Sign in</button>
+      <button 
+        type="submit" 
+        className="btn btn-dark block w-full text-center" 
+        disabled={loading}
+      >
+        {loading ? "Entrando..." : "Entrar"}
+      </button>
     </form>
   );
 };

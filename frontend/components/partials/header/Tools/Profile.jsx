@@ -3,10 +3,12 @@ import Dropdown from "@/components/ui/Dropdown";
 import Icon from "@/components/ui/Icon";
 import { Menu, Transition } from "@headlessui/react";
 import { useDispatch, useSelector } from "react-redux";
-import { handleLogout } from "@/components/partials/auth/store";
+import { logoutUser } from "@/components/partials/auth/store";
 import { useRouter } from "next/navigation";
 
 const ProfileLabel = () => {
+  const { user } = useSelector((state) => state.auth);
+  
   return (
     <div className="flex items-center">
       <div className="flex-1 ltr:mr-[10px] rtl:ml-[10px]">
@@ -20,7 +22,7 @@ const ProfileLabel = () => {
       </div>
       <div className="flex-none text-slate-600 dark:text-white text-sm font-normal items-center lg:flex hidden overflow-hidden text-ellipsis whitespace-nowrap">
         <span className="overflow-hidden text-ellipsis whitespace-nowrap w-[85px] block">
-          Albert Flores
+          {user?.name || "Usuário"}
         </span>
         <span className="text-base inline-block ltr:ml-[10px] rtl:mr-[10px]">
           <Icon icon="heroicons-outline:chevron-down"></Icon>
@@ -88,8 +90,13 @@ const Profile = () => {
     {
       label: "Logout",
       icon: "heroicons-outline:login",
-      action: () => {
-        dispatch(handleLogout(false));
+      action: async () => {
+        try {
+          await dispatch(logoutUser()).unwrap();
+          router.push("/");
+        } catch (error) {
+          console.error("Erro no logout:", error);
+        }
       },
     },
   ];
