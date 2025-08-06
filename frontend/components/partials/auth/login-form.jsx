@@ -33,7 +33,9 @@ const LoginForm = () => {
 
   // Redirecionar se já estiver autenticado
   useEffect(() => {
+    console.log("LoginForm useEffect: isAuth mudou para:", isAuth);
     if (isAuth) {
+      console.log("LoginForm: Redirecionando para /banking");
       router.push("/banking");
     }
   }, [isAuth, router]);
