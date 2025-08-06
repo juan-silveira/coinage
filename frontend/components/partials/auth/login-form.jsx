@@ -84,13 +84,26 @@ const LoginForm = () => {
         </Link>
       </div>
 
-      <button 
-        type="submit" 
-        className="btn btn-dark block w-full text-center" 
-        disabled={loading}
-      >
-        {loading ? "Entrando..." : "Entrar"}
-      </button>
+             <button 
+         type="submit" 
+         className="btn btn-dark block w-full text-center" 
+         disabled={loading}
+       >
+         {loading ? "Entrando..." : "Entrar"}
+       </button>
+       
+       {/* Botão de teste para debug */}
+       <button 
+         type="button" 
+         className="btn btn-outline-dark block w-full text-center mt-2" 
+         onClick={() => {
+           console.log("Teste: Estado atual do Redux:", { isAuth, loading, error });
+           console.log("Teste: Tentando login direto...");
+           dispatch(loginUser({ email: "ivan.alberton@navi.inf.br", password: "N@vi@2025" }));
+         }}
+       >
+         Teste Login
+       </button>
     </form>
   );
 };
