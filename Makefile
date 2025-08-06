@@ -10,9 +10,13 @@ help: ## Mostra esta ajuda
 	@echo ""
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2}'
 
-start: ## Inicia o backend (Docker)
+start: ## Inicia o backend (Docker) e frontend
 	@echo "🚀 Iniciando backend..."
 	@./scripts/start.sh
+	@echo "⏳ Aguardando backend iniciar..."
+	@sleep 10
+	@echo "🎨 Iniciando frontend..."
+	@cd frontend && ./start.sh
 
 stop: ## Para o backend (Docker)
 	@echo "🛑 Parando backend..."
@@ -25,14 +29,10 @@ status: ## Mostra o status do backend
 dev: ## Inicia backend e frontend em desenvolvimento
 	@echo "🔧 Iniciando desenvolvimento..."
 	@make start
-	@echo "⏳ Aguardando backend iniciar..."
-	@sleep 10
-	@echo "🎨 Iniciando DashCode..."
-	@cd frontend && yarn dev
 
 frontend: ## Inicia apenas o frontend DashCode
 	@echo "🎨 Iniciando DashCode..."
-	@cd frontend && yarn dev
+	@cd frontend && ./start.sh
 
 backend: ## Inicia apenas o backend
 	@echo "⚙️ Iniciando backend..."
@@ -78,8 +78,4 @@ setup: ## Configuração inicial do projeto
 # Comando para desenvolvimento completo
 full-dev: ## Inicia desenvolvimento completo
 	@echo "🚀 Iniciando desenvolvimento completo..."
-	@make start
-	@echo "⏳ Aguardando backend..."
-	@sleep 15
-	@echo "🎨 Iniciando DashCode..."
-	@make frontend 
+	@make start 
