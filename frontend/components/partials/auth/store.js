@@ -16,6 +16,7 @@ export const loginUser = createAsyncThunk(
       apiService.setRefreshToken(response.data.refreshToken);
       apiService.setUser(response.data.user);
       
+      console.log("Store: Tokens salvos - accessToken:", response.data.accessToken ? "presente" : "ausente");
       console.log("Store: Tokens salvos, retornando dados");
       return response.data;
     } catch (error) {

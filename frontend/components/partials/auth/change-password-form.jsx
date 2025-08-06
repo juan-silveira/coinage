@@ -42,6 +42,9 @@ const ChangePasswordForm = ({ onSuccess }) => {
   const onSubmit = async (data) => {
     setLoading(true);
     try {
+      console.log("ChangePasswordForm: Iniciando alteração de senha");
+      console.log("ChangePasswordForm: Token atual:", apiService.getToken());
+      
       const response = await apiService.request('/auth/change-password', {
         method: 'POST',
         body: JSON.stringify({
@@ -49,6 +52,8 @@ const ChangePasswordForm = ({ onSuccess }) => {
           newPassword: data.newPassword,
         }),
       });
+
+      console.log("ChangePasswordForm: Resposta recebida:", response);
 
       if (response.success) {
         toast.success("Senha alterada com sucesso!", {
