@@ -59,9 +59,9 @@ const ChangePasswordForm = ({ onSuccess }) => {
         // Limpar formulário
         reset();
         
-        // Chamar callback de sucesso
+        // Chamar callback de sucesso com a nova senha
         if (onSuccess) {
-          onSuccess();
+          onSuccess(data.newPassword);
         }
       }
     } catch (error) {

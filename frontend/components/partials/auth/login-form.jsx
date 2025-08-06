@@ -24,6 +24,7 @@ const LoginForm = () => {
   const router = useRouter();
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [loginData, setLoginData] = useState(null);
+  const [newPassword, setNewPassword] = useState(null);
   
   const {
     register,
@@ -34,14 +35,14 @@ const LoginForm = () => {
     mode: "all",
   });
 
-  // Redirecionar se já estiver autenticado
+  // Redirecionar se já estiver autenticado (apenas se não for primeiro acesso)
   useEffect(() => {
-    console.log("LoginForm useEffect: isAuth mudou para:", isAuth);
-    if (isAuth) {
+    console.log("LoginForm useEffect: isAuth mudou para:", isAuth, "showChangePassword:", showChangePassword);
+    if (isAuth && !showChangePassword) {
       console.log("LoginForm: Redirecionando para /banking");
       router.push("/banking");
     }
-  }, [isAuth, router]);
+  }, [isAuth, showChangePassword, router]);
 
   const onSubmit = async (data) => {
     console.log("Tentando fazer login com:", data.email);
@@ -63,13 +64,18 @@ const LoginForm = () => {
 
   const [checked, setChecked] = useState(false);
 
-  const handlePasswordChangeSuccess = () => {
+  const handlePasswordChangeSuccess = async (changedPassword) => {
     setShowChangePassword(false);
-    setLoginData(null);
-    // Fazer login novamente com a nova senha
-    if (loginData) {
-      dispatch(loginUser({ email: loginData.email, password: loginData.password }));
-    }
+    setNewPassword(changedPassword);
+    
+    // Aguardar um pouco para garantir que o estado foi atualizado
+    setTimeout(() => {
+      // Fazer login com a nova senha
+      if (loginData && changedPassword) {
+        console.log("Fazendo login após alteração de senha");
+        dispatch(loginUser({ email: loginData.email, password: changedPassword }));
+      }
+    }, 100);
   };
 
   // Se deve mostrar o formulário de alteração de senha
