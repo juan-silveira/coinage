@@ -9,6 +9,7 @@ import Link from "next/link";
 import { useSelector, useDispatch } from "react-redux";
 import { loginUser } from "./store";
 import { toast } from "react-toastify";
+import ChangePasswordForm from "./change-password-form";
 
 const schema = yup
   .object({
@@ -21,6 +22,8 @@ const LoginForm = () => {
   const dispatch = useDispatch();
   const { isAuth, loading, error } = useSelector((state) => state.auth);
   const router = useRouter();
+  const [showChangePassword, setShowChangePassword] = useState(false);
+  const [loginData, setLoginData] = useState(null);
   
   const {
     register,
@@ -45,7 +48,13 @@ const LoginForm = () => {
     try {
       const result = await dispatch(loginUser({ email: data.email, password: data.password })).unwrap();
       console.log("Login bem-sucedido:", result);
-      // O redirecionamento será feito pelo useEffect quando isAuth mudar
+      
+      // Verificar se é primeiro acesso
+      if (result.isFirstAccess) {
+        setLoginData(data);
+        setShowChangePassword(true);
+      }
+      // Se não for primeiro acesso, o redirecionamento será feito pelo useEffect
     } catch (error) {
       // O erro já é tratado no store
       console.error("Erro no login:", error);
@@ -53,6 +62,20 @@ const LoginForm = () => {
   };
 
   const [checked, setChecked] = useState(false);
+
+  const handlePasswordChangeSuccess = () => {
+    setShowChangePassword(false);
+    setLoginData(null);
+    // Fazer login novamente com a nova senha
+    if (loginData) {
+      dispatch(loginUser({ email: loginData.email, password: loginData.password }));
+    }
+  };
+
+  // Se deve mostrar o formulário de alteração de senha
+  if (showChangePassword) {
+    return <ChangePasswordForm onSuccess={handlePasswordChangeSuccess} />;
+  }
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 ">
