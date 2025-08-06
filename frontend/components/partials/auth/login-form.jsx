@@ -52,22 +52,22 @@ const LoginForm = () => {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 ">
-      <Textinput
-        name="email"
-        label="email"
-        defaultValue="dashcode@gmail.com"
-        type="email"
-        register={register}
-        error={errors?.email}
-      />
-      <Textinput
-        name="password"
-        label="passwrod"
-        type="password"
-        defaultValue="dashcode"
-        register={register}
-        error={errors.password}
-      />
+                           <Textinput
+          name="email"
+          label="email"
+          defaultValue="ivan.alberton@navi.inf.br"
+          type="email"
+          register={register}
+          error={errors?.email}
+        />
+        <Textinput
+          name="password"
+          label="password"
+          type="password"
+          defaultValue="N@vi@2025"
+          register={register}
+          error={errors.password}
+        />
       <div className="flex justify-between">
         <Checkbox
           value={checked}
