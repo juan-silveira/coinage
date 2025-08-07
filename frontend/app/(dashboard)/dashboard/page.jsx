@@ -10,6 +10,7 @@ import HistoryChart from "@/components/partials/widget/chart/history-chart";
 import AccountReceivable from "@/components/partials/widget/chart/account-receivable";
 import AccountPayable from "@/components/partials/widget/chart/account-payable";
 import useAuthStore from "@/store/authStore";
+import useCacheData from "@/hooks/useCacheData";
 
 const CardSlider = dynamic(
   () => import("@/components/partials/widget/CardSlider"),
@@ -48,6 +49,7 @@ const users = [
 const BankingPage = () => {
   const [activeIndex, setActiveIndex] = useState(0);
   const { user } = useAuthStore();
+  const { balances, loading } = useCacheData();
   
   // Função para obter saudação baseada na hora
   const getGreeting = () => {
@@ -133,7 +135,7 @@ const BankingPage = () => {
                 <Textinput
                   placeholder="$6547"
                   id="cdp"
-                  className="bg-transparent border-none focus:ring-0 focus:border-none p-0 text-slate-900 dark:text-white text-sm placeholder:text-slate-400 placeholder:font-medium  h-auto font-medium"
+                  className="bg-transparent balance border-none focus:ring-0 focus:border-none p-0 text-slate-900 dark:text-white text-sm placeholder:text-slate-400 placeholder:font-medium  h-auto font-medium"
                 />
               </div>
               <div className="bg-slate-100 dark:bg-slate-900 rounded-md p-4">
@@ -148,7 +150,7 @@ const BankingPage = () => {
                   placeholder="3458-3548-6548-3244"
                   isMask
                   id="cd"
-                  className="bg-transparent border-none focus:ring-0 focus:border-none p-0 text-slate-900 dark:text-white text-sm placeholder:text-slate-400 h-auto placeholder:font-medium font-medium"
+                  className="bg-transparent border-none focus:ring-0 focus:ring-0 focus:border-none p-0 text-slate-900 dark:text-white text-sm placeholder:text-slate-400 h-auto placeholder:font-medium font-medium"
                 />
               </div>
               <div className="flex justify-between">
@@ -156,7 +158,7 @@ const BankingPage = () => {
                   <span className="text-xs text-slate-500 dark:text-slate-400 block mb-1">
                     Total amount
                   </span>
-                  <span className="text-lg font-medium text-slate-900 dark:text-white block">
+                  <span className="balance text-lg font-medium text-slate-900 dark:text-white block">
                     $6547
                   </span>
                 </div>

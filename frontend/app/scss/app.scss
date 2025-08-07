@@ -117,3 +117,12 @@
 }
 @layer utilities {
 }
+
+/* Aplicar blur global aos valores quando usuário optar por ocultar */
+:root.mask-balances .balance {
+  filter: blur(6px);
+}
+
+:root.mask-balances .balance:hover {
+  filter: none;
+}

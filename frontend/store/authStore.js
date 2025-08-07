@@ -11,6 +11,9 @@ const useAuthStore = create(
       isAuthenticated: false,
       isLoading: false,
       requiresPasswordChange: false,
+      cacheLoaded: false, // indica se o cache já foi carregado nesta sessão
+      cacheLoading: false, // evita concorrência em carregamentos
+      maskBalances: false, // se true, aplica blur nos valores
 
       // Ações
       setUser: (user) => set({ user }),
@@ -22,9 +25,14 @@ const useAuthStore = create(
         set({ requiresPasswordChange: requires }),
       
       setLoading: (loading) => set({ isLoading: loading }),
+
+      setCacheLoaded: (loaded) => set({ cacheLoaded: loaded }),
+      setCacheLoading: (loading) => set({ cacheLoading: loading }),
+
+      setMaskBalances: (masked) => set({ maskBalances: masked }),
+      toggleMaskBalances: () => set((s) => ({ maskBalances: !s.maskBalances })),
       
       login: (user, accessToken, refreshToken, requiresPasswordChange = false) => {
-        // Verificar se o user existe e tem name antes de salvar
         if (user && user.name) {
           sessionStorage.setItem('showLoginSuccess', 'true');
           sessionStorage.setItem('loginUserName', user.name);
@@ -35,12 +43,14 @@ const useAuthStore = create(
           refreshToken,
           isAuthenticated: true,
           requiresPasswordChange,
-          isLoading: false
+          isLoading: false,
+          // reset flags de cache ao fazer login
+          cacheLoaded: false,
+          cacheLoading: false,
         });
       },
       
       logout: () => {
-        // Salvar flag de logout no sessionStorage
         sessionStorage.setItem('showLogoutSuccess', 'true');
         set({
           user: null,
@@ -48,7 +58,9 @@ const useAuthStore = create(
           refreshToken: null,
           isAuthenticated: false,
           requiresPasswordChange: false,
-          isLoading: false
+          isLoading: false,
+          cacheLoaded: false,
+          cacheLoading: false,
         });
       },
       
@@ -68,6 +80,8 @@ const useAuthStore = create(
         refreshToken: state.refreshToken,
         isAuthenticated: state.isAuthenticated,
         requiresPasswordChange: state.requiresPasswordChange,
+        maskBalances: state.maskBalances, // persistir preferência de ocultar valores
+        // Não persistir cacheLoaded/cacheLoading
       }),
     }
   )

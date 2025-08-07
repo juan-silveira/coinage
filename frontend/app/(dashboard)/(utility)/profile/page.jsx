@@ -2,11 +2,17 @@
 import Link from "next/link";
 import Icon from "@/components/ui/Icon";
 import Card from "@/components/ui/Card";
-import BasicArea from "@/components/partials/chart/appex-chart/BasicArea";
+import BalancesTable from "@/components/partials/table/BalancesTable";
 import useAuthStore from "@/store/authStore";
+import useCacheData from "@/hooks/useCacheData";
 
 const profile = () => {
   const { user } = useAuthStore();
+  const { cachedUser, balances, loading, getBalance, formatCPF, formatPhone } = useCacheData();
+
+  // Usar dados do cache se disponível, senão usar dados do store
+  const displayUser = cachedUser || user;
+  
   return (
     <div>
       <div className="space-y-5 profile-page">
@@ -31,40 +37,65 @@ const profile = () => {
               </div>
               <div className="flex-1">
                 <div className="text-2xl font-medium text-slate-900 dark:text-slate-200 mb-[3px]">
-                  {user?.name || 'Usuário'}
+                  {displayUser?.name || 'Usuário'}
                 </div>
-                <div className="text-sm font-light text-slate-600 dark:text-slate-400">
-                  {user?.roles?.includes('API_ADMIN') ? 'Administrador' : 'Usuário'}
+                <div className="text-sm font-light text-slate-600 dark:text-slate-400 mb-2">
+                  {displayUser?.roles?.includes('API_ADMIN') ? 'Administrador' : 'Usuário'}
                 </div>
+                {/* Exibir roles do cache */}
+                {displayUser?.roles && displayUser.roles.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {displayUser.roles.map((role, index) => (
+                      <span
+                        key={index}
+                        className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
+                      >
+                        {role}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           </div>
 
           <div className="profile-info-500 md:flex md:text-start text-center flex-1 max-w-[516px] md:space-y-0 space-y-4">
             <div className="flex-1">
-              <div className="text-base text-slate-900 dark:text-slate-300 font-medium mb-1">
-                $32,400
+              <div className="balance text-base text-slate-900 dark:text-slate-300 font-medium mb-1">
+                {loading ? (
+                  <div className="animate-pulse bg-slate-200 dark:bg-slate-600 h-4 w-16 rounded"></div>
+                ) : (
+                  `${getBalance('AZE')} AZE`
+                )}
               </div>
               <div className="text-sm text-slate-600 font-light dark:text-slate-300">
-                Total Balance
+                Saldo AZE
+              </div>
+            </div>
+
+            <div className="flex-1">
+              <div className="balance text-base text-slate-900 dark:text-slate-300 font-medium mb-1">
+                {loading ? (
+                  <div className="animate-pulse bg-slate-200 dark:bg-slate-600 h-4 w-16 rounded"></div>
+                ) : (
+                  `${getBalance('cBRL')} cBRL`
+                )}
+              </div>
+              <div className="text-sm text-slate-600 font-light dark:text-slate-300">
+                Saldo cBRL
               </div>
             </div>
 
             <div className="flex-1">
               <div className="text-base text-slate-900 dark:text-slate-300 font-medium mb-1">
-                200
+                {loading ? (
+                  <div className="animate-pulse bg-slate-200 dark:bg-slate-600 h-4 w-16 rounded"></div>
+                ) : (
+                  balances?.totalTokens ? balances.totalTokens + 1 : 1
+                )}
               </div>
               <div className="text-sm text-slate-600 font-light dark:text-slate-300">
-                Board Card
-              </div>
-            </div>
-
-            <div className="flex-1">
-              <div className="text-base text-slate-900 dark:text-slate-300 font-medium mb-1">
-                3200
-              </div>
-              <div className="text-sm text-slate-600 font-light dark:text-slate-300">
-                Calender Events
+                Total de Tokens
               </div>
             </div>
           </div>
@@ -82,10 +113,10 @@ const profile = () => {
                       EMAIL
                     </div>
                     <a
-                      href={`mailto:${user?.email || ''}`}
+                      href={`mailto:${displayUser?.email || ''}`}
                       className="text-base text-slate-600 dark:text-slate-50"
                     >
-                      {user?.email || 'Não informado'}
+                      {displayUser?.email || 'Não informado'}
                     </a>
                   </div>
                 </li>
@@ -99,48 +130,88 @@ const profile = () => {
                       PHONE
                     </div>
                     <a
-                      href={`tel:${user?.phone || ''}`}
+                      href={`tel:${displayUser?.phone || ''}`}
                       className="text-base text-slate-600 dark:text-slate-50"
                     >
-                      {user?.phone || 'Não informado'}
+                      {displayUser?.phone ? formatPhone(displayUser.phone) : 'Não informado'}
                     </a>
                   </div>
                 </li>
 
-                                 <li className="flex space-x-3 rtl:space-x-reverse">
-                   <div className="flex-none text-2xl text-slate-600 dark:text-slate-300">
-                     <Icon icon="heroicons:identification" />
-                   </div>
-                   <div className="flex-1">
-                     <div className="uppercase text-xs text-slate-500 dark:text-slate-300 mb-1 leading-[12px]">
-                       CPF
-                     </div>
-                     <div className="text-base text-slate-600 dark:text-slate-50">
-                       {user?.cpf || 'Não informado'}
-                     </div>
-                   </div>
-                 </li>
+                <li className="flex space-x-3 rtl:space-x-reverse">
+                  <div className="flex-none text-2xl text-slate-600 dark:text-slate-300">
+                    <Icon icon="heroicons:identification" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="uppercase text-xs text-slate-500 dark:text-slate-300 mb-1 leading-[12px]">
+                      CPF
+                    </div>
+                    <div className="text-base text-slate-600 dark:text-slate-50">
+                      {displayUser?.cpf ? formatCPF(displayUser.cpf) : 'Não informado'}
+                    </div>
+                  </div>
+                </li>
 
-                 <li className="flex space-x-3 rtl:space-x-reverse">
-                   <div className="flex-none text-2xl text-slate-600 dark:text-slate-300">
-                     <Icon icon="heroicons:calendar" />
-                   </div>
-                   <div className="flex-1">
-                     <div className="uppercase text-xs text-slate-500 dark:text-slate-300 mb-1 leading-[12px]">
-                       DATA DE NASCIMENTO
-                     </div>
-                     <div className="text-base text-slate-600 dark:text-slate-50">
-                       {user?.birthDate ? new Date(user.birthDate).toLocaleDateString('pt-BR') : 'Não informado'}
-                     </div>
-                   </div>
-                 </li>
+                <li className="flex space-x-3 rtl:space-x-reverse">
+                  <div className="flex-none text-2xl text-slate-600 dark:text-slate-300">
+                    <Icon icon="heroicons:calendar" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="uppercase text-xs text-slate-500 dark:text-slate-300 mb-1 leading-[12px]">
+                      DATA DE NASCIMENTO
+                    </div>
+                    <div className="text-base text-slate-600 dark:text-slate-50">
+                      {displayUser?.birthDate ? new Date(displayUser.birthDate).toLocaleDateString('pt-BR') : 'Não informado'}
+                    </div>
+                  </div>
+                </li>
+
+                <li className="flex space-x-3 rtl:space-x-reverse">
+                  <div className="flex-none text-2xl text-slate-600 dark:text-slate-300">
+                    <Icon icon="heroicons:key" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="uppercase text-xs text-slate-500 dark:text-slate-300 mb-1 leading-[12px]">
+                      CHAVE PÚBLICA
+                    </div>
+                    <div className="text-base text-slate-600 dark:text-slate-50 font-mono text-sm">
+                      {displayUser?.publicKey ? (
+                        <span className="break-all">
+                          {displayUser.publicKey}
+                        </span>
+                      ) : 'Não informado'}
+                    </div>
+                  </div>
+                </li>
+
+                <li className="flex space-x-3 rtl:space-x-reverse">
+                  <div className="flex-none text-2xl text-slate-600 dark:text-slate-300">
+                    <Icon icon="heroicons:check-circle" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="uppercase text-xs text-slate-500 dark:text-slate-300 mb-1 leading-[12px]">
+                      STATUS
+                    </div>
+                    <div className="text-base text-slate-600 dark:text-slate-50">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        displayUser?.isActive 
+                          ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                          : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                      }`}>
+                        {displayUser?.isActive ? 'Ativo' : 'Inativo'}
+                      </span>
+                    </div>
+                  </div>
+                </li>
               </ul>
             </Card>
           </div>
           <div className="lg:col-span-8 col-span-12">
-            <Card title="User Overview">
-              <BasicArea height={190} />
-            </Card>
+            <div className="space-y-6">
+              <Card title="Balance de tokens">
+                <BalancesTable balances={balances} loading={loading} />
+              </Card>
+            </div>
           </div>
         </div>
       </div>

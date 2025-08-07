@@ -136,6 +136,12 @@ export const userService = {
     return response.data;
   },
 
+  // Obter usuário por email (inclui dados do cache)
+  getUserByEmail: async (email) => {
+    const response = await api.get(`/api/users/email/${email}`);
+    return response.data;
+  },
+
   // Criar usuário
   createUser: async (userData) => {
     const response = await api.post('/api/users', userData);
@@ -145,6 +151,14 @@ export const userService = {
   // Atualizar usuário
   updateUser: async (id, userData) => {
     const response = await api.put(`/api/users/${id}`, userData);
+    return response.data;
+  },
+
+  // Obter saldos do usuário por endereço
+  getUserBalances: async (address, network = 'testnet') => {
+    const response = await api.get(`/api/users/address/${address}/balances`, {
+      params: { network }
+    });
     return response.data;
   },
 };

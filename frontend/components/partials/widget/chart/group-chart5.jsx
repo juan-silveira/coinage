@@ -246,7 +246,7 @@ const GroupChart5 = () => {
           <div className="text-slate-600 dark:text-slate-400 text-sm mb-1 font-medium">
             {item.title}
           </div>
-          <div className="text-slate-900 dark:text-white text-lg font-medium">
+          <div className="text-slate-900 balance dark:text-white text-lg font-medium">
             {item.count}
           </div>
           <div className="ml-auto max-w-[124px]">
