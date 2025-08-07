@@ -12,12 +12,10 @@ import useContentWidth from "@/hooks/useContentWidth";
 import useMenulayout from "@/hooks/useMenulayout";
 import useMenuHidden from "@/hooks/useMenuHidden";
 import Footer from "@/components/partials/footer";
-// import Breadcrumbs from "@/components/ui/Breadcrumbs";
 import MobileMenu from "@/components/partials/sidebar/MobileMenu";
 import useMobileMenu from "@/hooks/useMobileMenu";
 import useMonoChrome from "@/hooks/useMonoChrome";
 import MobileFooter from "@/components/partials/footer/MobileFooter";
-import { useSelector } from "react-redux";
 import useRtl from "@/hooks/useRtl";
 import useDarkMode from "@/hooks/useDarkMode";
 import useSkin from "@/hooks/useSkin";
@@ -25,8 +23,22 @@ import Loading from "@/components/Loading";
 import Breadcrumbs from "@/components/ui/Breadcrumbs";
 import useNavbarType from "@/hooks/useNavbarType";
 import { motion, AnimatePresence } from "framer-motion";
-import ProtectedRoute from "@/components/auth/ProtectedRoute";
+import AuthGuard from "@/components/AuthGuard";
+import useAuthStore from "@/store/authStore";
+import { toast } from "react-toastify";
+
 export default function RootLayout({ children }) {
+  // Verificar toast de login bem-sucedido
+  useEffect(() => {
+    const showLoginSuccess = sessionStorage.getItem('showLoginSuccess');
+    const loginUserName = sessionStorage.getItem('loginUserName');
+    
+    if (showLoginSuccess && loginUserName) {
+      toast.success(`Bem-vindo, ${loginUserName}!`);
+      sessionStorage.removeItem('showLoginSuccess');
+      sessionStorage.removeItem('loginUserName');
+    }
+  }, []);
   const { width, breakpoints } = useWidth();
   const [collapsed] = useSidebar();
   const [isRtl] = useRtl();
@@ -35,6 +47,7 @@ export default function RootLayout({ children }) {
   const [navbarType] = useNavbarType();
   const [isMonoChrome] = useMonoChrome();
   const router = useRouter();
+  const { isAuthenticated, user, logout } = useAuthStore();
   const location = usePathname();
   // header switch class
   const switchHeaderClass = () => {
@@ -55,7 +68,7 @@ export default function RootLayout({ children }) {
   const [mobileMenu, setMobileMenu] = useMobileMenu();
 
   return (
-    <ProtectedRoute>
+    <AuthGuard>
       <div
         dir={isRtl ? "rtl" : "ltr"}
         className={`app-warp    ${isDark ? "dark" : "light"} ${
@@ -64,76 +77,87 @@ export default function RootLayout({ children }) {
         ${navbarType === "floating" ? "has-floating" : ""}
         `}
       >
-        <ToastContainer />
-        <Header className={width > breakpoints.xl ? switchHeaderClass() : ""} />
-        {menuType === "vertical" && width > breakpoints.xl && !menuHidden && (
-          <Sidebar />
-        )}
-        <MobileMenu
-          className={`${
-            width < breakpoints.xl && mobileMenu
-              ? "left-0 visible opacity-100  z-[9999]"
-              : "left-[-300px] invisible opacity-0  z-[-999] "
-          }`}
+        <ToastContainer
+          position="top-right"
+          autoClose={1500}
+          hideProgressBar={false}
+          newestOnTop={false}
+          closeOnClick
+          rtl={isRtl}
+          pauseOnFocusLoss
+          draggable
+          pauseOnHover
+          theme={isDark ? "dark" : "light"}
         />
-        {/* mobile menu overlay*/}
-        {width < breakpoints.xl && mobileMenu && (
-          <div
-            className="overlay bg-slate-900/50 backdrop-filter backdrop-blur-sm opacity-100 fixed inset-0 z-[999]"
-            onClick={() => setMobileMenu(false)}
-          ></div>
-        )}
-        <Settings />
+        <Header className={width > breakpoints.xl ? switchHeaderClass() : ""} />
+      {menuType === "vertical" && width > breakpoints.xl && !menuHidden && (
+        <Sidebar />
+      )}
+      <MobileMenu
+        className={`${
+          width < breakpoints.xl && mobileMenu
+            ? "left-0 visible opacity-100  z-[9999]"
+            : "left-[-300px] invisible opacity-0  z-[-999] "
+        }`}
+      />
+      {/* mobile menu overlay*/}
+      {width < breakpoints.xl && mobileMenu && (
         <div
-          className={`content-wrapper transition-all duration-150 ${
-            width > 1280 ? switchHeaderClass() : ""
-          }`}
-        >
-          {/* md:min-h-screen will h-full*/}
-          <div className="page-content   page-min-height  ">
-            <div
-              className={
-                contentWidth === "boxed" ? "container mx-auto" : "container-fluid"
-              }
+          className="overlay bg-slate-900/50 backdrop-filter backdrop-blur-sm opacity-100 fixed inset-0 z-[999]"
+          onClick={() => setMobileMenu(false)}
+        ></div>
+      )}
+      <Settings />
+      <div
+        className={`content-wrapper transition-all duration-150 ${
+          width > 1280 ? switchHeaderClass() : ""
+        }`}
+      >
+        {/* md:min-h-screen will h-full*/}
+        <div className="page-content   page-min-height  ">
+          <div
+            className={
+              contentWidth === "boxed" ? "container mx-auto" : "container-fluid"
+            }
+          >
+            <motion.div
+              key={location}
+              initial="pageInitial"
+              animate="pageAnimate"
+              exit="pageExit"
+              variants={{
+                pageInitial: {
+                  opacity: 0,
+                  y: 50,
+                },
+                pageAnimate: {
+                  opacity: 1,
+                  y: 0,
+                },
+                pageExit: {
+                  opacity: 0,
+                  y: -50,
+                },
+              }}
+              transition={{
+                type: "tween",
+                ease: "easeInOut",
+                duration: 0.5,
+              }}
             >
-              <motion.div
-                key={location}
-                initial="pageInitial"
-                animate="pageAnimate"
-                exit="pageExit"
-                variants={{
-                  pageInitial: {
-                    opacity: 0,
-                    y: 50,
-                  },
-                  pageAnimate: {
-                    opacity: 1,
-                    y: 0,
-                  },
-                  pageExit: {
-                    opacity: 0,
-                    y: -50,
-                  },
-                }}
-                transition={{
-                  type: "tween",
-                  ease: "easeInOut",
-                  duration: 0.5,
-                }}
-              >
-                <Suspense fallback={<Loading />}>
-                  <Breadcrumbs />
-                  {children}
-                </Suspense>
-              </motion.div>
-            </div>
+              <Suspense fallback={<Loading />}>
+                <Breadcrumbs />
+                {children}
+              </Suspense>
+            </motion.div>
           </div>
         </div>
-        {width < breakpoints.md && <MobileFooter />}
-        {width > breakpoints.md && (
-          <Footer className={width > breakpoints.xl ? switchHeaderClass() : ""} />
-        )}
       </div>
-    </ProtectedRoute>
+      {width < breakpoints.md && <MobileFooter />}
+      {width > breakpoints.md && (
+        <Footer className={width > breakpoints.xl ? switchHeaderClass() : ""} />
+      )}
+      </div>
+    </AuthGuard>
   );
 }

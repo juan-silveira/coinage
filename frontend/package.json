@@ -23,6 +23,7 @@
     "@svg-maps/world": "^1.0.1",
     "@tippyjs/react": "^4.2.6",
     "apexcharts": "^3.33.2",
+    "axios": "^1.11.0",
     "chart.js": "^4.2.1",
     "cleave.js": "^1.6.0",
     "dayjs": "^1.11.7",
@@ -56,7 +57,8 @@
     "sort-by": "^1.2.0",
     "swiper": "^9.1.0",
     "uuidv4": "^6.2.13",
-    "yup": "^1.0.2"
+    "yup": "^1.0.2",
+    "zustand": "^5.0.7"
   },
   "devDependencies": {
     "autoprefixer": "^10.4.14",

@@ -1,193 +1,126 @@
-# 🚀 Guia de Início Rápido - Coinage
+# 🚀 Quick Start - Coinage
 
-## ⚡ Início Super Rápido
+## Pré-requisitos
 
-### 1. Iniciar Backend
+- Docker e Docker Compose instalados
+- Node.js 18+ (para o frontend)
+- Yarn (para o frontend)
+
+## 🏃‍♂️ Início Rápido
+
+### 1. Iniciar Backend e Infraestrutura
+
 ```bash
-# Na pasta raiz do projeto
-make start
-# ou
+# Na raiz do projeto
 ./scripts/start.sh
 ```
 
-### 2. Iniciar Frontend (DashCode)
+Ou manualmente:
+
+```bash
+cd backend
+docker-compose up -d --build
+```
+
+### 2. Iniciar Frontend
+
 ```bash
 cd frontend
 yarn install
 yarn dev
 ```
 
-### 3. Acessar Serviços
-- **Frontend DashCode**: http://localhost:3000
-- **Backend API**: http://localhost:8800
-- **RabbitMQ**: http://localhost:15672
-- **MinIO**: http://localhost:9001
+## 👤 Credenciais Padrão
 
-## 🛠️ Comandos Principais
+**Usuário Admin:**
+- **Email:** `ivan.alberton@navi.inf.br`
+- **Senha:** `N@vi@2025`
 
-### Backend (Docker)
+⚠️ **IMPORTANTE:** No primeiro acesso, o sistema solicitará a troca da senha por questões de segurança.
+
+## 🌐 URLs de Acesso
+
+- **Frontend:** http://localhost:3000
+- **Backend API:** http://localhost:8800
+- **PostgreSQL:** localhost:5433
+- **Redis:** localhost:6379
+- **RabbitMQ:** http://localhost:15672
+- **MinIO:** http://localhost:9001
+
+## 🔧 Containers
+
+Os containers do backend agora usam o prefixo `coinage_`:
+
+- `coinage_postgres` - Banco de dados PostgreSQL
+- `coinage_rabbitmq` - Message broker RabbitMQ
+- `coinage_minio` - Armazenamento de objetos S3-compatible
+- `coinage_redis` - Cache Redis
+- `coinage_api` - API Node.js
+
+## 📋 Comandos Úteis
+
 ```bash
-# Iniciar backend
-make start
-# ou
-docker-compose up -d
+# Ver status dos containers
+./scripts/status.sh
 
-# Parar backend
-make stop
-# ou
-docker-compose down
+# Parar todos os containers
+./scripts/stop.sh
 
-# Ver status
-make status
+# Ver logs em tempo real
+docker-compose logs -f
 
-# Ver logs
-make logs
+# Acessar container da API
+docker exec -it coinage_api bash
+
+# Acessar banco de dados
+docker exec -it coinage_postgres psql -U postgres -d azore_blockchain_service
 ```
 
-### Frontend (DashCode)
+## 🔒 Segurança
+
+O sistema implementa as seguintes medidas de segurança:
+
+1. **Troca de Senha Obrigatória:** No primeiro acesso, qualquer usuário deve trocar sua senha
+2. **Middleware de Proteção:** Rotas protegidas verificam se a senha foi alterada
+3. **Validação de Complexidade:** Nova senha deve ter pelo menos 8 caracteres com maiúscula, minúscula, número e caractere especial
+
+## 🐛 Troubleshooting
+
+### Problemas Comuns
+
+1. **Porta 8800 já em uso:**
+   ```bash
+   sudo lsof -i :8800
+   sudo kill -9 <PID>
+   ```
+
+2. **Containers não iniciam:**
+   ```bash
+   docker-compose down -v
+   docker-compose up -d --build
+   ```
+
+3. **Erro de conexão com banco:**
+   ```bash
+   docker-compose logs coinage_postgres
+   ```
+
+### Logs Detalhados
+
 ```bash
-# Instalar dependências
-make install
+# Logs da API
+docker-compose logs -f coinage_api
 
-# Desenvolvimento
-make frontend
-# ou
-cd frontend && yarn dev
+# Logs do banco
+docker-compose logs -f coinage_postgres
 
-# Testes
-make test
+# Logs de todos os serviços
+docker-compose logs -f
 ```
-
-### Desenvolvimento Completo
-```bash
-# Inicia backend e frontend
-make dev
-# ou
-make full-dev
-```
-
-## 📁 Estrutura do Projeto
-
-```
-coinage/
-├── frontend/              # DashCode Next.js (desenvolvimento local)
-│   ├── app/
-│   ├── components/
-│   ├── configs/
-│   ├── hooks/
-│   ├── store/
-│   ├── package.json
-│   └── ...
-├── backend/               # API Node.js (Docker)
-│   ├── src/
-│   ├── Dockerfile
-│   ├── docker-compose.yml
-│   └── env.docker
-├── scripts/               # Scripts de automação
-│   ├── start.sh
-│   ├── stop.sh
-│   └── status.sh
-├── docker-compose.yml     # Orquestração backend
-├── Makefile              # Comandos de conveniência
-└── README.md             # Documentação completa
-```
-
-## 🔧 Configuração
-
-### Variáveis de Ambiente
-O projeto já vem configurado para Docker. Para desenvolvimento local:
-
-1. **Backend**: Configurado via `env.docker`
-2. **Frontend**: Configure `NEXT_PUBLIC_API_URL` no `.env.local` se necessário
-
-### Portas Utilizadas
-- **3000**: Frontend DashCode (desenvolvimento local)
-- **8800**: Backend API
-- **5432**: PostgreSQL
-- **6379**: Redis
-- **15672**: RabbitMQ Management
-- **9000**: MinIO API
-- **9001**: MinIO Console
-
-## 🚨 Solução de Problemas
-
-### Backend não inicia
-```bash
-# Verificar Docker
-docker --version
-docker-compose --version
-
-# Limpar e reiniciar
-make clean
-make start
-```
-
-### Frontend não inicia
-```bash
-# Verificar Node.js e Yarn
-node --version
-yarn --version
-
-# Reinstalar dependências
-cd frontend
-rm -rf node_modules yarn.lock
-yarn install
-```
-
-### Portas ocupadas
-```bash
-# Verificar portas em uso
-netstat -tulpn | grep :8800
-netstat -tulpn | grep :3000
-
-# Parar serviços conflitantes
-sudo systemctl stop <service-name>
-```
-
-## 📊 Monitoramento
-
-### Health Checks
-```bash
-# Verificar saúde
-make health
-
-# Logs em tempo real
-make logs
-
-# Status dos containers
-docker-compose ps
-```
-
-### Dashboards
-- **RabbitMQ**: http://localhost:15672 (coinage_user/coinage_password)
-- **MinIO**: http://localhost:9001 (coinage_access_key/coinage_secret_key)
-
-## 🔄 Desenvolvimento
-
-### Workflow Recomendado
-1. **Iniciar backend**: `make start`
-2. **Desenvolvimento frontend**: `make frontend`
-3. **Testes**: `make test`
-4. **Build**: `cd frontend && yarn build`
-
-### Hot Reload
-- Frontend: http://localhost:3000 (DashCode)
-- Backend: http://localhost:8800 (Docker)
-
-## 🎯 Próximos Passos
-
-1. **Configurar banco de dados**: Execute as migrações
-2. **Criar usuário admin**: Use o endpoint de inicialização
-3. **Personalizar DashCode**: Modifique componentes
-4. **Adicionar funcionalidades**: Implemente novos endpoints
-5. **Configurar CI/CD**: Automatize deploy
 
 ## 📞 Suporte
 
-- **Documentação**: README.md
-- **Logs**: `make logs`
-- **Status**: `make status`
-
----
-
-**🎉 Pronto! Coinage com DashCode está rodando e pronto para desenvolvimento!** 
+Para problemas ou dúvidas, consulte:
+- Logs dos containers
+- Documentação da API em http://localhost:8800 (Swagger)
+- Arquivos de configuração em `backend/env.example` 

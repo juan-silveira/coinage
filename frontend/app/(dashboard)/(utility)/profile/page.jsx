@@ -3,8 +3,10 @@ import Link from "next/link";
 import Icon from "@/components/ui/Icon";
 import Card from "@/components/ui/Card";
 import BasicArea from "@/components/partials/chart/appex-chart/BasicArea";
+import useAuthStore from "@/store/authStore";
 
 const profile = () => {
+  const { user } = useAuthStore();
   return (
     <div>
       <div className="space-y-5 profile-page">
@@ -29,10 +31,10 @@ const profile = () => {
               </div>
               <div className="flex-1">
                 <div className="text-2xl font-medium text-slate-900 dark:text-slate-200 mb-[3px]">
-                  Albert Flores
+                  {user?.name || 'Usuário'}
                 </div>
                 <div className="text-sm font-light text-slate-600 dark:text-slate-400">
-                  Front End Developer
+                  {user?.roles?.includes('API_ADMIN') ? 'Administrador' : 'Usuário'}
                 </div>
               </div>
             </div>
@@ -80,10 +82,10 @@ const profile = () => {
                       EMAIL
                     </div>
                     <a
-                      href="mailto:someone@example.com"
+                      href={`mailto:${user?.email || ''}`}
                       className="text-base text-slate-600 dark:text-slate-50"
                     >
-                      info-500@dashcode.com
+                      {user?.email || 'Não informado'}
                     </a>
                   </div>
                 </li>
@@ -97,27 +99,41 @@ const profile = () => {
                       PHONE
                     </div>
                     <a
-                      href="tel:0189749676767"
+                      href={`tel:${user?.phone || ''}`}
                       className="text-base text-slate-600 dark:text-slate-50"
                     >
-                      +1-202-555-0151
+                      {user?.phone || 'Não informado'}
                     </a>
                   </div>
                 </li>
 
-                <li className="flex space-x-3 rtl:space-x-reverse">
-                  <div className="flex-none text-2xl text-slate-600 dark:text-slate-300">
-                    <Icon icon="heroicons:map" />
-                  </div>
-                  <div className="flex-1">
-                    <div className="uppercase text-xs text-slate-500 dark:text-slate-300 mb-1 leading-[12px]">
-                      LOCATION
-                    </div>
-                    <div className="text-base text-slate-600 dark:text-slate-50">
-                      Home# 320/N, Road# 71/B, Mohakhali, Dhaka-1207, Bangladesh
-                    </div>
-                  </div>
-                </li>
+                                 <li className="flex space-x-3 rtl:space-x-reverse">
+                   <div className="flex-none text-2xl text-slate-600 dark:text-slate-300">
+                     <Icon icon="heroicons:identification" />
+                   </div>
+                   <div className="flex-1">
+                     <div className="uppercase text-xs text-slate-500 dark:text-slate-300 mb-1 leading-[12px]">
+                       CPF
+                     </div>
+                     <div className="text-base text-slate-600 dark:text-slate-50">
+                       {user?.cpf || 'Não informado'}
+                     </div>
+                   </div>
+                 </li>
+
+                 <li className="flex space-x-3 rtl:space-x-reverse">
+                   <div className="flex-none text-2xl text-slate-600 dark:text-slate-300">
+                     <Icon icon="heroicons:calendar" />
+                   </div>
+                   <div className="flex-1">
+                     <div className="uppercase text-xs text-slate-500 dark:text-slate-300 mb-1 leading-[12px]">
+                       DATA DE NASCIMENTO
+                     </div>
+                     <div className="text-base text-slate-600 dark:text-slate-50">
+                       {user?.birthDate ? new Date(user.birthDate).toLocaleDateString('pt-BR') : 'Não informado'}
+                     </div>
+                   </div>
+                 </li>
               </ul>
             </Card>
           </div>

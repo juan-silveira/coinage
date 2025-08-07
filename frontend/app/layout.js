@@ -7,15 +7,15 @@ import "leaflet/dist/leaflet.css";
 import "./scss/app.scss";
 
 export const metadata = {
-  title: 'Dashcode Next Js',
-  description: 'Dashcode is a popular dashboard template.',
+  title: 'Azore - Sistema de Gestão',
+  description: 'Sistema de gestão de tokens e transações blockchain.',
 }
 
 import ThemeProvider from "./theme-provider"
 export default function RootLayout({ children }) {
   return (
     <>
-      <html lang="en">
+      <html lang="pt-BR">
         <body className="font-inter  custom-tippy dashcode-app">
           <ThemeProvider>
             {children}

@@ -1,141 +1,72 @@
-import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
+import { createSlice } from "@reduxjs/toolkit";
+import { v4 as uuidv4 } from "uuid";
 import { toast } from "react-toastify";
-import apiService from "@/services/api";
 
-// Thunk para login
-export const loginUser = createAsyncThunk(
-  'auth/loginUser',
-  async ({ email, password }, { rejectWithValue }) => {
-    try {
-      console.log("Store: Iniciando login para:", email);
-      const response = await apiService.login(email, password);
-      console.log("Store: Resposta recebida:", response);
-      
-      // Salvar tokens e dados do usuário
-      apiService.setToken(response.data.accessToken);
-      apiService.setRefreshToken(response.data.refreshToken);
-      apiService.setUser(response.data.user);
-      
-      console.log("Store: Tokens salvos - accessToken:", response.data.accessToken ? "presente" : "ausente");
-      console.log("Store: Tokens salvos, retornando dados");
-      return response.data;
-    } catch (error) {
-      console.error("Store: Erro no login:", error);
-      return rejectWithValue(error.message);
-    }
-  }
-);
-
-// Thunk para logout
-export const logoutUser = createAsyncThunk(
-  'auth/logoutUser',
-  async (_, { rejectWithValue }) => {
-    try {
-      await apiService.logout();
-      apiService.clearTokens();
-      return true;
-    } catch (error) {
-      // Mesmo se der erro no logout, limpar tokens localmente
-      apiService.clearTokens();
-      return rejectWithValue(error.message);
-    }
-  }
-);
-
-// Thunk para obter usuário atual
-export const getCurrentUser = createAsyncThunk(
-  'auth/getCurrentUser',
-  async (_, { rejectWithValue }) => {
-    try {
-      const response = await apiService.getCurrentUser();
-      apiService.setUser(response.data.user);
-      return response.data.user;
-    } catch (error) {
-      return rejectWithValue(error.message);
-    }
-  }
-);
-
-// Verificar autenticação inicial
-const getInitialAuthState = () => {
+const initialUsers = () => {
   if (typeof window !== "undefined") {
-    const isAuth = apiService.isAuthenticated() && !apiService.isTokenExpired();
-    const user = apiService.getUser();
-    console.log("Store: Estado inicial - isAuth:", isAuth, "user:", user);
-    return {
-      isAuth,
-      user,
-      loading: false,
-      error: null
-    };
+    const item = window?.localStorage.getItem("users");
+    return item
+      ? JSON.parse(item)
+      : [
+          {
+            id: uuidv4(),
+            name: "dashcode",
+            email: "dashcode@gmail.com",
+            password: "dashcode",
+          },
+        ];
   }
-  return {
-    isAuth: false,
-    user: null,
-    loading: false,
-    error: null
-  };
+  return [
+    {
+      id: uuidv4(),
+      name: "dashcode",
+      email: "dashcode@gmail.com",
+      password: "dashcode",
+    },
+  ];
+};
+// save users in local storage
+
+const initialIsAuth = () => {
+  if (typeof window !== "undefined") {
+    const item = window?.localStorage.getItem("isAuth");
+    return item ? JSON.parse(item) : false;
+  }
+  return false;
 };
 
 export const authSlice = createSlice({
   name: "auth",
-  initialState: getInitialAuthState(),
-  reducers: {
-    clearError: (state) => {
-      state.error = null;
-    },
-    setLoading: (state, action) => {
-      state.loading = action.payload;
-    }
+  initialState: {
+    users: initialUsers(),
+    isAuth: initialIsAuth(),
   },
-  extraReducers: (builder) => {
-    builder
-      // Login
-      .addCase(loginUser.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(loginUser.fulfilled, (state, action) => {
-        state.loading = false;
-        state.user = action.payload.user;
-        state.error = null;
-        console.log("Store: Login fulfilled - isFirstAccess:", action.payload.isFirstAccess, "user:", state.user);
-        
-        // Verificar se é primeiro acesso
-        if (action.payload.isFirstAccess) {
-          // Não definir isAuth como true se for primeiro acesso
-          state.isAuth = false;
-          toast.warning("Primeiro acesso detectado. É necessário alterar a senha.", {
-            position: "top-right",
-            autoClose: 3000,
-            hideProgressBar: false,
-            closeOnClick: true,
-            pauseOnHover: true,
-            draggable: true,
-            progress: undefined,
-            theme: "light",
-          });
-        } else {
-          // Só definir isAuth como true se não for primeiro acesso
-          state.isAuth = true;
-          toast.success("Login realizado com sucesso!", {
-            position: "top-right",
-            autoClose: 1500,
-            hideProgressBar: false,
-            closeOnClick: true,
-            pauseOnHover: true,
-            draggable: true,
-            progress: undefined,
-            theme: "light",
-          });
+  reducers: {
+    handleRegister: (state, action) => {
+      const { name, email, password } = action.payload;
+      const user = state.users.find((user) => user.email === email);
+      if (user) {
+        toast.error("User already exists", {
+          position: "top-right",
+          autoClose: 1500,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+          progress: undefined,
+          theme: "light",
+        });
+      } else {
+        state.users.push({
+          id: uuidv4(),
+          name,
+          email,
+          password,
+        });
+        if (typeof window !== "undefined") {
+          window?.localStorage.setItem("users", JSON.stringify(state.users));
         }
-      })
-      .addCase(loginUser.rejected, (state, action) => {
-        state.loading = false;
-        state.isAuth = false;
-        state.user = null;
-        state.error = action.payload;
-        toast.error(action.payload || "Erro no login", {
+        toast.success("User registered successfully", {
           position: "top-right",
           autoClose: 1500,
           hideProgressBar: false,
@@ -145,61 +76,38 @@ export const authSlice = createSlice({
           progress: undefined,
           theme: "light",
         });
-      })
-      // Logout
-      .addCase(logoutUser.pending, (state) => {
-        state.loading = true;
-      })
-      .addCase(logoutUser.fulfilled, (state) => {
-        state.loading = false;
-        state.isAuth = false;
-        state.user = null;
-        state.error = null;
-        toast.success("Logout realizado com sucesso!", {
-          position: "top-right",
-          autoClose: 1500,
-          hideProgressBar: false,
-          closeOnClick: true,
-          pauseOnHover: true,
-          draggable: true,
-          progress: undefined,
-          theme: "light",
-        });
-      })
-      .addCase(logoutUser.rejected, (state, action) => {
-        state.loading = false;
-        state.isAuth = false;
-        state.user = null;
-        state.error = action.payload;
-        toast.error(action.payload || "Erro no logout", {
-          position: "top-right",
-          autoClose: 1500,
-          hideProgressBar: false,
-          closeOnClick: true,
-          pauseOnHover: true,
-          draggable: true,
-          progress: undefined,
-          theme: "light",
-        });
-      })
-      // Get Current User
-      .addCase(getCurrentUser.pending, (state) => {
-        state.loading = true;
-      })
-      .addCase(getCurrentUser.fulfilled, (state, action) => {
-        state.loading = false;
-        state.user = action.payload;
-        state.isAuth = true;
-        state.error = null;
-      })
-      .addCase(getCurrentUser.rejected, (state, action) => {
-        state.loading = false;
-        state.isAuth = false;
-        state.user = null;
-        state.error = action.payload;
+      }
+    },
+
+    handleLogin: (state, action) => {
+      state.isAuth = action.payload;
+      // save isAuth in local storage
+      if (typeof window !== "undefined") {
+        window?.localStorage.setItem("isAuth", JSON.stringify(state.isAuth));
+      }
+      toast.success("User logged in successfully", {
+        position: "top-right",
+        autoClose: 1500,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+        progress: undefined,
+        theme: "light",
       });
-  }
+    },
+    handleLogout: (state, action) => {
+      state.isAuth = action.payload;
+      // remove isAuth from local storage
+      if (typeof window !== "undefined") {
+        window?.localStorage.removeItem("isAuth");
+      }
+      toast.success("User logged out successfully", {
+        position: "top-right",
+      });
+    },
+  },
 });
 
-export const { clearError, setLoading } = authSlice.actions;
+export const { handleRegister, handleLogin, handleLogout } = authSlice.actions;
 export default authSlice.reducer;

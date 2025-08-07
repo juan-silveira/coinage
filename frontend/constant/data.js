@@ -27,8 +27,8 @@ export const menuItems = [
         childlink: "crm",
       },
       {
-        childtitle: "Banking Dashboard",
-        childlink: "banking",
+        childtitle: "Dashboard",
+        childlink: "dashboard",
       },
     ],
   },
@@ -759,7 +759,7 @@ export const notifications = [
     title: "Your order is placed",
     desc: "Amet minim mollit non deser unt ullamco est sit aliqua.",
 
-    image: "/assets/images/all-img/user.png",
+    image: "/assets/images/users/user-1.jpg",
     link: "#",
   },
   {

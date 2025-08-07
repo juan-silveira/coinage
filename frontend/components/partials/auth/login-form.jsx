@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import Textinput from "@/components/ui/Textinput";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
@@ -7,103 +7,70 @@ import { useRouter } from "next/navigation";
 import Checkbox from "@/components/ui/Checkbox";
 import Link from "next/link";
 import { useSelector, useDispatch } from "react-redux";
-import { loginUser } from "./store";
+import { handleLogin } from "./store";
 import { toast } from "react-toastify";
-import ChangePasswordForm from "./change-password-form";
-
 const schema = yup
   .object({
-    email: yup.string().email("Email inválido").required("Email é obrigatório"),
-    password: yup.string().required("Senha é obrigatória"),
+    email: yup.string().email("Invalid email").required("Email is Required"),
+    password: yup.string().required("Password is Required"),
   })
   .required();
-
 const LoginForm = () => {
   const dispatch = useDispatch();
-  const { isAuth, loading, error } = useSelector((state) => state.auth);
-  const router = useRouter();
-  const [showChangePassword, setShowChangePassword] = useState(false);
-  const [loginData, setLoginData] = useState(null);
-  const [newPassword, setNewPassword] = useState(null);
-  
+  const { users } = useSelector((state) => state.auth);
   const {
     register,
     formState: { errors },
     handleSubmit,
   } = useForm({
     resolver: yupResolver(schema),
+    //
     mode: "all",
   });
-
-  // Redirecionar se já estiver autenticado (apenas se não for primeiro acesso)
-  useEffect(() => {
-    console.log("LoginForm useEffect: isAuth mudou para:", isAuth, "showChangePassword:", showChangePassword);
-    
-    // Só redireciona se estiver autenticado E não estiver mostrando o formulário de alteração de senha
-    if (isAuth && !showChangePassword && !loading) {
-      console.log("LoginForm: Redirecionando para /banking");
-      router.push("/banking");
-    }
-  }, [isAuth, showChangePassword, loading, router]);
-
-  const onSubmit = async (data) => {
-    console.log("Tentando fazer login com:", data.email);
-    try {
-      const result = await dispatch(loginUser({ email: data.email, password: data.password })).unwrap();
-      console.log("Login bem-sucedido:", result);
-      
-      // Verificar se é primeiro acesso
-      if (result.isFirstAccess) {
-        setLoginData(data);
-        setShowChangePassword(true);
-      }
-      // Se não for primeiro acesso, o redirecionamento será feito pelo useEffect
-    } catch (error) {
-      // O erro já é tratado no store
-      console.error("Erro no login:", error);
+  const router = useRouter();
+  const onSubmit = (data) => {
+    const user = users.find(
+      (user) => user.email === data.email && user.password === data.password
+    );
+    if (user) {
+      dispatch(handleLogin(true));
+      setTimeout(() => {
+        router.push("/analytics");
+      }, 1500);
+    } else {
+      toast.error("Invalid credentials", {
+        position: "top-right",
+        autoClose: 1500,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+        progress: undefined,
+        theme: "light",
+      });
     }
   };
 
   const [checked, setChecked] = useState(false);
 
-  const handlePasswordChangeSuccess = async (changedPassword) => {
-    console.log("Senha alterada com sucesso, fazendo login com nova senha");
-    setShowChangePassword(false);
-    setNewPassword(changedPassword);
-    
-    // Aguardar um pouco para garantir que o estado foi atualizado
-    setTimeout(() => {
-      // Fazer login com a nova senha
-      if (loginData && changedPassword) {
-        console.log("Fazendo login após alteração de senha com:", loginData.email);
-        dispatch(loginUser({ email: loginData.email, password: changedPassword }));
-      }
-    }, 500); // Aumentei o tempo para garantir que o estado foi atualizado
-  };
-
-  // Se deve mostrar o formulário de alteração de senha
-  if (showChangePassword) {
-    return <ChangePasswordForm onSuccess={handlePasswordChangeSuccess} />;
-  }
-
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 ">
-                           <Textinput
-          name="email"
-          label="email"
-          defaultValue="ivan.alberton@navi.inf.br"
-          type="email"
-          register={register}
-          error={errors?.email}
-        />
-        <Textinput
-          name="password"
-          label="password"
-          type="password"
-          defaultValue="N@vi@2025"
-          register={register}
-          error={errors.password}
-        />
+      <Textinput
+        name="email"
+        label="email"
+        defaultValue="dashcode@gmail.com"
+        type="email"
+        register={register}
+        error={errors?.email}
+      />
+      <Textinput
+        name="password"
+        label="passwrod"
+        type="password"
+        defaultValue="dashcode"
+        register={register}
+        error={errors.password}
+      />
       <div className="flex justify-between">
         <Checkbox
           value={checked}
@@ -118,13 +85,7 @@ const LoginForm = () => {
         </Link>
       </div>
 
-             <button 
-         type="submit" 
-         className="btn btn-dark block w-full text-center" 
-         disabled={loading}
-       >
-         {loading ? "Entrando..." : "Entrar"}
-       </button>
+      <button className="btn btn-dark block w-full text-center">Sign in</button>
     </form>
   );
 };

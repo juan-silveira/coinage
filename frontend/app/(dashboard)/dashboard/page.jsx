@@ -9,6 +9,7 @@ import SimpleBar from "simplebar-react";
 import HistoryChart from "@/components/partials/widget/chart/history-chart";
 import AccountReceivable from "@/components/partials/widget/chart/account-receivable";
 import AccountPayable from "@/components/partials/widget/chart/account-payable";
+import useAuthStore from "@/store/authStore";
 
 const CardSlider = dynamic(
   () => import("@/components/partials/widget/CardSlider"),
@@ -46,27 +47,37 @@ const users = [
 
 const BankingPage = () => {
   const [activeIndex, setActiveIndex] = useState(0);
+  const { user } = useAuthStore();
+  
+  // Função para obter saudação baseada na hora
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return "Bom dia";
+    if (hour < 18) return "Boa tarde";
+    return "Boa noite";
+  };
+
   return (
     <div className="space-y-5">
-      <HomeBredCurbs title="Banking" />
+      <HomeBredCurbs title="Dashboard" />
       <Card>
         <div className="grid xl:grid-cols-4 lg:grid-cols-2 md:grid-cols-2 grid-cols-1 gap-5 place-content-center">
           <div className="flex space-x-4 h-full items-center rtl:space-x-reverse">
             <div className="flex-none">
               <div className="h-20 w-20 rounded-full">
                 <img
-                  src="/assets/images/all-img/main-user.png"
+                  src="/assets/images/users/user-1.jpg"
                   alt=""
-                  className="w-full h-full"
+                  className="block w-full h-full object-cover rounded-full"
                 />
               </div>
             </div>
             <div className="flex-1">
               <h4 className="text-xl font-medium mb-2">
-                <span className="block font-light">Good evening,</span>
-                <span className="block">Mr. Jone Doe</span>
+                <span className="block font-light">{getGreeting()},</span>
+                <span className="block">{user?.name || 'Usuário'}</span>
               </h4>
-              <p className="text-sm dark:text-slate-300">Welcome to Dashcode</p>
+              <p className="text-sm dark:text-slate-300">Bem-vindo à Coinage</p>
             </div>
           </div>
           <GroupChart5 />
