@@ -51,7 +51,6 @@ const useAuthStore = create(
       },
       
       logout: () => {
-        sessionStorage.setItem('showLogoutSuccess', 'true');
         set({
           user: null,
           accessToken: null,

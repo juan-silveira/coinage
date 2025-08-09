@@ -39,11 +39,14 @@ const Profile = () => {
 
   const handleLogout = async () => {
     try {
+      // Remove todos os toasts ativos antes do logout
+      toast.dismiss();
       await authService.logout();
       logout();
       router.push('/login');
     } catch (error) {
       // Mesmo com erro, fazer logout local
+      toast.dismiss();
       logout();
       router.push('/login');
     }
