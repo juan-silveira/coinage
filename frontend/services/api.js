@@ -154,7 +154,7 @@ export const userService = {
     return response.data;
   },
 
-  // Obter saldos do usuário por endereço
+  // Obter saldos do usuário por endereço (consulta direta à blockchain)
   getUserBalances: async (address, network = 'testnet') => {
     const response = await api.get(`/api/users/address/${address}/balances`, {
       params: { network }

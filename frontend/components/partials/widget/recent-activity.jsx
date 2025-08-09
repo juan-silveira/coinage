@@ -2,7 +2,7 @@
 const activity = [
   {
     id: 1,
-    img: "/assets/images/users/user-1.jpg",
+    img: "/assets/images/users/ivan.jpg",
   },
   {
     id: 2,
@@ -26,7 +26,7 @@ const activity = [
   },
   {
     id: 7,
-    img: "/assets/images/users/user-1.jpg",
+    img: "/assets/images/users/ivan.jpg",
   },
   {
     id: 6,

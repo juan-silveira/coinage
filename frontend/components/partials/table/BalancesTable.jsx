@@ -132,8 +132,8 @@ const BalancesTable = ({ balances, loading = false }) => {
     }
   }
 
-  // Calcular total de tokens (sempre +1 para incluir o token nativo)
-  const totalTokens = Math.max(tokenEntries.length, (balances?.totalTokens || 0) + 1);
+  // Calcular total de tokens (API já retorna o total correto incluindo AZE)
+  const totalTokens = balances?.totalTokens || tokenEntries.length;
 
   if (loading) {
     return (

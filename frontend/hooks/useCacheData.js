@@ -51,33 +51,46 @@ const useCacheData = () => {
     setLoading(true);
 
     try {
+      console.log('🔄 useCacheData: Carregando dados do usuário:', user.email);
       const userResponse = await userService.getUserByEmail(user.email);
-      if (userResponse.success) {
-        setCachedUser(userResponse.data);
-        updateUser(userResponse.data);
+      console.log('📡 useCacheData: Resposta getUserByEmail:', userResponse);
+      
+      if (userResponse.success && userResponse.data?.user) {
+        const userData = userResponse.data.user;
+        console.log('✅ useCacheData: Dados do usuário processados:', userData);
+        setCachedUser(userData);
+        updateUser(userData);
 
-        if (userResponse.data?.publicKey) {
-          const balanceResponse = await userService.getUserBalances(userResponse.data.publicKey);
+        if (userData?.publicKey) {
+          console.log('💰 useCacheData: Carregando balances para:', userData.publicKey);
+          const balanceResponse = await userService.getUserBalances(userData.publicKey);
+          console.log('📊 useCacheData: Resposta getUserBalances:', balanceResponse);
+          
           if (balanceResponse.success) {
             setBalances(balanceResponse.data);
             setCacheLoaded(true);
+            console.log('✅ useCacheData: Balances carregados com sucesso');
           } else {
+            console.log('❌ useCacheData: Erro ao carregar balances');
             setBalances({ network: 'testnet', balancesTable: {}, tokenBalances: [], totalTokens: 0 });
           }
         } else {
+          console.log('⚠️ useCacheData: PublicKey não encontrada, pulando balances');
           setBalances({ network: 'testnet', balancesTable: {}, tokenBalances: [], totalTokens: 0 });
         }
       } else {
+        console.log('❌ useCacheData: Resposta inválida ou sem sucesso:', userResponse);
         setBalances({ network: 'testnet', balancesTable: {}, tokenBalances: [], totalTokens: 0 });
       }
     } catch (error) {
+      console.error('❌ useCacheData: Erro ao carregar dados:', error);
       setBalances({ network: 'testnet', balancesTable: {}, tokenBalances: [], totalTokens: 0 });
     } finally {
       setLoading(false);
       setCacheLoading(false);
       hasLoadedRef.current = true;
     }
-  }, [user?.email, cacheLoaded, cacheLoading, updateUser, setCacheLoaded, setCacheLoading]);
+  }, [user?.email, cacheLoaded, cacheLoading, setCacheLoaded, setCacheLoading]);
 
   // Atualização automática a cada 5 minutos (silenciosa)
   useEffect(() => {
@@ -149,8 +162,13 @@ const useCacheData = () => {
 
   // Carregamento inicial e quando o usuário mudar
   useEffect(() => {
-    loadCacheData('initial');
-  }, [user?.email]);
+    console.log('🚀 useCacheData: useEffect disparado - user.email:', user?.email, 'isAuthenticated:', user ? 'sim' : 'não');
+    if (user?.email) {
+      loadCacheData('initial');
+    } else {
+      console.log('⚠️ useCacheData: Usuário não autenticado, pulando carregamento');
+    }
+  }, [user?.email, loadCacheData]);
 
   return {
     cachedUser,

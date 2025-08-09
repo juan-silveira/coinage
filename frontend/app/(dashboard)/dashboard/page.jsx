@@ -69,7 +69,7 @@ const BankingPage = () => {
             <div className="flex-none">
               <div className="h-20 w-20 rounded-full">
                 <img
-                  src="/assets/images/users/user-1.jpg"
+                  src="/assets/images/users/ivan.jpg"
                   alt=""
                   className="block w-full h-full object-cover rounded-full"
                 />

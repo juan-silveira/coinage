@@ -7,75 +7,124 @@ export const menuItems = [
   {
     title: "Dashboard",
     icon: "heroicons-outline:home",
-    isOpen: true,
+    // isOpen: true,
     isHide: true,
-    child: [
-      {
-        childtitle: "Analytics Dashboard",
-        childlink: "analytics",
-      },
-      {
-        childtitle: "Ecommerce Dashboard",
-        childlink: "ecommerce",
-      },
-      {
-        childtitle: "Project  Dashbaord",
-        childlink: "project",
-      },
-      {
-        childtitle: " CRM Dashbaord",
-        childlink: "crm",
-      },
-      {
-        childtitle: "Dashboard",
-        childlink: "dashboard",
-      },
-    ],
+    link: "dashboard",
+    // child: [
+    //   {
+    //     childtitle: "Analytics Dashboard",
+    //     childlink: "analytics",
+    //   },
+    //   {
+    //     childtitle: "Ecommerce Dashboard",
+    //     childlink: "ecommerce",
+    //   },
+    //   {
+    //     childtitle: "Project  Dashbaord",
+    //     childlink: "project",
+    //   },
+    //   {
+    //     childtitle: " CRM Dashbaord",
+    //     childlink: "crm",
+    //   },
+    //   {
+    //     childtitle: "Dashboard",
+    //     childlink: "dashboard",
+    //   },
+    // ],
   },
-  {
-    title: "changelog",
-    icon: "heroicons:arrow-trending-up",
-    link: "changelog",
-    isHide: false,
-    badge: "1.0.0",
-  },
+  // {
+  //   title: "changelog",
+  //   icon: "heroicons:arrow-trending-up",
+  //   link: "changelog",
+  //   isHide: false,
+  //   badge: "1.0.0",
+  // },
   {
     isHeadr: true,
-    title: "apps",
+    title: "Financeiro",
+  },
+  {
+    title: "Sacar",
+    isHide: true,
+    icon: "fa6-brands:pix",
+    link: "withdraw",
+  },
+    {
+    title: "Depositar",
+    isHide: true,
+    icon: "heroicons-outline:arrow-down-on-square",
+    link: "deposit",
+  },
+  {
+    title: "Transferir",
+    isHide: true,
+    icon: "heroicons-outline:switch-horizontal",
+    link: "transfer",
+  },
+  {
+    title: "Trocar",
+    isHide: true,
+    icon: "material-symbols:currency-exchange-rounded",
+    link: "exchange",
+  },
+  {
+    title: "Extrato",
+    isHide: true,
+    icon: "heroicons-outline:banknotes",
+    link: "statement",
   },
 
   {
-    title: "Chat",
-    isHide: true,
-    icon: "heroicons-outline:chat",
-    link: "chat",
+    isHeadr: true,
+    title: "Investimentos",
   },
 
   {
-    title: "Email",
+    title: "Meus Investimentos",
     isHide: true,
-    icon: "heroicons-outline:mail",
-    link: "email",
+    icon: "heroicons-outline:trending-up",
+    link: "investments",
   },
 
   {
-    title: "Kanban",
-    isHide: true,
-    icon: "heroicons-outline:view-boards",
-    link: "kanban",
-  },
-  {
-    title: "Calender",
-    isHide: true,
-    icon: "heroicons-outline:calendar",
-    link: "calender",
+    isHeadr: true,
+    title: "Configurações do Usuário",
   },
 
   {
-    title: "Todo",
+    title: "Dados da Conta",
     isHide: true,
-    icon: "heroicons-outline:clipboard-check",
-    link: "todo",
+    icon: "heroicons-outline:user-circle",
+    link: "profile",
+  },
+  {
+    title: "Validação de Documentos",
+    isHide: true,
+    icon: "heroicons-outline:identification",
+    link: "document-validation",
+  },
+  {
+    title: "Tarifas e Prazos",
+    isHide: true,
+    icon: "heroicons-outline:currency-dollar",
+    link: "fees",
+  },
+  {
+    title: "Segurança",
+    isHide: true,
+    icon: "heroicons-outline:shield-check",
+    link: "security",
+  },
+
+  {
+    isHeadr: true,
+    title: "Configurações do Cliente",
+  },
+
+  {
+    isHeadr: true,
+    title: "Configurações do Sistema",
   },
 
   {
@@ -91,337 +140,6 @@ export const menuItems = [
       {
         childtitle: "Project Details",
         childlink: "project-details",
-      },
-    ],
-  },
-  {
-    isHeadr: true,
-    title: "Pages",
-  },
-  {
-    title: "Authentication",
-    icon: "heroicons-outline:lock-closed",
-    link: "#",
-    child: [
-      {
-        childtitle: "Signin One",
-        childlink: "/",
-      },
-      {
-        childtitle: "Signin Two",
-        childlink: "/login2",
-      },
-      {
-        childtitle: "Signin Three",
-        childlink: "/login3",
-      },
-      {
-        childtitle: "Signup One",
-        childlink: "/reg",
-      },
-      {
-        childtitle: "Signup Two",
-        childlink: "/reg2",
-      },
-      {
-        childtitle: "Signup Three",
-        childlink: "/reg3",
-      },
-      {
-        childtitle: "Forget Password One",
-        childlink: "/forgot-password",
-      },
-      {
-        childtitle: "Forget Password Two",
-        childlink: "/forgot-password2",
-      },
-      {
-        childtitle: "Forget Password Three",
-        childlink: "/forgot-password3",
-      },
-      {
-        childtitle: "Lock Screen One",
-        childlink: "/lock-screen",
-      },
-      {
-        childtitle: "Lock Screen Two",
-        childlink: "/lock-screen2",
-      },
-      {
-        childtitle: "Lock Screen Three",
-        childlink: "/lock-screen3",
-      },
-    ],
-  },
-  {
-    title: "Utility",
-    icon: "heroicons-outline:view-boards",
-    link: "#",
-    isHide: false,
-    child: [
-      {
-        childtitle: "Invoice",
-        childlink: "invoice",
-      },
-      {
-        childtitle: "Pricing",
-        childlink: "pricing",
-      },
-      // {
-      //   childtitle: "Testimonial",
-      //   childlink: "testimonial",
-      // },
-      {
-        childtitle: "FAQ",
-        childlink: "faq",
-      },
-      {
-        childtitle: "Blog",
-        childlink: "blog",
-      },
-      {
-        childtitle: "Blank page",
-        childlink: "blank-page",
-      },
-      {
-        childtitle: "Prfoile",
-        childlink: "profile",
-      },
-      {
-        childtitle: "Settings",
-        childlink: "settings",
-      },
-      {
-        childtitle: "404 page",
-        childlink: "error-page",
-      },
-
-      {
-        childtitle: "Coming Soon",
-        childlink: "coming-soon",
-      },
-      {
-        childtitle: "Under Maintanance page",
-        childlink: "under-construction",
-      },
-    ],
-  },
-  {
-    isHeadr: true,
-    title: "Elements",
-  },
-  {
-    title: "Widgets",
-    icon: "heroicons-outline:view-grid-add",
-    link: "#",
-    child: [
-      {
-        childtitle: "Basic",
-        childlink: "basic",
-      },
-      {
-        childtitle: "Statistic",
-        childlink: "statistic",
-      },
-    ],
-  },
-  {
-    title: "Components",
-    icon: "heroicons-outline:collection",
-    link: "#",
-    child: [
-      {
-        childtitle: "Typography",
-        childlink: "typography",
-      },
-      {
-        childtitle: "Colors",
-        childlink: "colors",
-      },
-      {
-        childtitle: "Alert",
-        childlink: "alert",
-      },
-      {
-        childtitle: "Button",
-        childlink: "button",
-      },
-      {
-        childtitle: "Card",
-        childlink: "card",
-      },
-      {
-        childtitle: "Carousel",
-        childlink: "carousel",
-      },
-      {
-        childtitle: "Dropdown",
-        childlink: "dropdown",
-      },
-
-      {
-        childtitle: "Modal",
-        childlink: "modal",
-      },
-      {
-        childtitle: "Progress bar",
-        childlink: "progress-bar",
-      },
-      {
-        childtitle: "Placeholder",
-        childlink: "placeholder",
-      },
-      {
-        childtitle: "Tab & Accordion",
-        childlink: "tab-accordion",
-      },
-      {
-        childtitle: "Badges",
-        childlink: "badges",
-      },
-      {
-        childtitle: "Paginatins",
-        childlink: "paginations",
-      },
-      {
-        childtitle: "Video",
-        childlink: "video",
-      },
-      {
-        childtitle: "Tooltip & Popover",
-        childlink: "tooltip-popover",
-      },
-    ],
-  },
-  {
-    title: "Forms",
-    icon: "heroicons-outline:clipboard-list",
-    link: "#",
-    child: [
-      {
-        childtitle: "Input",
-        childlink: "input",
-      },
-      {
-        childtitle: "Input group",
-        childlink: "input-group",
-      },
-      {
-        childtitle: "Input layout",
-        childlink: "input-layout",
-      },
-      {
-        childtitle: "Form validation",
-        childlink: "form-validation",
-      },
-      {
-        childtitle: "Wizard",
-        childlink: "form-wizard",
-      },
-      {
-        childtitle: "Input mask",
-        childlink: "input-mask",
-      },
-      {
-        childtitle: "File input",
-        childlink: "file-input",
-      },
-      {
-        childtitle: "Form repeater",
-        childlink: "form-repeater",
-      },
-      {
-        childtitle: "Textarea",
-        childlink: "textarea",
-      },
-      {
-        childtitle: "Checkbox",
-        childlink: "checkbox",
-      },
-      {
-        childtitle: "Radio button",
-        childlink: "radio-button",
-      },
-      {
-        childtitle: "Switch",
-        childlink: "switch",
-      },
-      {
-        childtitle: "Select & React select",
-        childlink: "select",
-      },
-      {
-        childtitle: "Date time picker",
-        childlink: "date-time-picker",
-      },
-    ],
-  },
-  {
-    title: "Table",
-    icon: "heroicons-outline:table",
-    link: "#",
-    child: [
-      {
-        childtitle: "Basic Table",
-        childlink: "table-basic",
-      },
-      {
-        childtitle: "React Table",
-        childlink: "react-table",
-      },
-    ],
-  },
-  {
-    title: "Chart",
-    icon: "heroicons-outline:chart-bar",
-    link: "#",
-    child: [
-      {
-        childtitle: "Apex chart",
-        childlink: "appex-chart",
-      },
-      {
-        childtitle: "Chart js",
-        childlink: "chartjs",
-      },
-      {
-        childtitle: "Recharts",
-        childlink: "recharts",
-      },
-    ],
-  },
-  {
-    title: "Map",
-    icon: "heroicons-outline:map",
-    link: "map",
-  },
-  {
-    title: "Icons",
-    icon: "heroicons-outline:emoji-happy",
-    link: "icons",
-  },
-  {
-    title: "Multi Level",
-    icon: "heroicons:share",
-    link: "#",
-    child: [
-      {
-        childtitle: "Level 1.1",
-        childlink: "icons",
-      },
-      {
-        childtitle: "Level 1.2",
-        childlink: "Level-1",
-        multi_menu: [
-          {
-            multiTitle: "Level 2.1",
-            multiLink: "Level-2",
-          },
-          {
-            multiTitle: "Level 2.2",
-            multiLink: "Level-2.3",
-          },
-        ],
       },
     ],
   },
@@ -759,7 +477,7 @@ export const notifications = [
     title: "Your order is placed",
     desc: "Amet minim mollit non deser unt ullamco est sit aliqua.",
 
-    image: "/assets/images/users/user-1.jpg",
+    image: "/assets/images/users/ivan.jpg",
     link: "#",
   },
   {

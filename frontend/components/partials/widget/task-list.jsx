@@ -7,7 +7,7 @@ const TaskLists = () => {
   const [lists, setLists] = useState([
     {
       id: 1,
-      image: "/assets/images/users/user-1.jpg",
+      image: "/assets/images/users/ivan.jpg",
       title: "Amet minim mollit non deserunt ullam.",
       isDone: false,
     },
