@@ -14,6 +14,7 @@ services:
       - DB_NAME=coinage_db
       - DB_USER=coinage_user
       - DB_PASSWORD=coinage_password
+      - DATABASE_URL=postgresql://coinage_user:coinage_password@postgres:5432/coinage_db?sslmode=disable
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - RABBITMQ_HOST=rabbitmq
@@ -26,6 +27,7 @@ services:
       - MINIO_SECRET_KEY=coinage_secret_key
       - DEFAULT_ADMIN_EMAIL=ivan.alberton@navi.inf.br
       - DEFAULT_ADMIN_PASSWORD=N@vi@2025
+      - JWT_SECRET=1dbe2489ad1e57530b103d71d7007ad34e17a3239a90c0cfa9007cbcab6859f75c9d2cd12f08a95a9c23428466e1e6f25c5c33cd818889d7c63d5eedf4c88f50
     networks:
       - coinage_network
     restart: unless-stopped
@@ -49,6 +51,8 @@ services:
   postgres:
     image: postgres:15-alpine
     container_name: coinage_postgres
+    ports:
+      - "5433:5432"
     environment:
       - POSTGRES_DB=coinage_db
       - POSTGRES_USER=coinage_user

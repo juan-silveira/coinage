@@ -21,6 +21,7 @@ const CardSlider = dynamic(
 import TransactionsTable from "@/components/partials/table/transactions";
 import SelectMonth from "@/components/partials/SelectMonth";
 import HomeBredCurbs from "@/components/partials/HomeBredCurbs";
+import DigitalAssetsCard from "@/components/partials/widget/DigitalAssetsCard";
 
 const users = [
   {
@@ -173,6 +174,7 @@ const BankingPage = () => {
         </div>
         <div className="lg:col-span-8 col-span-12">
           <div className="space-y-5 bank-table">
+            <DigitalAssetsCard />
             <TransactionsTable />
             <Card title="History" headerslot={<SelectMonth />}>
               <div className="legend-ring4">
