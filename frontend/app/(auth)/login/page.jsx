@@ -19,6 +19,11 @@ const LoginPage = () => {
   });
   const [errors, setErrors] = useState({});
 
+  // Alterar title da página
+  useEffect(() => {
+    document.title = 'Coinage - Login';
+  }, []);
+
   // Verificar se já está autenticado
   useEffect(() => {
     if (isAuthenticated) {
@@ -160,11 +165,11 @@ const LoginPage = () => {
                 />
               </Link>
               <h4>
-                Desbloqueie o{" "}
+              Sistema de gestão de tokens e transações em{" "}
                 <span className="text-slate-800 dark:text-slate-400 font-bold">
-                  potencial
+                blockchain
                 </span>{" "}
-                da sua Coinage
+                .
               </h4>
             </div>
             <div className="absolute left-0 2xl:bottom-[-160px] bottom-[-130px] h-full w-full z-[-1]">
@@ -192,7 +197,7 @@ const LoginPage = () => {
                   </Link>
                 </div>
                 <div className="text-center 2xl:mb-10 mb-4">
-                  <h4 className="font-medium">Bem-vindo ao Coinage</h4>
+                  <h4 className="font-medium">Bem-vindo à Coinage</h4>
                   <div className="text-slate-500 text-base">
                     Faça login para acessar sua conta
                   </div>

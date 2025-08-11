@@ -29,7 +29,7 @@ const Card = ({
         <header className={`card-header ${noborder ? "no-border" : ""}`}>
           <div>
             {title && <div className={`card-title ${titleClass}`}>{title}</div>}
-            {subtitle && <div className="card-subtitle">{subtitle}</div>}
+            {subtitle && <div className="card-subtitle text-xs">{subtitle}</div>}
           </div>
           {headerslot && <div className="card-header-slot">{headerslot}</div>}
         </header>

@@ -8,7 +8,7 @@ import "./scss/app.scss";
 import { ToastContainer } from 'react-toastify';
 
 export const metadata = {
-  title: 'Azore - Sistema de Gestão',
+  title: 'Coinage - Sistema de Gestão',
   description: 'Sistema de gestão de tokens e transações blockchain.',
 }
 
