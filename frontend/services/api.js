@@ -161,6 +161,8 @@ export const userService = {
     });
     return response.data;
   },
+
+
 };
 
 // Serviços de transações

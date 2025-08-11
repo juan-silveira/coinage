@@ -44,11 +44,15 @@ const useCacheData = () => {
       return;
     }
 
-    // Evitar reentrância
-    if (hasLoadedRef.current || cacheLoading) return;
+    // Evitar reentrância (mas permitir reload silencioso)
+    if (cacheLoading) return;
+    if (hasLoadedRef.current && reason !== 'silent') return;
 
     setCacheLoading(true);
-    setLoading(true);
+    // Só mostrar loading se não for silent
+    if (reason !== 'silent') {
+      setLoading(true);
+    }
 
     try {
       console.log('🔄 useCacheData: Carregando dados do usuário:', user.email);
@@ -58,6 +62,20 @@ const useCacheData = () => {
       if (userResponse.success && userResponse.data?.user) {
         const userData = userResponse.data.user;
         console.log('✅ useCacheData: Dados do usuário processados:', userData);
+        
+        // Verificar se houve mudança significativa nos dados
+        if (reason === 'silent' && cachedUser && userData.id === cachedUser.id) {
+          // Comparar timestamps ou dados importantes para detectar mudanças
+          const hasChanges = JSON.stringify(userData) !== JSON.stringify(cachedUser);
+          if (hasChanges) {
+            console.log('🔄 Detectada mudança silenciosa - forçando atualização completa');
+            // Force um refresh completo se detectar mudanças durante silent reload
+            hasLoadedRef.current = false;
+            setCacheLoaded(false);
+            setLoading(true); // Mostrar loading para indicar atualização
+          }
+        }
+        
         setCachedUser(userData);
         updateUser(userData);
 
@@ -67,7 +85,26 @@ const useCacheData = () => {
           console.log('📊 useCacheData: Resposta getUserBalances:', balanceResponse);
           
           if (balanceResponse.success) {
-            setBalances(balanceResponse.data);
+            const newBalanceData = balanceResponse.data;
+            
+            // Detectar mudanças nos balances
+            if (reason === 'silent' && balances && balances.totalTokens !== undefined) {
+              const balanceChanged = newBalanceData.totalTokens !== balances.totalTokens ||
+                                   JSON.stringify(newBalanceData.balancesTable) !== JSON.stringify(balances.balancesTable);
+              
+              if (balanceChanged) {
+                console.log('💰 Detectada mudança nos balances - atualizando interface');
+                setLoading(true); // Mostrar loading brevemente para indicar atualização
+                
+                // Timeout de segurança para evitar loading infinito
+                setTimeout(() => {
+                  setLoading(false);
+                  console.log('⏰ Timeout de segurança - finalizando loading');
+                }, 3000);
+              }
+            }
+            
+            setBalances(newBalanceData);
             setCacheLoaded(true);
             console.log('✅ useCacheData: Balances carregados com sucesso');
           } else {
@@ -86,7 +123,10 @@ const useCacheData = () => {
       console.error('❌ useCacheData: Erro ao carregar dados:', error);
       setBalances({ network: 'testnet', balancesTable: {}, tokenBalances: [], totalTokens: 0 });
     } finally {
-      setLoading(false);
+      // Só parar loading se não for silent
+      if (reason !== 'silent') {
+        setLoading(false);
+      }
       setCacheLoading(false);
       hasLoadedRef.current = true;
     }
