@@ -109,7 +109,7 @@ const Navmenu = ({ menus }) => {
             />
           </li>
         ))}
-        <li className="single-sidebar-menu">
+        {/* <li className="single-sidebar-menu">
           <a
             href="https://dashcode-react-doc.codeshaper.tech/"
             target="_blank"
@@ -120,7 +120,7 @@ const Navmenu = ({ menus }) => {
             </span>
             <div className="text-box">Documentation</div>
           </a>
-        </li>
+        </li> */}
       </ul>
     </>
   );

@@ -7,6 +7,7 @@ import PortfolioDonutChart from "@/components/partials/widget/chart/portfolio-do
 import PortfolioSummary from "@/components/partials/widget/PortfolioSummary";
 import Link from "next/link";
 import SimpleBar from "simplebar-react";
+import Earnings from "@/components/partials/widget/Earnings";
 import CompanyTable from "@/components/partials/table/company-table";
 import HistoryChart from "@/components/partials/widget/chart/history-chart";
 import AccountReceivable from "@/components/partials/widget/chart/account-receivable";
@@ -114,16 +115,11 @@ const BankingPage = () => {
         </div>
       </div>
       <div className="grid lg:grid-cols-2 grid-cols-1 gap-5">
+        <Earnings />
         <Card title="History" headerslot={<SelectMonth />}>
           <div className="legend-ring4">
             <HistoryChart />
           </div>
-        </Card>
-        <Card title="Account Receivable" headerslot={<SelectMonth />}>
-          <AccountReceivable />
-        </Card>
-        <Card title="Account Payable" headerslot={<SelectMonth />}>
-          <AccountPayable />
         </Card>
       </div>
     </div>

@@ -1,7 +1,31 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import Icon from "@/components/ui/Icon";
 
+// Hook personalizado para detectar tamanho da tela
+const useScreenSize = () => {
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkScreenSize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+
+    // Verificar tamanho inicial
+    checkScreenSize();
+
+    // Adicionar listener para mudanças de tamanho
+    window.addEventListener('resize', checkScreenSize);
+
+    // Cleanup
+    return () => window.removeEventListener('resize', checkScreenSize);
+  }, []);
+
+  return isMobile;
+};
+
 const BalancesTable = ({ balances, loading = false }) => {
+  const isMobile = useScreenSize();
+
   // Mapear símbolos para nomes completos
   const tokenNames = {
     'AZE': 'Azore Token (Mainnet)',
@@ -17,12 +41,27 @@ const BalancesTable = ({ balances, loading = false }) => {
     return tokenNames[symbol] || `${symbol} Token`;
   };
 
-  // Função para formatar o saldo com 6 casas decimais
+  // Função para formatar o saldo com truncamento para valores muito longos
   const formatBalance = (balance) => {
     if (balance === '0' || balance === 0 || !balance) {
       return '0.000000';
     }
-    return parseFloat(balance).toFixed(6);
+    
+    const formatted = parseFloat(balance).toFixed(6);
+    
+    // Aplicar truncamento apenas em telas menores que 768px
+    if (isMobile && formatted.length > 12) {
+      const num = parseFloat(balance);
+      if (num >= 1000000) {
+        return (num / 1000000).toFixed(2) + 'M';
+      } else if (num >= 1000) {
+        return (num / 1000).toFixed(2) + 'K';
+      } else {
+        return num.toFixed(2);
+      }
+    }
+    
+    return formatted;
   };
 
   // Função para obter o símbolo correto do AZE baseado na rede
@@ -160,20 +199,20 @@ const BalancesTable = ({ balances, loading = false }) => {
     <div className="space-y-4">
       {/* Tabela de Balances */}
       <div className="overflow-x-auto">
-        <table className="w-full border-collapse table-fixed dark:border-slate-700 dark:border">
+        <table className="w-full border-collapse dark:border-slate-700 dark:border">
           <thead>
             <tr className="bg-slate-50 dark:bg-slate-700 dark:text-slate-300">
-              <th className="text-xs font-medium leading-4 uppercase text-slate-600 ltr:text-left ltr:last:text-right rtl:text-right rtl:last:text-left">
-                <span className="block px-6 py-5 font-semibold">Logo</span>
+              <th className="w-16 md:w-20 text-xs font-medium leading-4 uppercase text-slate-600 ltr:text-left ltr:last:text-right rtl:text-right rtl:last:text-left">
+                <span className="block px-3 md:px-6 py-5 font-semibold">Logo</span>
               </th>
-              <th className="text-xs font-medium leading-4 uppercase text-slate-600 ltr:text-left ltr:last:text-right rtl:text-right rtl:last:text-left">
-                <span className="block px-6 py-5 font-semibold">Sigla</span>
+              <th className="w-20 md:w-24 text-xs font-medium leading-4 uppercase text-slate-600 ltr:text-left ltr:last:text-right rtl:text-right rtl:last:text-left">
+                <span className="block px-3 md:px-6 py-5 font-semibold">Sigla</span>
               </th>
-              <th className="text-xs font-medium leading-4 uppercase text-slate-600 ltr:text-left ltr:last:text-right rtl:text-right rtl:last:text-left">
-                <span className="block px-6 py-5 font-semibold">Nome</span>
+              <th className="min-w-0 flex-1 text-xs font-medium leading-4 uppercase text-slate-600 ltr:text-left ltr:last:text-right rtl:text-right rtl:last:text-left">
+                <span className="block px-3 md:px-6 py-5 font-semibold">Nome</span>
               </th>
-              <th className="text-xs font-medium leading-4 uppercase text-slate-600 ltr:text-left ltr:last:text-right rtl:text-right rtl:last:text-left">
-                <span className="block px-6 py-5 font-semibold">Saldo</span>
+              <th className="w-24 md:w-32 text-xs font-medium leading-4 uppercase text-slate-600 ltr:text-left ltr:last:text-right rtl:text-right rtl:last:text-left">
+                <span className="block px-3 md:px-6 py-5 font-semibold">Saldo</span>
               </th>
             </tr>
           </thead>
@@ -183,7 +222,7 @@ const BalancesTable = ({ balances, loading = false }) => {
                 key={tokenSymbol}
                 className="border-b border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
               >
-                <td className="text-slate-900 dark:text-slate-300 text-sm font-normal ltr:text-left ltr:last:text-right rtl:text-right rtl:last:text-left px-6 py-4">
+                <td className="w-16 md:w-20 text-slate-900 dark:text-slate-300 text-sm font-normal ltr:text-left ltr:last:text-right rtl:text-right rtl:last:text-left px-3 md:px-6 py-4">
                   <div className="flex items-center">
                     <img
                       src={`/assets/images/currencies/${tokenSymbol}.png`}
@@ -202,16 +241,16 @@ const BalancesTable = ({ balances, loading = false }) => {
                     </div>
                   </div>
                 </td>
-                <td className="text-slate-900 dark:text-slate-300 text-sm font-normal ltr:text-left ltr:last:text-right rtl:text-right rtl:last:text-left px-6 py-4">
+                <td className="w-20 md:w-24 text-slate-900 dark:text-slate-300 text-sm font-normal ltr:text-left ltr:last:text-right rtl:text-right rtl:last:text-left px-3 md:px-6 py-4">
                   <span className="font-medium">{tokenSymbol}</span>
                 </td>
-                <td className="text-slate-900 dark:text-slate-300 text-sm font-normal ltr:text-left ltr:last:text-right rtl:text-right rtl:last:text-left px-6 py-4">
-                  <span className="text-slate-600 dark:text-slate-400">
+                <td className="min-w-0 flex-1 text-slate-900 dark:text-slate-300 text-sm font-normal ltr:text-left ltr:last:text-right rtl:text-right rtl:last:text-left px-3 md:px-6 py-4">
+                  <span className="text-slate-600 dark:text-slate-400 truncate block" title={getTokenName(tokenSymbol)}>
                     {getTokenName(tokenSymbol)}
                   </span>
                 </td>
-                <td className="balance text-slate-900 dark:text-slate-300 text-sm font-normal ltr:text-left ltr:last:text-right rtl:text-right rtl:last:text-left px-6 py-4">
-                  <span className="font-bold">
+                <td className="w-24 md:w-32 text-slate-900 dark:text-slate-300 text-sm font-normal ltr:text-left ltr:last:text-right rtl:text-right rtl:last:text-left px-3 md:px-6 py-4">
+                  <span className="font-bold text-xs md:text-sm" title={formatBalance(balance)}>
                     {formatBalance(balance)}
                   </span>
                 </td>
@@ -222,11 +261,11 @@ const BalancesTable = ({ balances, loading = false }) => {
       </div>
       
       {/* Resumo */}
-      <div className="md:flex px-6 py-6 items-center bg-slate-50 dark:bg-slate-700 rounded-lg">
+      <div className="md:flex px-3 md:px-6 py-6 items-center bg-slate-50 dark:bg-slate-700 rounded-lg">
         {/* <div className="flex-1 text-slate-500 dark:text-slate-300 text-sm">
           Dados carregados do cache Redis - Performance otimizada
         </div> */}
-        <div className="flex-none min-w-[270px] space-y-3">
+        <div className="flex-none min-w-0 md:min-w-[270px] space-y-3">
           <div className="flex justify-between">
             <span className="font-medium text-slate-600 text-xs dark:text-slate-300 uppercase">
               Total de Tokens:
@@ -247,7 +286,7 @@ const BalancesTable = ({ balances, loading = false }) => {
             <span className="font-medium text-slate-600 text-xs dark:text-slate-300 uppercase">
               Endereço:
             </span>
-            <span className="text-slate-900 dark:text-slate-300 font-mono text-xs">
+            <span className="text-slate-900 dark:text-slate-300 font-mono text-xs truncate ml-2" title={balances.address || 'N/A'}>
               {balances.address ? `${balances.address.substring(0, 8)}...` : 'N/A'}
             </span>
           </div>

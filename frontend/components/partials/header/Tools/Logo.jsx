@@ -29,7 +29,7 @@ const Logo = () => {
                   ? "/assets/images/logo/logo-c-white.svg"
                   : "/assets/images/logo/logo-c.svg"
               }
-              alt=""
+              alt="" width={40} height={40}
             />
           )}
         </React.Fragment>

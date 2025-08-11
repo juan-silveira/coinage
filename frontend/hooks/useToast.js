@@ -39,15 +39,15 @@ const useToast = () => {
   }, []);
 
   const showSuccess = useCallback((message, options = {}) => {
-    showToast('success', message, { autoClose: 3000, ...options });
+    showToast('success', message, { autoClose: 1500, ...options });
   }, [showToast]);
 
   const showError = useCallback((message, options = {}) => {
-    showToast('error', message, { autoClose: 5000, ...options });
+    showToast('error', message, { autoClose: 3000, ...options });
   }, [showToast]);
 
   const showWarning = useCallback((message, options = {}) => {
-    showToast('warning', message, { autoClose: 4000, ...options });
+    showToast('warning', message, { autoClose: 2500, ...options });
   }, [showToast]);
 
   const showLoading = useCallback((message = 'Carregando...', options = {}) => {
@@ -55,7 +55,7 @@ const useToast = () => {
   }, [showToast]);
 
   const showInfo = useCallback((message, options = {}) => {
-    showToast('info', message, { autoClose: 4000, ...options });
+    showToast('info', message, { autoClose: 2500, ...options });
   }, [showToast]);
 
   // Helpers de processo com um toastId fixo (deduplicado)
