@@ -10,7 +10,8 @@ const useCacheData = () => {
     network: 'testnet',
     balancesTable: {},
     tokenBalances: [],
-    totalTokens: 0
+    totalTokens: 0,
+    categories: null
   });
   const [loading, setLoading] = useState(true);
 
@@ -40,7 +41,7 @@ const useCacheData = () => {
 
     if (!user?.email) {
       setLoading(false);
-      setBalances({ network: 'testnet', balancesTable: {}, tokenBalances: [], totalTokens: 0 });
+      setBalances({ network: 'testnet', balancesTable: {}, tokenBalances: [], totalTokens: 0, categories: null });
       return;
     }
 
@@ -109,19 +110,19 @@ const useCacheData = () => {
             console.log('✅ useCacheData: Balances carregados com sucesso');
           } else {
             console.log('❌ useCacheData: Erro ao carregar balances');
-            setBalances({ network: 'testnet', balancesTable: {}, tokenBalances: [], totalTokens: 0 });
+            setBalances({ network: 'testnet', balancesTable: {}, tokenBalances: [], totalTokens: 0, categories: null });
           }
         } else {
           console.log('⚠️ useCacheData: PublicKey não encontrada, pulando balances');
-          setBalances({ network: 'testnet', balancesTable: {}, tokenBalances: [], totalTokens: 0 });
+          setBalances({ network: 'testnet', balancesTable: {}, tokenBalances: [], totalTokens: 0, categories: null });
         }
       } else {
         console.log('❌ useCacheData: Resposta inválida ou sem sucesso:', userResponse);
-        setBalances({ network: 'testnet', balancesTable: {}, tokenBalances: [], totalTokens: 0 });
+        setBalances({ network: 'testnet', balancesTable: {}, tokenBalances: [], totalTokens: 0, categories: null });
       }
     } catch (error) {
       console.error('❌ useCacheData: Erro ao carregar dados:', error);
-      setBalances({ network: 'testnet', balancesTable: {}, tokenBalances: [], totalTokens: 0 });
+      setBalances({ network: 'testnet', balancesTable: {}, tokenBalances: [], totalTokens: 0, categories: null });
     } finally {
       // Só parar loading se não for silent
       if (reason !== 'silent') {
@@ -156,14 +157,15 @@ const useCacheData = () => {
 
   const getBalance = useCallback((symbol) => {
     if (!balances) return '0.000000';
-    if (symbol === 'AZE') symbol = getCorrectAzeSymbol();
+    // Não converter automaticamente - deixar que os componentes passem o símbolo correto
     if (balances.balancesTable && balances.balancesTable[symbol]) return formatBalance(balances.balancesTable[symbol]);
     if (balances.tokenBalances && Array.isArray(balances.tokenBalances)) {
       const token = balances.tokenBalances.find(t => t.tokenSymbol === symbol || t.tokenName === symbol);
       if (token) return formatBalance(token.balanceEth || token.balance);
     }
-    if ((symbol === 'AZE' || symbol === 'AZE-t') && balances.azeBalance) return formatBalance(balances.azeBalance.balanceEth);
+    // Fallback específico para AZE/AZE-t se não encontrou ainda
     if (symbol === 'AZE' || symbol === 'AZE-t') {
+      if (balances.azeBalance) return formatBalance(balances.azeBalance.balanceEth);
       if (balances.balancesTable && balances.balancesTable.AZE) return formatBalance(balances.balancesTable.AZE);
       if (balances.balancesTable && balances.balancesTable['AZE-t']) return formatBalance(balances.balancesTable['AZE-t']);
       if (balances.tokenBalances && Array.isArray(balances.tokenBalances)) {
@@ -172,7 +174,7 @@ const useCacheData = () => {
       }
     }
     return '0.000000';
-  }, [balances, formatBalance, getCorrectAzeSymbol]);
+  }, [balances, formatBalance]);
 
   // Formatações (CPF e Telefone) no padrão brasileiro
   const formatCPF = useCallback((cpf) => {

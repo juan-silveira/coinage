@@ -3,6 +3,7 @@ import React, { useState } from "react";
 import Card from "@/components/ui/Card";
 import Icon from "@/components/ui/Icon";
 import useCacheData from "@/hooks/useCacheData";
+import { getTokenPrice, formatCurrency as formatCurrencyHelper } from "@/constants/tokenPrices";
 
 const DigitalAssetsCard = () => {
   const [activeIndex, setActiveIndex] = useState(0);
@@ -18,23 +19,20 @@ const DigitalAssetsCard = () => {
     return network === 'testnet' ? 'AZE-t' : 'AZE';
   };
 
-  // Mapeamento de tokens por categoria
-  const tokenCategories = {
-    criptomoedas: [getCorrectAzeSymbol(), 'cBRL'],
-    startups: ['CNT'],
-    utility: ['MJD'],
-    digital: ['PCN']
+  // Mapeamento de tokens por categoria (cBRL não entra em nenhuma categoria)
+  const getTokenCategories = () => {
+    const network = balances?.network || 'testnet';
+    return {
+      criptomoedas: [getCorrectAzeSymbol()], // AZE ou AZE-t, sem cBRL
+      startups: ['CNT'],
+      utility: ['MJD'],
+      digital: network === 'testnet' ? ['PCN', 'STT'] : ['PCN'] // STT apenas na testnet
+    };
   };
+  
+  const tokenCategories = getTokenCategories();
 
-  // Preços dos tokens em BRL (mock - será substituído por dados do backend)
-  const tokenPrices = {
-    'AZE': 1.00,
-    'AZE-t': 1.00,
-    'cBRL': 1.00,
-    'CNT': 1.00,
-    'MJD': 1.00,
-    'PCN': 1.00
-  };
+  // Usar preços centralizados de @/constants/tokenPrices
 
   // Função para obter o nome correto do token baseado na rede
   const getTokenName = (symbol) => {
@@ -47,7 +45,8 @@ const DigitalAssetsCard = () => {
       'cBRL': 'Coinage Real Brasil',
       'CNT': 'Coinage Trade',
       'MJD': 'Meu Jurídico Digital',
-      'PCN': 'Pratique Coin'
+      'PCN': 'Pratique Coin',
+      'STT': 'Simple Test Token'
     };
     
     return tokenNames[symbol] || symbol;
@@ -67,22 +66,12 @@ const DigitalAssetsCard = () => {
     return parseFloat(balance).toFixed(6);
   };
 
-  // Função para formatar valores em dinheiro no padrão brasileiro
-  const formatCurrency = (value) => {
-    if (!value || isNaN(value)) return 'R$ 0,00';
-    
-    const numericValue = parseFloat(value);
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    }).format(numericValue);
-  };
+  // Usar formatação centralizada
+  const formatCurrency = formatCurrencyHelper;
 
   // Função para calcular valor em BRL baseado no preço do token
   const calculateValueBRL = (balance, symbol) => {
-    const price = tokenPrices[symbol] || 1.00; // Fallback para R$ 1,00 se não encontrar o preço
+    const price = getTokenPrice(symbol);
     const value = parseFloat(balance) * price;
     return formatCurrency(value);
   };
@@ -108,7 +97,7 @@ const DigitalAssetsCard = () => {
         const valueBRL = calculateValueBRL(balance, symbol);
         
         // Extrair valor numérico para cálculo do total
-        const price = tokenPrices[symbol] || 1.00;
+        const price = getTokenPrice(symbol);
         const numericValue = parseFloat(balance) * price;
         totalValue += numericValue;
 
