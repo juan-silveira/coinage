@@ -27,24 +27,25 @@ const useIntegratedBalanceSync = () => {
       
       // Ações simplificadas
       startSync: () => {
-        console.log('🔄 Auto-sync já está sempre ativo');
         showSuccess('🔄 Sistema de sincronização automática sempre ativo');
       },
       stopSync: () => {
-        console.log('🔄 Auto-sync não pode ser parado - sempre ativo');
+        console.error('🔄 Auto-sync não pode ser parado - sempre ativo');
       },
       syncNow: () => cacheData.reloadData(),
       clearChanges: () => {
-        console.log('🔄 Limpeza de mudanças - sistema sempre ativo');
+        console.error('🔄 Limpeza de mudanças - sistema sempre ativo');
       },
       formatLastSync: () => 'Sistema sempre ativo',
     },
     
     // Função manual para forçar reload completo
     forceReload: async () => {
-      console.log('🔄 [IntegratedSync] Force reload solicitado...');
-      await cacheData.reloadData();
-      console.log('✅ [IntegratedSync] Force reload concluído');
+      try {
+        await cacheData.reloadData();
+      } catch (error) {
+        console.error('❌ [IntegratedSync] Erro no force reload:', error);
+      }
     }
   };
 };

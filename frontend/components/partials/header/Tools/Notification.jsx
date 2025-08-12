@@ -22,7 +22,8 @@ const Notification = () => {
   const { isAuthenticated } = useAuthStore();
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  
 
 
 
@@ -34,22 +35,14 @@ const Notification = () => {
       const response = await api.get('/api/notifications/unread-count');
       
       if (response.data.success) {
-        console.log('📊 Contagem recebida:', response.data.data.count);
-        setUnreadCount(response.data.data.count);
+        const count = response.data.data.count;
+        setUnreadCount(count);
+        return count;
       }
     } catch (error) {
-      console.error('Erro ao buscar contagem de notificações:', error);
-      // Fallback: buscar todas as notificações e contar as não lidas
-      try {
-        const allResponse = await api.get('/api/notifications');
-        if (allResponse.data.success) {
-          const unreadCount = allResponse.data.data.filter(n => !n.isRead && n.isActive).length;
-          console.log('📊 Contagem fallback:', unreadCount);
-          setUnreadCount(unreadCount);
-        }
-      } catch (fallbackError) {
-        console.error('Erro no fallback:', fallbackError);
-      }
+      // Fallback para contagem local sem usar notifications no callback
+      setUnreadCount(0);
+      return 0;
     }
   }, [isAuthenticated]);
 
@@ -62,17 +55,16 @@ const Notification = () => {
       const response = await api.get('/api/notifications/unread');
       
       if (response.data.success) {
-        setNotifications(response.data.data);
-        setUnreadCount(response.data.data.length);
+        const notificationsData = response.data.data || [];
+        setNotifications(notificationsData);
       }
     } catch (error) {
-      console.error('Erro ao buscar notificações:', error);
-      // Em caso de erro, tentar buscar a contagem
-      fetchUnreadCount();
+      // Em caso de erro, mantém o estado atual
+      setNotifications([]);
     } finally {
       setLoading(false);
     }
-  }, [isAuthenticated, fetchUnreadCount]);
+  }, [isAuthenticated]);
 
   // Marcar notificação como lida
   const markAsRead = async (notificationId, event = null) => {
@@ -91,9 +83,10 @@ const Notification = () => {
       setNotifications(prev => prev.filter(n => n.id !== notificationId));
       setUnreadCount(prev => Math.max(0, prev - 1));
       
-      console.log(`✅ Notificação ${notificationId} marcada como lida`);
     } catch (error) {
-      console.error('Erro ao marcar notificação como lida:', error);
+      // Em caso de erro, ainda remove da lista local para melhor UX
+      setNotifications(prev => prev.filter(n => n.id !== notificationId));
+      setUnreadCount(prev => Math.max(0, prev - 1));
     }
   };
 
@@ -105,71 +98,78 @@ const Notification = () => {
       await api.put('/api/notifications/mark-all-read');
       
       // Limpar estado local
-      setNotifications([]);
+      setNotifications(prev => 
+        prev.map(n => ({ ...n, isRead: true }))
+      );
       setUnreadCount(0);
       
-      console.log('✅ Todas as notificações foram marcadas como lidas');
     } catch (error) {
-      console.error('Erro ao marcar todas as notificações como lidas:', error);
+      // Em caso de erro, ainda limpa o estado local
+      setNotifications([]);
+      setUnreadCount(0);
     }
   };
 
   // Carregar dados iniciais
   useEffect(() => {
-    console.log('🔐 Notification - isAuthenticated:', isAuthenticated);
     if (isAuthenticated) {
-      console.log('✅ Usuário autenticado, buscando notificações...');
       fetchUnreadNotifications();
       fetchUnreadCount();
     } else {
-      console.log('❌ Usuário não autenticado');
+      // Reset do estado quando não autenticado
+      setNotifications([]);
+      setUnreadCount(0);
+      setLoading(false);
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated]); // Removidas as dependências das funções
 
-  // Debug: Log das mudanças de estado
-  useEffect(() => {
-    console.log('📱 Notification - Estado atual:', {
-      isAuthenticated,
-      unreadCount,
-      notificationsLength: notifications.length,
-      loading
-    });
-  }, [isAuthenticated, unreadCount, notifications.length, loading]);
-
-  // Atualizar a cada 15 segundos (mais frequente)
+  // Atualizar a cada 15 segundos - contagem e lista silenciosamente
   useEffect(() => {
     if (!isAuthenticated) return;
     
-    const interval = setInterval(() => {
-      fetchUnreadCount();
-    }, 15000);
+    const interval = setInterval(async () => {
+      // Atualizar contagem
+      await fetchUnreadCount();
+      
+      // Atualizar lista silenciosamente (sem loading)
+      try {
+        const response = await api.get('/api/notifications/unread');
+        if (response.data.success) {
+          const notificationsData = response.data.data || [];
+          setNotifications(notificationsData);
+        }
+      } catch (error) {
+        // Erro silencioso
+      }
+    }, 10000); // 10 segundos para ser mais responsivo
     
     return () => clearInterval(interval);
-  }, [isAuthenticated, fetchUnreadCount]);
+  }, [isAuthenticated]);
 
-  // Ouvir evento personalizado para atualização imediata
+  // Listener para eventos de refresh
   useEffect(() => {
-    if (!isAuthenticated) return;
-
-    const handleRefreshNotifications = () => {
-      console.log('🔔 [Notification] Evento de refresh recebido - atualizando notificações...');
+    const handleRefresh = async () => {
+      // Atualização completa quando há evento de refresh
+      await fetchUnreadCount();
       
-      // Usar funções diretas para evitar problemas de dependência
-      if (isAuthenticated) {
-        fetchUnreadCount();
-        fetchUnreadNotifications();
+      // Atualizar lista também
+      try {
+        const response = await api.get('/api/notifications/unread');
+        if (response.data.success) {
+          const notificationsData = response.data.data || [];
+          setNotifications(notificationsData);
+        }
+      } catch (error) {
+        // Erro silencioso
       }
     };
 
-    window.addEventListener('refreshNotifications', handleRefreshNotifications, { passive: true });
-    
-    return () => {
-      window.removeEventListener('refreshNotifications', handleRefreshNotifications);
-    };
-  }, [isAuthenticated]);
+    window.addEventListener('notificationRefresh', handleRefresh);
+    return () => window.removeEventListener('notificationRefresh', handleRefresh);
+  }, []); // Sem dependências
 
   return (
-    <Dropdown classMenuItems="md:w-[300px] top-[58px]" label={notifyLabel(unreadCount)}>
+    <Dropdown classMenuItems="md:w-[300px] top-[58px] z-[99999]" label={notifyLabel(unreadCount)}>
       <div className="flex justify-between items-center px-4 py-4 border-b border-slate-100 dark:border-slate-600">
         <div className="text-sm text-slate-800 dark:text-slate-200 font-medium leading-6">
           Notificações {unreadCount > 0 && <span className="text-xs text-slate-500">({unreadCount})</span>}
@@ -189,17 +189,27 @@ const Notification = () => {
         </div>
       </div>
       
-      {loading ? (
-        <div className="px-4 py-8 text-center text-slate-500">
-          <Icon icon="heroicons-outline:refresh" className="animate-spin mx-auto mb-2 text-2xl" />
-          <p>Carregando...</p>
-        </div>
-      ) : notifications.length === 0 ? (
-        <div className="px-4 py-8 text-center text-slate-500">
-          <Icon icon="heroicons-outline:bell" className="mx-auto mb-2 text-2xl" />
-          <p>Nenhuma notificação</p>
-        </div>
-      ) : (
+      {(() => {
+        
+        if (loading) {
+          return (
+            <div className="px-4 py-8 text-center text-slate-500">
+              <Icon icon="heroicons-outline:refresh" className="animate-spin mx-auto mb-2 text-2xl" />
+              <p>Carregando...</p>
+            </div>
+          );
+        }
+        
+        if (notifications.length === 0) {
+          return (
+            <div className="px-4 py-8 text-center text-slate-500">
+              <Icon icon="heroicons-outline:bell" className="mx-auto mb-2 text-2xl" />
+              <p>Nenhuma notificação</p>
+            </div>
+          );
+        }
+        
+        return (
         <div className="divide-y divide-slate-100 dark:divide-slate-800 max-h-[400px] overflow-y-auto">
           {notifications.map((item) => (
             <Menu.Item key={item.id}>
@@ -258,7 +268,8 @@ const Notification = () => {
             </Menu.Item>
           ))}
         </div>
-      )}
+        );
+      })()}
     </Dropdown>
   );
 };

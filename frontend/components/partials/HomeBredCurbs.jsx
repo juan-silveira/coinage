@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import Icon from "@/components/ui/Icon";
 import Card from "@/components/ui/Card";
-import useCacheData from "@/hooks/useCacheData";
+import useCachedBalances from "@/hooks/useCachedBalances";
 
 const HomeBredCurbs = ({ title }) => {
   const [value, setValue] = useState({
@@ -9,14 +9,14 @@ const HomeBredCurbs = ({ title }) => {
     endDate: new Date().setMonth(11),
   });
 
-  // Usar o hook useCacheData para reagir automaticamente às mudanças
-  const { getBalance, loading: isLoading } = useCacheData();
+  // Usar o hook useCachedBalances para reagir automaticamente às mudanças
+  const { getBalance, loading: isLoading, getCorrectAzeSymbol } = useCachedBalances();
 
   const handleValueChange = (newValue) => {
     setValue(newValue);
   };
 
-  // Formatar os saldos usando o hook useCacheData
+  // Formatar os saldos usando o hook useCachedBalances
   const formatForDisplay = (value) => {
     return value.replace('.', ','); // Converter ponto para vírgula (padrão brasileiro)
   };
@@ -31,12 +31,12 @@ const HomeBredCurbs = ({ title }) => {
           <div className="flex items-center space-x-2">
             <Icon className="text-2xl text-primary" icon="heroicons:banknotes" />
             <div>
-              <div className="text-xs">Saldo AZE</div>
+              <div className="text-xs">Saldo {getCorrectAzeSymbol()}</div>
               <div className="balance font-bold">
                 {isLoading ? (
                   <div className="animate-pulse bg-slate-200 dark:bg-slate-600 h-4 w-16 rounded"></div>
                 ) : (
-                  `${formatForDisplay(getBalance('AZE'))} AZE`
+                  `${formatForDisplay(getBalance(getCorrectAzeSymbol()))} ${getCorrectAzeSymbol()}`
                 )}
               </div>
             </div>

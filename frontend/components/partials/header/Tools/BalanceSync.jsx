@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Dropdown from "@/components/ui/Dropdown";
 import Icon from "@/components/ui/Icon";
 import Button from "@/components/ui/Button";
@@ -7,10 +7,8 @@ import useIntegratedBalanceSync from "@/hooks/useIntegratedBalanceSync";
 import { cn } from "@/lib/utils";
 
 const BalanceSyncDropdown = () => {
-  console.log('🚀 [BalanceSyncDropdown] Componente renderizado');
   
   const integratedData = useIntegratedBalanceSync();
-  console.log('🚀 [BalanceSyncDropdown] integratedData:', integratedData);
   
   const {
     lastSync,
@@ -20,11 +18,10 @@ const BalanceSyncDropdown = () => {
     formatLastSync,
   } = integratedData.sync;
   
-  console.log('🚀 [BalanceSyncDropdown] Estado atual:', {
-    lastSync,
-    syncError,
-    balanceChanges: balanceChanges.length
-  });
+  // Debug: Log do estado atual
+  useEffect(() => {
+    // Estado silencioso - sem logs
+  }, [integratedData]);
 
   const [dropdownOpen, setDropdownOpen] = useState(false);
 

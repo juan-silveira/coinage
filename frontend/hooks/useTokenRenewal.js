@@ -25,14 +25,11 @@ const useTokenRenewal = () => {
     isRenewing.current = true;
 
     try {
-      console.log('🔄 [TokenRenewal] Renovando token por atividade...');
-      
       const response = await authService.refreshToken(refreshToken);
       
       if (response.success) {
         const { accessToken, refreshToken: newRefreshToken } = response.data;
         setTokens(accessToken, newRefreshToken);
-        console.log('✅ [TokenRenewal] Sessão renovada para +10 minutos');
         return true;
       } else {
         console.warn('⚠️ [TokenRenewal] Falha na renovação');
@@ -48,7 +45,6 @@ const useTokenRenewal = () => {
 
   // Fazer logout por inatividade
   const logoutByInactivity = useCallback(() => {
-    console.log('⏰ [TokenRenewal] Logout por inatividade (10 minutos)');
     logout();
     window.location.href = '/login?reason=inactivity';
   }, [logout]);
@@ -70,10 +66,8 @@ const useTokenRenewal = () => {
     
     // Timer para aviso (opcional - pode implementar modal depois)
     warningTimeoutRef.current = setTimeout(() => {
-      console.log('⚠️ [TokenRenewal] Aviso: Sessão expira em 2 minutos');
+      // Aviso silencioso - pode implementar modal depois
     }, SESSION_TIMEOUT - WARNING_TIME);
-
-    console.log(`🔄 [TokenRenewal] Timer resetado - sessão expira em 10 minutos`);
   }, [logoutByInactivity]);
 
   // Detectar atividade do usuário (PROTEGIDO CONTRA CRASHES)
@@ -84,8 +78,6 @@ const useTokenRenewal = () => {
       
       // Só renovar se passou mais de 1 minuto desde a última atividade
       if (timeSinceLastActivity > 60000) {
-        console.log(`🔄 [TokenRenewal] Atividade detectada após ${Math.round(timeSinceLastActivity/1000)}s`);
-        
         try {
           // Tentar renovar token
           const renewed = await renewToken();
@@ -121,7 +113,6 @@ const useTokenRenewal = () => {
   // Listener para mudanças de rota
   useEffect(() => {
     if (isAuthenticated) {
-      console.log(`🔄 [TokenRenewal] Navegação detectada: ${pathname}`);
       handleUserActivity();
     }
   }, [pathname, isAuthenticated, handleUserActivity]);

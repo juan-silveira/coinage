@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import useAuthStore from '@/store/authStore';
 import api from '@/services/api';
 
@@ -8,7 +8,7 @@ export const useNotifications = () => {
   const [loading, setLoading] = useState(false);
 
   // Buscar contagem de não lidas
-  const fetchUnreadCount = async () => {
+  const fetchUnreadCount = useCallback(async () => {
     if (!isAuthenticated) return;
     
     try {
@@ -16,33 +16,26 @@ export const useNotifications = () => {
       const response = await api.get('/api/notifications/unread-count');
       
       if (response.data.success) {
-        console.log('📊 Footer - Contagem recebida:', response.data.data.count);
-        setUnreadCount(response.data.data.count);
+        const count = response.data.data.count;
+        setUnreadCount(count);
+        return count;
       }
     } catch (error) {
-      console.error('Erro ao buscar contagem de notificações:', error);
-      // Fallback: buscar todas as notificações e contar as não lidas
-      try {
-        const allResponse = await api.get('/api/notifications');
-        if (allResponse.data.success) {
-          const unreadCount = allResponse.data.data.filter(n => !n.isRead && n.isActive).length;
-          console.log('📊 Footer - Contagem fallback:', unreadCount);
-          setUnreadCount(unreadCount);
-        }
-      } catch (fallbackError) {
-        console.error('Erro no fallback:', fallbackError);
-      }
+      // Fallback para contagem local
+      const localCount = 0;
+      setUnreadCount(localCount);
+      return localCount;
     } finally {
       setLoading(false);
     }
-  };
+  }, [isAuthenticated]);
 
   // Carregar dados iniciais
   useEffect(() => {
     if (isAuthenticated) {
       fetchUnreadCount();
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, fetchUnreadCount]);
 
   // Atualizar a cada 30 segundos
   useEffect(() => {
@@ -53,7 +46,7 @@ export const useNotifications = () => {
     }, 30000);
     
     return () => clearInterval(interval);
-  }, [isAuthenticated]);
+  }, [isAuthenticated, fetchUnreadCount]);
 
   return {
     unreadCount,

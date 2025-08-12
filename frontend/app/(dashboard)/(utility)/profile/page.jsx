@@ -4,11 +4,13 @@ import Icon from "@/components/ui/Icon";
 import Card from "@/components/ui/Card";
 import BalancesTable from "@/components/partials/table/BalancesTable";
 import useAuthStore from "@/store/authStore";
+import useCachedBalances from "@/hooks/useCachedBalances";
 import useCacheData from "@/hooks/useCacheData";
 
 const profile = () => {
   const { user } = useAuthStore();
-  const { cachedUser, balances, loading, getBalance, formatCPF, formatPhone } = useCacheData();
+  const { cachedUser, formatCPF, formatPhone } = useCacheData();
+  const { balances, loading, getBalance, getCorrectAzeSymbol } = useCachedBalances();
 
   // Usar dados do cache se disponível, senão usar dados do store
   const displayUser = cachedUser || user;
@@ -65,11 +67,11 @@ const profile = () => {
                 {loading ? (
                   <div className="animate-pulse bg-slate-200 dark:bg-slate-600 h-4 w-16 rounded"></div>
                 ) : (
-                  `${getBalance('AZE')} AZE`
+                  `${getBalance(getCorrectAzeSymbol())} ${getCorrectAzeSymbol()}`
                 )}
               </div>
               <div className="text-sm text-slate-600 font-light dark:text-slate-300">
-                Saldo AZE
+                Saldo {getCorrectAzeSymbol()}
               </div>
             </div>
 

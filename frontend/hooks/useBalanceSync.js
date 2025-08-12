@@ -42,7 +42,6 @@ const useBalanceSync = (onBalanceUpdate = null) => {
     try {
       const cached = localStorage.getItem(cacheKey);
       const result = cached ? JSON.parse(cached) : {};
-      console.log('📂 [BalanceSync] Cache localStorage carregado:', result);
       return result;
     } catch (error) {
       console.error('❌ Erro ao carregar cache de balances:', error);
@@ -57,7 +56,6 @@ const useBalanceSync = (onBalanceUpdate = null) => {
     
     try {
       localStorage.setItem(cacheKey, JSON.stringify(balances));
-      console.log('💾 [BalanceSync] Cache localStorage salvo:', balances);
     } catch (error) {
       console.error('❌ Erro ao salvar cache de balances:', error);
     }
@@ -66,8 +64,6 @@ const useBalanceSync = (onBalanceUpdate = null) => {
   // Busca balances diretamente da API do Azorescan
   const fetchBalancesFromAzorescan = useCallback(async (address) => {
     try {
-      console.log('📡 [BalanceSync] Buscando balances da API Azorescan para:', address);
-      
       const response = await fetch(`${AZORESCAN_API_BASE}/?module=account&action=tokenlist&address=${address}`);
       
       if (!response.ok) {
@@ -75,7 +71,6 @@ const useBalanceSync = (onBalanceUpdate = null) => {
       }
       
       const data = await response.json();
-      console.log('📡 [BalanceSync] Resposta da API Azorescan:', data);
       
       if (data.status !== '1') {
         throw new Error(`API error: ${data.message || 'Unknown error'}`);
@@ -98,7 +93,6 @@ const useBalanceSync = (onBalanceUpdate = null) => {
         transformedBalances.balancesTable[symbol] = balance.toFixed(6);
       });
       
-      console.log('🔄 [BalanceSync] Balances transformados:', transformedBalances);
       return transformedBalances;
       
     } catch (error) {
@@ -110,13 +104,11 @@ const useBalanceSync = (onBalanceUpdate = null) => {
   // Sincroniza com Redis
   const syncWithRedis = useCallback(async (balances) => {
     if (!user?.id || !user?.publicKey) {
-      console.log('⚠️ [BalanceSync] Sincronização Redis cancelada - usuário inválido');
       return null;
     }
 
     try {
       setRedisSyncStatus('syncing');
-      console.log('🔄 [BalanceSync] Sincronizando com Redis...');
       
       const result = await balanceSyncService.syncWithRedis(
         user.id,
@@ -126,10 +118,8 @@ const useBalanceSync = (onBalanceUpdate = null) => {
       
       if (result.success) {
         setRedisSyncStatus('synced');
-        console.log('✅ [BalanceSync] Sincronização com Redis concluída:', result);
         
         if (result.synced && result.changes.length > 0) {
-          console.log('💰 [BalanceSync] Mudanças detectadas no Redis:', result.changes);
           showInfo(`🔄 Redis sincronizado - ${result.changes.length} mudanças detectadas`);
         }
         
@@ -149,19 +139,9 @@ const useBalanceSync = (onBalanceUpdate = null) => {
   // Compara balances e detecta mudanças (PROTEGIDO CONTRA CRASHES)
   const detectBalanceChanges = useCallback((newBalances, previousBalances) => {
     try {
-      console.log('🔍 [BalanceSync] Detectando mudanças (PROTEGIDO)...');
-      console.log('🔍 [BalanceSync] Novos balances:', newBalances);
-      console.log('🔍 [BalanceSync] Balances anteriores:', previousBalances);
-    
       const changes = [];
       const newTable = newBalances?.balancesTable || {};
       const prevTable = previousBalances?.balancesTable || {};
-      
-      console.log('🔍 [BalanceSync] Nova tabela:', newTable);
-      console.log('🔍 [BalanceSync] Tabela anterior:', prevTable);
-      console.log('🔍 [BalanceSync] Tokens na nova tabela:', Object.keys(newTable));
-      console.log('🔍 [BalanceSync] Tokens na tabela anterior:', Object.keys(prevTable));
-      console.log('🔍 [BalanceSync] Rede atual:', newBalances?.network);
 
       // Função para comparar valores com tolerância para problemas de precisão
       const isSignificantChange = (newVal, oldVal, tolerance = 0.000001) => {
@@ -174,14 +154,8 @@ const useBalanceSync = (onBalanceUpdate = null) => {
         const newBalance = parseFloat(newTable[token] || 0);
         const prevBalance = parseFloat(prevTable[token] || 0);
         
-        console.log(`🔍 [BalanceSync] ${token}:`);
-        console.log(`  - Novo valor: "${newTable[token]}" -> parsed: ${newBalance}`);
-        console.log(`  - Valor anterior: "${prevTable[token] || 'undefined'}" -> parsed: ${prevBalance}`);
-        console.log(`  - São significativamente diferentes? ${isSignificantChange(newBalance, prevBalance)}`);
-        
         if (isSignificantChange(newBalance, prevBalance)) {
           const difference = newBalance - prevBalance;
-          console.log(`✨ [BalanceSync] Mudança detectada em ${token}: ${prevBalance} -> ${newBalance} (diff: ${difference})`);
           
           changes.push({
             token,
@@ -197,8 +171,6 @@ const useBalanceSync = (onBalanceUpdate = null) => {
       // Verificar novos tokens
       Object.keys(newTable).forEach(token => {
         if (!(token in prevTable) && parseFloat(newTable[token] || 0) > 0) {
-          console.log(`✨ [BalanceSync] Novo token detectado: ${token} = ${newTable[token]}`);
-          
           changes.push({
             token,
             previousBalance: '0.000000',
@@ -215,8 +187,6 @@ const useBalanceSync = (onBalanceUpdate = null) => {
         if (!(token in newTable) || parseFloat(newTable[token] || 0) === 0) {
           const prevBalance = parseFloat(prevTable[token] || 0);
           if (prevBalance > 0) {
-            console.log(`✨ [BalanceSync] Token removido/zerado: ${token} = ${prevBalance} -> 0`);
-            
             changes.push({
               token,
               previousBalance: prevBalance.toFixed(6),
@@ -229,7 +199,6 @@ const useBalanceSync = (onBalanceUpdate = null) => {
         }
       });
 
-      console.log(`🔍 [BalanceSync] Total de mudanças detectadas: ${changes.length}`, changes);
       return changes;
       
     } catch (error) {
@@ -245,8 +214,6 @@ const useBalanceSync = (onBalanceUpdate = null) => {
   // Cria notificação para mudança de saldo (PROTEGIDO CONTRA CRASHES)
   const createBalanceNotification = useCallback(async (change) => {
     try {
-      console.log('🔔 [BalanceSync] Criando notificação (PROTEGIDO):', change);
-      
       // Validar dados de entrada
       if (!change || typeof change !== 'object') {
         throw new Error('Dados de mudança inválidos');
@@ -311,9 +278,7 @@ const useBalanceSync = (onBalanceUpdate = null) => {
           sender: 'coinage',
           data: notificationData.data
         };
-        console.log('🔔 [BalanceSync] Enviando notificação para API:', apiPayload);
         await api.post('/api/notifications/create', apiPayload);
-        console.log('✅ [BalanceSync] Notificação enviada para API com sucesso');
       } catch (apiError) {
         console.error('❌ [BalanceSync] Erro ao enviar notificação para API:', apiError);
         console.error('❌ [BalanceSync] Detalhes do erro:', apiError.response?.data);
@@ -339,67 +304,35 @@ const useBalanceSync = (onBalanceUpdate = null) => {
 
   // Sincroniza balances com a blockchain via Azorescan
   const syncBalances = useCallback(async (manual = false, bypassActiveCheck = false) => {
-    console.log('🔄 [BalanceSync] Verificando condições para sincronização:');
-    console.log('  - user:', user);
-    console.log('  - user.publicKey:', user?.publicKey);
-    console.log('  - isActive:', isActive);
-    console.log('  - manual:', manual);
-    console.log('  - bypassActiveCheck:', bypassActiveCheck);
-    
     if (!user?.publicKey) {
-      console.log('⚠️ [BalanceSync] Sincronização cancelada - publicKey inválido');
-      console.log('⚠️ [BalanceSync] Detalhes:');
-      console.log('  - user existe:', !!user);
-      console.log('  - publicKey existe:', !!user?.publicKey);
-      console.log('  - publicKey valor:', user?.publicKey);
       return;
     }
     
     if (!bypassActiveCheck && !isActive) {
-      console.log('⚠️ [BalanceSync] Sincronização cancelada - isActive é false');
-      console.log('⚠️ [BalanceSync] Use bypassActiveCheck=true para forçar');
-      console.log('⚠️ [BalanceSync] Estado atual: isActive =', isActive, ', isActiveRef =', isActiveRef.current);
       return;
     }
 
     try {
       setSyncError(null);
       
-      console.log(`🔄 [BalanceSync] ${manual ? 'Sincronização manual' : 'Sincronização automática'} iniciada para:`, user.publicKey);
-      
       // Buscar balances da API do Azorescan
       const newBalances = await fetchBalancesFromAzorescan(user.publicKey);
       const previousBalances = previousBalancesRef.current;
       
-      console.log('🔄 [BalanceSync] Estado atual:');
-      console.log('  - Novos balances:', newBalances);
-      console.log('  - Balances anteriores:', previousBalances);
-      console.log('  - É primeira sincronização:', Object.keys(previousBalances).length === 0);
-
       // Detectar mudanças sempre (mesmo na primeira vez)
-      console.log('🔍 [BalanceSync] SEMPRE detectando mudanças (removida lógica de primeira sync)...');
-      console.log('🔍 [BalanceSync] Comparação detalhada:');
-      console.log('🔍 [BalanceSync] - Novos balances COMPLETOS:', JSON.stringify(newBalances, null, 2));
-      console.log('🔍 [BalanceSync] - Balances anteriores COMPLETOS:', JSON.stringify(previousBalances, null, 2));
-      console.log('🔍 [BalanceSync] - Nova tabela:', newBalances?.balancesTable);
-      console.log('🔍 [BalanceSync] - Tabela anterior:', previousBalances?.balancesTable);
-      
       const changes = detectBalanceChanges(newBalances, previousBalances);
       
       if (Object.keys(previousBalances).length > 0) {
         
         if (changes.length > 0) {
-          console.log('💰 [BalanceSync] Mudanças detectadas nos balances:', changes);
           setBalanceChanges(prev => {
             const updated = [...prev, ...changes];
-            console.log('📝 [BalanceSync] Histórico de mudanças atualizado:', updated);
             return updated;
           });
           
           // Criar notificações para cada mudança (PROTEGIDO)
           for (const change of changes) {
             try {
-              console.log('🔔 [BalanceSync] Criando notificação para:', change);
               await createBalanceNotification(change);
             } catch (notificationError) {
               console.error('❌ [BalanceSync] Erro ao criar notificação individual (CONTINUANDO):', notificationError);
@@ -409,47 +342,28 @@ const useBalanceSync = (onBalanceUpdate = null) => {
           
           // Chamar callback de atualização se fornecido (PROTEGIDO)
           if (onBalanceUpdate) {
-            console.log('🔄 [BalanceSync] Chamando callback de atualização (PROTEGIDO)...');
             try {
               await onBalanceUpdate(changes, newBalances);
-              console.log('✅ [BalanceSync] Callback de atualização concluído com sucesso');
             } catch (callbackError) {
               console.error('❌ [BalanceSync] ERRO CRÍTICO no callback (CRASH EVITADO):', callbackError);
               console.error('❌ [BalanceSync] Stack trace:', callbackError.stack);
               // Continuar execução mesmo se callback falhar
             }
           }
-        } else {
-          console.log('ℹ️ [BalanceSync] Nenhuma mudança detectada');
         }
-      } else {
-        console.log('ℹ️ [BalanceSync] Primeira sincronização - pulando detecção de mudanças');
       }
 
       // Sincronizar com Redis
-      console.log('🔄 [BalanceSync] Sincronizando com Redis...');
       const redisSyncResult = await syncWithRedis(newBalances);
-      if (redisSyncResult) {
-        console.log('✅ [BalanceSync] Sincronização Redis concluída:', redisSyncResult);
-      }
 
       // Atualizar cache local
-      console.log('💾 [BalanceSync] Atualizando cache local...');
-      console.log('💾 [BalanceSync] Novos balances para salvar:', newBalances);
-      console.log('💾 [BalanceSync] Cache anterior antes da atualização:', previousBalancesRef.current);
-      
       previousBalancesRef.current = newBalances;
       savePreviousBalances(newBalances);
       setLastSync(new Date().toISOString());
-      
-      console.log('💾 [BalanceSync] Cache local atualizado com sucesso');
-      console.log('💾 [BalanceSync] previousBalancesRef.current agora é:', previousBalancesRef.current);
 
       if (manual) {
         showSuccess('✅ Sincronização Concluída - Balances atualizados com sucesso');
       }
-
-      console.log('✅ [BalanceSync] Sincronização de balances concluída');
       
     } catch (error) {
       console.error('❌ [BalanceSync] Erro na sincronização de balances:', error);
@@ -463,40 +377,28 @@ const useBalanceSync = (onBalanceUpdate = null) => {
 
   // Inicia o serviço de sincronização
   const startSync = useCallback(async () => {
-    console.log('🚀 [BalanceSync] Tentando iniciar serviço de sincronização...');
-    console.log('🚀 [BalanceSync] Estado inicial:');
-    console.log('  - user:', user);
-    console.log('  - user.publicKey:', user?.publicKey);
-    console.log('  - isActive atual:', isActive);
-    
     if (!user?.publicKey) {
       console.error('❌ [BalanceSync] Usuário inválido - publicKey não encontrada');
       showError('⚠️ Usuário Inválido - Não foi possível iniciar a sincronização. Chave pública não encontrada.');
       return;
     }
 
-    console.log('✅ [BalanceSync] Usuário válido - iniciando serviço...');
     setIsActive(true);
     isActiveRef.current = true;
     
     // Pequeno delay para garantir que o estado seja atualizado
     await new Promise(resolve => setTimeout(resolve, 100));
-    console.log('✅ [BalanceSync] Estado isActive após setIsActive:', true);
     
     // Limpar cache antigo e carregar novos balances
-    console.log('📂 [BalanceSync] Limpando cache antigo para evitar problemas...');
     const cacheKey = getCacheKey();
     if (cacheKey) {
       localStorage.removeItem(cacheKey);
-      console.log('🗑️ [BalanceSync] Cache localStorage limpo');
     }
     
     // Resetar cache em memória
     previousBalancesRef.current = {};
-    console.log('📂 [BalanceSync] Cache resetado - irá detectar todas as mudanças');
 
     // Fazer primeira sincronização (bypass do check isActive)
-    console.log('🔄 [BalanceSync] Executando primeira sincronização...');
     await syncBalances(true, true);
     
     // Configurar intervalo automático
@@ -505,36 +407,18 @@ const useBalanceSync = (onBalanceUpdate = null) => {
     }
     
     syncIntervalRef.current = setInterval(async () => {
-      console.log('⏰ [BalanceSync] Executando sincronização automática (intervalo)...');
-      console.log('⏰ [BalanceSync] Estado isActive no intervalo:', isActiveRef.current);
-      console.log('⏰ [BalanceSync] Estado isActive state:', isActive);
-      console.log('⏰ [BalanceSync] Usuário:', user?.publicKey ? 'Válido' : 'Inválido');
-      console.log('⏰ [BalanceSync] Próxima verificação em:', SYNC_INTERVAL_MS / 1000, 'segundos');
-      
       // SEMPRE executar se o usuário for válido, ignorando isActive
       if (user?.publicKey) {
         try {
-          console.log('✅ [BalanceSync] Iniciando sincronização automática (BYPASS isActive)...');
-          console.log('✅ [BalanceSync] Forçando bypassActiveCheck=true para garantir execução');
           await syncBalances(false, true); // bypassActiveCheck=true para forçar
-          console.log('✅ [BalanceSync] Sincronização automática concluída');
         } catch (error) {
           console.error('❌ [BalanceSync] Erro na sincronização automática (continuando ativo):', error);
           // NÃO parar o serviço, apenas logar o erro
         }
-      } else {
-        console.log('⚠️ [BalanceSync] Sincronização cancelada - usuário inválido');
-        console.log('⚠️ [BalanceSync] Detalhes do usuário:', {
-          hasUser: !!user,
-          hasPublicKey: !!user?.publicKey,
-          publicKey: user?.publicKey
-        });
       }
     }, SYNC_INTERVAL_MS);
 
     showSuccess('🚀 Sincronização Iniciada - O serviço está ativo (verifica a cada 1 minuto)');
-
-    console.log('🚀 [BalanceSync] Serviço de sincronização de balances iniciado com sucesso');
   }, [user?.publicKey, syncBalances, showSuccess, showError, getCacheKey]);
 
   // Para o serviço de sincronização
@@ -548,8 +432,6 @@ const useBalanceSync = (onBalanceUpdate = null) => {
     }
 
     showInfo('⏹️ Sincronização Parada - O serviço foi interrompido');
-
-    console.log('⏹️ Serviço de sincronização de balances parado');
   }, [showInfo]);
 
   // Limpa o histórico de mudanças
@@ -593,41 +475,21 @@ const useBalanceSync = (onBalanceUpdate = null) => {
 
   // Auto-start quando usuário logar (ativado sempre) - versão simplificada
   useEffect(() => {
-    console.log('🔍 [BalanceSync] Verificando auto-start...');
-    console.log('🔍 [BalanceSync] - user exists:', !!user);
-    console.log('🔍 [BalanceSync] - user.publicKey:', user?.publicKey);
-    console.log('🔍 [BalanceSync] - isActive:', isActive);
-    console.log('🔍 [BalanceSync] - should auto-start:', !!(user?.publicKey && !isActive));
-    
     // Condição simplificada para auto-start
     if (user?.publicKey && !isActive) {
-      console.log('🚀 [BalanceSync] ✅ INICIANDO auto-sync para usuário:', user.publicKey);
-      
       // Usar timeout para evitar problemas de timing
       const autoStartTimer = setTimeout(() => {
-        console.log('🚀 [BalanceSync] Executando startSync() após timeout...');
         startSync()
-          .then(() => console.log('🚀 [BalanceSync] ✅ Auto-sync iniciado com sucesso!'))
           .catch(error => {
             console.error('❌ [BalanceSync] Erro no auto-start:', error);
             // Tentar novamente após 5 segundos
             setTimeout(() => {
-              console.log('🔄 [BalanceSync] Tentativa 2 de auto-start...');
               startSync().catch(e => console.error('❌ [BalanceSync] Tentativa 2 falhou:', e));
             }, 5000);
           });
       }, 1000);
       
       return () => clearTimeout(autoStartTimer);
-      
-    } else {
-      if (!user?.publicKey) {
-        console.log('⚠️ [BalanceSync] ❌ Auto-start cancelado - usuário sem publicKey');
-        console.log('⚠️ [BalanceSync] Detalhes user:', JSON.stringify(user, null, 2));
-      }
-      if (isActive) {
-        console.log('ℹ️ [BalanceSync] ✅ Auto-start não necessário - já está ativo');
-      }
     }
   }, [user, isActive, startSync]);
 

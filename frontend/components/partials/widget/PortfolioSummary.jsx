@@ -1,21 +1,16 @@
 "use client";
 import React from "react";
-import useCacheData from "@/hooks/useCacheData";
+import useCachedBalances from "@/hooks/useCachedBalances";
 import useAuthStore from "@/store/authStore";
 import { getTokenPrice, formatCurrency as formatCurrencyHelper } from "@/constants/tokenPrices";
 
 const PortfolioSummary = () => {
-  const { balances, loading } = useCacheData();
+  const { balances, loading, getCorrectAzeSymbol } = useCachedBalances();
   const { user } = useAuthStore();
 
   // Usar formatação centralizada
   const formatCurrency = formatCurrencyHelper;
 
-  // Função para obter o símbolo correto do AZE baseado na rede
-  const getCorrectAzeSymbol = () => {
-    const network = balances?.network || 'testnet';
-    return network === 'testnet' ? 'AZE-t' : 'AZE';
-  };
 
   // Mapeamento de tokens por categoria (4 categorias para Total Investido)
   const getTokenCategories = () => {

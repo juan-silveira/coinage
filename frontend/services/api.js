@@ -2,7 +2,7 @@ import axios from 'axios';
 import useAuthStore from '@/store/authStore';
 
 // Configuração base da API
-const API_BASE_URL = 'http://localhost:8801';
+const API_BASE_URL = 'http://localhost:8800';
 
 // Instância do axios
 const api = axios.create({
@@ -56,18 +56,12 @@ api.interceptors.response.use(
           originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
           return api(originalRequest);
         } catch (refreshError) {
-          console.error('❌ [API] ERRO CRÍTICO no refresh de token (EVITANDO LOGOUT DESNECESSÁRIO):', refreshError);
-          console.error('❌ [API] Stack trace:', refreshError.stack);
-          
           // Só fazer logout em casos específicos, não em erros de rede
           const shouldLogout = refreshError.response?.status === 401 || refreshError.response?.status === 403;
           
           if (shouldLogout) {
-            console.log('🔐 [API] Fazendo logout devido a erro de autenticação');
             logout();
             window.location.href = '/login';
-          } else {
-            console.warn('⚠️ [API] Erro de rede no refresh - mantendo usuário logado');
           }
           
           return Promise.reject(refreshError);

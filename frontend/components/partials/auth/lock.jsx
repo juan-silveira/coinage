@@ -20,7 +20,7 @@ const Lock = () => {
   });
 
   const onSubmit = (data) => {
-    console.log(data);
+    // Form submitted
   };
 
   return (

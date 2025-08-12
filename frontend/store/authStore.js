@@ -15,6 +15,11 @@ const useAuthStore = create(
       cacheLoading: false, // evita concorrência em carregamentos
       maskBalances: false, // se true, aplica blur nos valores
       notifications: [], // notificações do sistema
+      
+      // Cache de balances
+      cachedBalances: null,
+      balancesLastUpdate: null,
+      balancesLoading: false,
 
       // Ações
       setUser: (user) => set({ user }),
@@ -79,6 +84,9 @@ const useAuthStore = create(
           cacheLoaded: false,
           cacheLoading: false,
           notifications: [], // limpar notificações ao fazer logout
+          cachedBalances: null,
+          balancesLastUpdate: null,
+          balancesLoading: false,
         });
       },
       
@@ -86,6 +94,24 @@ const useAuthStore = create(
         set((state) => ({
           user: { ...state.user, ...userData }
         })),
+      
+      // Ações para cache de balances
+      setCachedBalances: (balances) =>
+        set({ 
+          cachedBalances: balances, 
+          balancesLastUpdate: Date.now(),
+          balancesLoading: false 
+        }),
+      
+      setBalancesLoading: (loading) =>
+        set({ balancesLoading: loading }),
+      
+      clearCachedBalances: () =>
+        set({ 
+          cachedBalances: null, 
+          balancesLastUpdate: null,
+          balancesLoading: false 
+        }),
       
       clearRequiresPasswordChange: () =>
         set({ requiresPasswordChange: false }),

@@ -20,21 +20,15 @@ class BalanceSyncService {
    */
   async getRedisCache(userId, address) {
     try {
-      console.log('📡 [BalanceSyncService] Buscando cache Redis para:', { userId, address });
-      
-      const response = await api.get(BALANCE_SYNC_ENDPOINTS.GET_CACHE, {
-        params: { userId, address }
-      });
+      const response = await api.get(`/api/balance-sync/cache/${userId}/${address}`);
       
       if (response.data.success) {
-        console.log('✅ [BalanceSyncService] Cache Redis recuperado:', response.data.data);
         return response.data.data;
-      } else {
-        throw new Error(response.data.message || 'Erro ao buscar cache Redis');
       }
+      return null;
     } catch (error) {
       console.error('❌ [BalanceSyncService] Erro ao buscar cache Redis:', error);
-      throw error;
+      return null;
     }
   }
 
@@ -47,27 +41,20 @@ class BalanceSyncService {
    */
   async updateRedisCache(userId, address, balances) {
     try {
-      console.log('📡 [BalanceSyncService] Atualizando cache Redis:', { userId, address, balances });
-      
-      const payload = {
+      const response = await api.post('/api/balance-sync/cache', {
         userId,
         address,
         balances,
-        timestamp: new Date().toISOString(),
-        source: 'frontend-sync'
-      };
-      
-      const response = await api.post(BALANCE_SYNC_ENDPOINTS.UPDATE_CACHE, payload);
+        timestamp: new Date().toISOString()
+      });
       
       if (response.data.success) {
-        console.log('✅ [BalanceSyncService] Cache Redis atualizado com sucesso');
         return response.data.data;
-      } else {
-        throw new Error(response.data.message || 'Erro ao atualizar cache Redis');
       }
+      return null;
     } catch (error) {
       console.error('❌ [BalanceSyncService] Erro ao atualizar cache Redis:', error);
-      throw error;
+      return null;
     }
   }
 
@@ -80,21 +67,15 @@ class BalanceSyncService {
    */
   async getChangeHistory(userId, address, limit = 50) {
     try {
-      console.log('📡 [BalanceSyncService] Buscando histórico para:', { userId, address, limit });
-      
-      const response = await api.get(BALANCE_SYNC_ENDPOINTS.GET_HISTORY, {
-        params: { userId, address, limit }
-      });
+      const response = await api.get(`/api/balance-sync/history/${userId}/${address}?limit=${limit}`);
       
       if (response.data.success) {
-        console.log('✅ [BalanceSyncService] Histórico recuperado:', response.data.data);
         return response.data.data;
-      } else {
-        throw new Error(response.data.message || 'Erro ao buscar histórico');
       }
+      return [];
     } catch (error) {
       console.error('❌ [BalanceSyncService] Erro ao buscar histórico:', error);
-      throw error;
+      return [];
     }
   }
 
@@ -106,21 +87,15 @@ class BalanceSyncService {
    */
   async clearRedisCache(userId, address) {
     try {
-      console.log('📡 [BalanceSyncService] Limpando cache Redis para:', { userId, address });
-      
-      const response = await api.delete(BALANCE_SYNC_ENDPOINTS.CLEAR_CACHE, {
-        params: { userId, address }
-      });
+      const response = await api.delete(`/api/balance-sync/cache/${userId}/${address}`);
       
       if (response.data.success) {
-        console.log('✅ [BalanceSyncService] Cache Redis limpo com sucesso');
-        return response.data.data;
-      } else {
-        throw new Error(response.data.message || 'Erro ao limpar cache Redis');
+        return true;
       }
+      return false;
     } catch (error) {
       console.error('❌ [BalanceSyncService] Erro ao limpar cache Redis:', error);
-      throw error;
+      return false;
     }
   }
 
@@ -131,70 +106,61 @@ class BalanceSyncService {
    * @returns {Object} Resultado da comparação
    */
   compareWithRedis(localBalances, redisCache) {
-    try {
-      console.log('🔍 [BalanceSyncService] Comparando balances locais com Redis');
-      console.log('  - Balances locais:', localBalances);
-      console.log('  - Cache Redis:', redisCache);
-      
-      const comparison = {
-        hasChanges: false,
-        changes: [],
-        localTimestamp: localBalances?.lastUpdated,
-        redisTimestamp: redisCache?.lastUpdated,
-        isOutOfSync: false
-      };
-      
-      if (!redisCache || !redisCache.balancesTable) {
-        console.log('ℹ️ [BalanceSyncService] Cache Redis vazio ou inválido');
-        comparison.hasChanges = true;
-        comparison.isOutOfSync = true;
-        return comparison;
-      }
-      
-      const localTable = localBalances?.balancesTable || {};
-      const redisTable = redisCache.balancesTable || {};
-      
-      // Verificar se há diferenças
-      const allTokens = new Set([...Object.keys(localTable), ...Object.keys(redisTable)]);
-      
-      allTokens.forEach(token => {
-        const localBalance = parseFloat(localTable[token] || 0);
-        const redisBalance = parseFloat(redisTable[token] || 0);
-        
-        if (Math.abs(localBalance - redisBalance) > 0.000001) {
-          comparison.hasChanges = true;
-          comparison.changes.push({
-            token,
-            localBalance: localBalance.toFixed(6),
-            redisBalance: redisBalance.toFixed(6),
-            difference: (localBalance - redisBalance).toFixed(6),
-            type: localBalance > redisBalance ? 'increase' : 'decrease'
-          });
-        }
-      });
-      
-      // Verificar se está fora de sincronia (diferença de timestamp > 5 minutos)
-      if (localBalances?.lastUpdated && redisCache?.lastUpdated) {
-        const localTime = new Date(localBalances.lastUpdated).getTime();
-        const redisTime = new Date(redisCache.lastUpdated).getTime();
-        const timeDiff = Math.abs(localTime - redisTime);
-        
-        if (timeDiff > 5 * 60 * 1000) { // 5 minutos
-          comparison.isOutOfSync = true;
-        }
-      }
-      
-      console.log('🔍 [BalanceSyncService] Comparação concluída:', comparison);
-      return comparison;
-      
-    } catch (error) {
-      console.error('❌ [BalanceSyncService] Erro na comparação com Redis:', error);
-      return {
-        hasChanges: false,
-        changes: [],
-        error: error.message
-      };
+    if (!redisCache || !redisCache.balancesTable) {
+      return { synced: false, changes: [], reason: 'cache_vazio' };
     }
+
+    const changes = [];
+    const localTable = localBalances?.balancesTable || {};
+    const redisTable = redisCache.balancesTable || {};
+
+    // Verificar mudanças em tokens existentes
+    Object.keys(localTable).forEach(token => {
+      const localValue = parseFloat(localTable[token] || 0);
+      const redisValue = parseFloat(redisTable[token] || 0);
+      
+      if (Math.abs(localValue - redisValue) > 0.000001) {
+        changes.push({
+          token,
+          localValue: localValue.toFixed(6),
+          redisValue: redisValue.toFixed(6),
+          difference: (localValue - redisValue).toFixed(6),
+          type: localValue > redisValue ? 'increase' : 'decrease'
+        });
+      }
+    });
+
+    // Verificar novos tokens
+    Object.keys(localTable).forEach(token => {
+      if (!(token in redisTable) && parseFloat(localTable[token] || 0) > 0) {
+        changes.push({
+          token,
+          localValue: parseFloat(localTable[token]).toFixed(6),
+          redisValue: '0.000000',
+          difference: parseFloat(localTable[token]).toFixed(6),
+          type: 'new_token'
+        });
+      }
+    });
+
+    // Verificar tokens removidos
+    Object.keys(redisTable).forEach(token => {
+      if (!(token in localTable) && parseFloat(redisTable[token] || 0) > 0) {
+        changes.push({
+          token,
+          localValue: '0.000000',
+          redisValue: parseFloat(redisTable[token]).toFixed(6),
+          difference: (-parseFloat(redisTable[token])).toFixed(6),
+          type: 'removed_token'
+        });
+      }
+    });
+
+    return {
+      synced: changes.length === 0,
+      changes,
+      reason: changes.length === 0 ? 'sincronizado' : 'mudanças_detectadas'
+    };
   }
 
   /**
@@ -206,41 +172,44 @@ class BalanceSyncService {
    */
   async syncWithRedis(userId, address, localBalances) {
     try {
-      console.log('🔄 [BalanceSyncService] Sincronizando com Redis:', { userId, address });
-      
       // Buscar cache atual do Redis
       const redisCache = await this.getRedisCache(userId, address);
       
-      // Comparar balances
+      // Comparar balances locais com Redis
       const comparison = this.compareWithRedis(localBalances, redisCache);
       
-      if (comparison.hasChanges || comparison.isOutOfSync) {
-        console.log('📡 [BalanceSyncService] Mudanças detectadas, atualizando Redis...');
-        
-        // Atualizar Redis com dados locais
+      if (comparison.changes.length > 0) {
+        // Atualizar Redis com novos balances
         const updateResult = await this.updateRedisCache(userId, address, localBalances);
         
+        if (updateResult) {
+          return {
+            success: true,
+            synced: true,
+            changes: comparison.changes,
+            reason: 'redis_atualizado'
+          };
+        } else {
+          throw new Error('Falha ao atualizar Redis');
+        }
+      } else {
         return {
           success: true,
           synced: true,
-          changes: comparison.changes,
-          comparison,
-          updateResult
-        };
-      } else {
-        console.log('ℹ️ [BalanceSyncService] Nenhuma mudança detectada, Redis já está sincronizado');
-        
-        return {
-          success: true,
-          synced: false,
           changes: [],
-          comparison
+          reason: 'já_sincronizado'
         };
       }
       
     } catch (error) {
       console.error('❌ [BalanceSyncService] Erro na sincronização com Redis:', error);
-      throw error;
+      return {
+        success: false,
+        synced: false,
+        changes: [],
+        reason: 'erro_sincronizacao',
+        error: error.message
+      };
     }
   }
 }

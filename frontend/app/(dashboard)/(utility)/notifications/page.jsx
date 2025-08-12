@@ -38,13 +38,12 @@ const NotificationPage = () => {
       const response = await api.get('/api/notifications');
       
       if (response.data.success) {
-        console.log('📊 Notificações recebidas:', response.data.data.length);
-        console.log('📊 Não lidas:', response.data.data.filter(n => !n.isRead && n.isActive).length);
-        setNotifications(response.data.data);
+        const notificationsData = response.data.data;
+        setNotifications(notificationsData);
+        setLoading(false);
       }
     } catch (error) {
-      console.error('Erro ao buscar notificações:', error);
-    } finally {
+      console.error('❌ Erro ao buscar notificações:', error);
       setLoading(false);
     }
   };
@@ -469,9 +468,7 @@ const NotificationPage = () => {
 
   // Carregar dados iniciais
   useEffect(() => {
-    console.log('🔐 NotificationPage - isAuthenticated:', isAuthenticated);
     if (isAuthenticated) {
-      console.log('✅ Usuário autenticado, buscando notificações...');
       fetchNotifications();
     } else {
       console.log('❌ Usuário não autenticado');

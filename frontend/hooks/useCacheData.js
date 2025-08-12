@@ -80,7 +80,6 @@ const useCacheData = () => {
           }
         };
 
-        console.log('🔔 Criando notificação detalhada:', notificationData);
         await api.post('/api/notifications/create', notificationData);
         
       } else {
@@ -121,7 +120,6 @@ const useCacheData = () => {
             }
           };
 
-          console.log(`🔔 Criando notificação para ${change.token}:`, notificationData);
           await api.post('/api/notifications/create', notificationData);
           
           // Pequeno delay entre notificações para evitar spam
@@ -132,21 +130,15 @@ const useCacheData = () => {
       // Disparar evento para atualizar o componente de notificações
       triggerNotificationRefresh();
       
-      console.log('✅ Notificações de balance criadas com sucesso');
     } catch (error) {
-      console.error('❌ Erro ao criar notificação de balance:', error);
+      // Erro silencioso para notificações
     }
   }, [user?.id]);
 
   // Função para detectar mudanças nos balances
   const detectBalanceChanges = useCallback((newBalances, oldBalances) => {
     try {
-      console.log('🔍 [detectBalanceChanges] Iniciando detecção...');
-      console.log('🔍 [detectBalanceChanges] newBalances:', newBalances?.balancesTable);
-      console.log('🔍 [detectBalanceChanges] oldBalances:', oldBalances?.balancesTable);
-      
       if (!newBalances?.balancesTable || !oldBalances?.balancesTable) {
-        console.log('🔍 [detectBalanceChanges] Dados incompletos - retornando array vazio');
         return [];
       }
       
@@ -160,8 +152,6 @@ const useCacheData = () => {
           const newValue = parseFloat(newTable[token] || 0);
           const oldValue = parseFloat(oldTable[token] || 0);
           
-          console.log(`🔍 [detectBalanceChanges] ${token}: ${oldValue} -> ${newValue}`);
-          
           if (Math.abs(newValue - oldValue) > 0.000001) { // Tolerância para precisão
             const difference = newValue - oldValue;
             const change = {
@@ -171,11 +161,10 @@ const useCacheData = () => {
               difference: difference.toFixed(6),
               type: oldValue === 0 ? 'new' : (difference > 0 ? 'increase' : 'decrease')
             };
-            console.log(`🔍 [detectBalanceChanges] Mudança detectada em ${token}:`, change);
             changes.push(change);
           }
         } catch (tokenError) {
-          console.error(`❌ [detectBalanceChanges] Erro ao processar token ${token}:`, tokenError);
+          // Erro ao processar token ignorado
         }
       });
       
@@ -190,27 +179,21 @@ const useCacheData = () => {
               difference: (-parseFloat(oldTable[token])).toFixed(6),
               type: 'decrease'
             };
-            console.log(`🔍 [detectBalanceChanges] Token removido ${token}:`, change);
             changes.push(change);
           }
         } catch (tokenError) {
-          console.error(`❌ [detectBalanceChanges] Erro ao processar remoção de token ${token}:`, tokenError);
+          // Erro ao processar remoção ignorado
         }
       });
       
-      console.log(`🔍 [detectBalanceChanges] Total de mudanças detectadas: ${changes.length}`);
       return changes;
     } catch (error) {
-      console.error('❌ [detectBalanceChanges] Erro crítico:', error);
+      // Erro crítico na detecção de mudanças ignorado
       return [];
     }
   }, []);
 
   const loadCacheData = useCallback(async (reason = 'auto') => {
-    console.log(`🚀 [loadCacheData] INICIADO com reason: ${reason}`);
-    console.log(`🚀 [loadCacheData] user?.email: ${user?.email}`);
-    console.log(`🚀 [loadCacheData] Time: ${new Date().toISOString()}`);
-    
     // Reset ao trocar usuário
     if (currentUserEmailRef.current !== user?.email) {
       hasLoadedRef.current = false;
@@ -236,31 +219,22 @@ const useCacheData = () => {
     }
 
     try {
-      console.log('🔄 useCacheData: Carregando dados do usuário:', user.email);
       const userResponse = await userService.getUserByEmail(user.email);
-      console.log('📡 useCacheData: Resposta getUserByEmail:', userResponse);
       
       if (userResponse.success && userResponse.data?.user) {
         const userData = userResponse.data.user;
-        console.log('✅ useCacheData: Dados do usuário processados:', userData);
         
         // Sempre verificar mudanças nos dados do usuário
         if (reason === 'silent' && cachedUser && userData.id === cachedUser.id) {
           // Comparar timestamps ou dados importantes para detectar mudanças
-          const hasChanges = JSON.stringify(userData) !== JSON.stringify(cachedUser);
-          if (hasChanges) {
-            console.log('🔄 Detectada mudança silenciosa nos dados do usuário - atualizando');
-            setLoading(true); // Sempre mostrar loading para indicar atualização
-          }
+
         }
         
         setCachedUser(userData);
         updateUser(userData);
 
         if (userData?.publicKey) {
-          console.log('💰 useCacheData: Carregando balances para:', userData.publicKey);
           const balanceResponse = await userService.getUserBalances(userData.publicKey);
-          console.log('📊 useCacheData: Resposta getUserBalances:', balanceResponse);
           
           if (balanceResponse.success) {
             const newBalanceData = balanceResponse.data;
@@ -272,21 +246,15 @@ const useCacheData = () => {
                                    newBalanceData.timestamp !== balances.timestamp;
               
               if (balanceChanged) {
-                console.log('💰 Detectada mudança nos balances - atualizando interface');
-                console.log('💰 Dados antigos:', JSON.stringify(balances.balancesTable));
-                console.log('💰 Dados novos:', JSON.stringify(newBalanceData.balancesTable));
-                
                 // Detectar mudanças específicas nos tokens
                 const changes = detectBalanceChanges(newBalanceData, balances);
-                console.log('🔍 Mudanças detectadas:', changes);
                 
                 if (changes.length > 0) {
                   // Criar notificação apenas se houver mudanças reais nos valores
-                  console.log('🔔 Criando notificação para mudanças detectadas');
                   try {
                     await createBalanceNotification(changes);
                   } catch (notificationError) {
-                    console.error('❌ Erro ao criar notificação (continuando auto-sync):', notificationError);
+                    // Erro ao criar notificação ignorado
                     // Continuar mesmo se a notificação falhar
                   }
                 }
@@ -295,68 +263,58 @@ const useCacheData = () => {
               }
             } else if (reason === 'silent') {
               // Primeira vez ou dados não existiam - sempre mostrar loading
-              console.log('💰 Primeira carga ou dados inexistentes - mostrando loading');
               setLoading(true);
             }
             
             setBalances(newBalanceData);
             setCacheLoaded(true);
-            console.log('✅ useCacheData: Balances carregados com sucesso');
           } else {
-            console.log('❌ useCacheData: Erro ao carregar balances');
+            // Erro ao carregar balances
             setBalances({ network: 'testnet', balancesTable: {}, tokenBalances: [], totalTokens: 0, categories: null });
           }
         } else {
-          console.log('⚠️ useCacheData: PublicKey não encontrada, pulando balances');
+          // PublicKey não encontrada
           setBalances({ network: 'testnet', balancesTable: {}, tokenBalances: [], totalTokens: 0, categories: null });
         }
       } else {
-        console.log('❌ useCacheData: Resposta inválida ou sem sucesso:', userResponse);
+        // Resposta inválida
         setBalances({ network: 'testnet', balancesTable: {}, tokenBalances: [], totalTokens: 0, categories: null });
       }
     } catch (error) {
-      console.error('❌ useCacheData: Erro ao carregar dados:', error);
+      // Erro ao carregar dados
       setBalances({ network: 'testnet', balancesTable: {}, tokenBalances: [], totalTokens: 0, categories: null });
     } finally {
-      console.log(`🏁 [loadCacheData] FINALIZANDO com reason: ${reason}`);
-      
       // Parar loading com timeout para dar tempo de mostrar a mudança
       if (reason === 'silent') {
         // Para silent, dar 1 segundo para mostrar que houve atualização
         setTimeout(() => {
           setLoading(false);
-          console.log('⏰ Auto-sync: Loading finalizado após timeout de 1s');
         }, 1000);
       } else {
         setLoading(false);
       }
       setCacheLoading(false);
       hasLoadedRef.current = true;
-      console.log(`✅ [loadCacheData] FINALIZADO com sucesso`);
     }
   }, [user?.email, cacheLoaded, cacheLoading, setCacheLoaded, setCacheLoading, detectBalanceChanges, createBalanceNotification]);
 
   // Atualização automática a cada 1 minuto (máxima responsividade)
   useEffect(() => {
-    if (refreshTimerRef.current) clearInterval(refreshTimerRef.current);
+    // Configurar verificação automática
+    if (refreshTimerRef.current) {
+      clearInterval(refreshTimerRef.current);
+    }
     
-    console.log('🔄 Auto-sync: Configurando verificação automática a cada 1 minuto');
-    console.log('🔄 Auto-sync: Intervalo configurado:', REFRESH_INTERVAL_MS, 'ms');
     refreshTimerRef.current = setInterval(() => {
-      const now = new Date().toISOString();
-      console.log('🔄 Auto-sync: Executando verificação automática às', now);
-      console.log('🔄 Auto-sync: Chamando loadCacheData(silent)...');
       try {
         loadCacheData('silent');
-        console.log('✅ Auto-sync: loadCacheData chamado com sucesso');
       } catch (error) {
-        console.error('❌ Auto-sync: Erro ao chamar loadCacheData:', error);
+        // Erro no auto-sync ignorado
       }
     }, REFRESH_INTERVAL_MS);
     
     return () => {
       if (refreshTimerRef.current) {
-        console.log('🔄 Auto-sync: Limpando timer automático');
         clearInterval(refreshTimerRef.current);
       }
     };
@@ -420,14 +378,11 @@ const useCacheData = () => {
     else root.classList.remove('mask-balances');
   }, [maskBalances]);
 
-  // Carregamento inicial e quando o usuário mudar
+  // useEffect principal
   useEffect(() => {
-    console.log('🚀 useCacheData: useEffect disparado - user.email:', user?.email, 'isAuthenticated:', user ? 'sim' : 'não');
     if (user?.email) {
-      console.log('🚀 Auto-sync: Iniciando carregamento inicial e configurando auto-sync');
       loadCacheData('initial');
     } else {
-      console.log('⚠️ useCacheData: Usuário não autenticado, pulando carregamento');
       // Limpar dados se não há usuário
       setBalances({ network: 'testnet', balancesTable: {}, tokenBalances: [], totalTokens: 0, categories: null });
       setCachedUser(null);
