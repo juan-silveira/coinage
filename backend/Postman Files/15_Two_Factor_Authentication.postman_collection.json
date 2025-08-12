@@ -1,0 +1,395 @@
+{
+  "info": {
+    "name": "🔐 Autenticação em Duas Etapas (2FA)",
+    "description": "Endpoints para configuração e gerenciamento de autenticação em duas etapas",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": "1.0.0"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "{{base_url}}",
+      "type": "string"
+    },
+    {
+      "key": "access_token",
+      "value": "{{access_token}}",
+      "type": "string"
+    },
+    {
+      "key": "totp_code",
+      "value": "123456",
+      "type": "string"
+    },
+    {
+      "key": "email_code",
+      "value": "654321",
+      "type": "string"
+    },
+    {
+      "key": "backup_code",
+      "value": "ABC123DE",
+      "type": "string"
+    },
+    {
+      "key": "email_2fa",
+      "value": "backup@exemplo.com",
+      "type": "string"
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{access_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "📋 Listar Métodos 2FA",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{access_token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/2fa/methods",
+          "host": ["{{base_url}}"],
+          "path": ["api", "2fa", "methods"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "🔑 TOTP - Configurar",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "  var jsonData = pm.response.json();",
+              "  if (jsonData.success && jsonData.data) {",
+              "    console.log('QR Code URL: ' + jsonData.data.qrCodeUrl);",
+              "    console.log('Manual Entry Key: ' + jsonData.data.manualEntryKey);",
+              "    pm.test('TOTP configurado com sucesso', function () {",
+              "      pm.expect(jsonData.data.secret).to.not.be.empty;",
+              "    });",
+              "  }",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{access_token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/2fa/totp/setup",
+          "host": ["{{base_url}}"],
+          "path": ["api", "2fa", "totp", "setup"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "✅ TOTP - Verificar e Ativar",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "  var jsonData = pm.response.json();",
+              "  if (jsonData.success && jsonData.data.backupCodes) {",
+              "    console.log('Códigos de Backup:', JSON.stringify(jsonData.data.backupCodes, null, 2));",
+              "    pm.test('TOTP ativado com sucesso', function () {",
+              "      pm.expect(jsonData.data.backupCodes).to.be.an('array');",
+              "    });",
+              "  }",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{access_token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"code\": \"{{totp_code}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/2fa/totp/verify",
+          "host": ["{{base_url}}"],
+          "path": ["api", "2fa", "totp", "verify"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "📧 Email - Configurar",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{access_token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{email_2fa}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/2fa/email/setup",
+          "host": ["{{base_url}}"],
+          "path": ["api", "2fa", "email", "setup"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "📨 Email - Enviar Código",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{access_token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/2fa/email/send",
+          "host": ["{{base_url}}"],
+          "path": ["api", "2fa", "email", "send"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "✅ Email - Verificar Código",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{access_token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"code\": \"{{email_code}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/2fa/email/verify",
+          "host": ["{{base_url}}"],
+          "path": ["api", "2fa", "email", "verify"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "🔍 Verificar Código 2FA (Qualquer Método)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{access_token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"code\": \"{{totp_code}}\",\n  \"method\": \"totp\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/2fa/verify",
+          "host": ["{{base_url}}"],
+          "path": ["api", "2fa", "verify"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "🔍 Verificar Código de Backup",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{access_token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"code\": \"{{backup_code}}\",\n  \"method\": \"backup_codes\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/2fa/verify",
+          "host": ["{{base_url}}"],
+          "path": ["api", "2fa", "verify"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "🗑️ Desabilitar Método 2FA",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{access_token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"method\": \"totp\",\n  \"confirmationCode\": \"{{totp_code}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/2fa/disable",
+          "host": ["{{base_url}}"],
+          "path": ["api", "2fa", "disable"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "🔄 Gerar Novos Códigos de Backup",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "  var jsonData = pm.response.json();",
+              "  if (jsonData.success && jsonData.data.backupCodes) {",
+              "    console.log('Novos Códigos de Backup:', JSON.stringify(jsonData.data.backupCodes, null, 2));",
+              "    pm.test('Códigos gerados com sucesso', function () {",
+              "      pm.expect(jsonData.data.backupCodes).to.be.an('array');",
+              "      pm.expect(jsonData.data.backupCodes.length).to.equal(10);",
+              "    });",
+              "  }",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{access_token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"confirmationCode\": \"{{totp_code}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/2fa/backup-codes/generate",
+          "host": ["{{base_url}}"],
+          "path": ["api", "2fa", "backup-codes", "generate"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "❓ Verificar Requisito 2FA para Operação",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{access_token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/2fa/check-requirement?operation=change_password",
+          "host": ["{{base_url}}"],
+          "path": ["api", "2fa", "check-requirement"],
+          "query": [
+            {
+              "key": "operation",
+              "value": "change_password"
+            }
+          ]
+        }
+      },
+      "response": []
+    }
+  ]
+}
