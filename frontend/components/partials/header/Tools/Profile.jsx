@@ -15,7 +15,7 @@ const ProfileLabel = () => {
       <div className="flex-1 ltr:mr-[10px] rtl:ml-[10px]">
         <div className="lg:h-8 lg:w-8 h-7 w-7 rounded-full">
           <img
-            src="/assets/images/users/user-1.jpg"
+            src="/assets/images/users/ivan.jpg"
             alt=""
             className="block w-full h-full object-cover rounded-full"
           />
@@ -39,11 +39,14 @@ const Profile = () => {
 
   const handleLogout = async () => {
     try {
+      // Remove todos os toasts ativos antes do logout
+      toast.dismiss();
       await authService.logout();
       logout();
       router.push('/login');
     } catch (error) {
       // Mesmo com erro, fazer logout local
+      toast.dismiss();
       logout();
       router.push('/login');
     }

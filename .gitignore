@@ -169,4 +169,14 @@ backend/env.docker
 *.backup
 
 # Local development
-.local/ 
+.local/
+
+# Backend specific files to ignore
+backend/.env
+backend/.env.backup
+backend/.env.original
+backend/env.docker
+backend/env.example
+backend/server.log
+backend/package-lock.json
+backend/node_modules/ 

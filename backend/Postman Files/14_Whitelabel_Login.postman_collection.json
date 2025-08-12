@@ -1,0 +1,251 @@
+{
+  "info": {
+    "name": "🎨 Sistema Whitelabel",
+    "description": "Endpoints para sistema de login whitelabel e multi-client",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": "1.0.0"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "{{base_url}}",
+      "type": "string"
+    },
+    {
+      "key": "client_slug",
+      "value": "pratique",
+      "type": "string"
+    },
+    {
+      "key": "email",
+      "value": "{{email}}",
+      "type": "string"
+    },
+    {
+      "key": "password",
+      "value": "{{password}}",
+      "type": "string"
+    },
+    {
+      "key": "access_token",
+      "value": "{{access_token}}",
+      "type": "string"
+    },
+    {
+      "key": "temp_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "twofa_code",
+      "value": "123456",
+      "type": "string"
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{access_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "📋 Obter Branding do Cliente",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/whitelabel/{{client_slug}}/branding",
+          "host": ["{{base_url}}"],
+          "path": ["api", "whitelabel", "{{client_slug}}", "branding"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "🚀 Iniciar Login",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "  var jsonData = pm.response.json();",
+              "  if (jsonData.success && jsonData.data.userId) {",
+              "    pm.collectionVariables.set('user_id', jsonData.data.userId);",
+              "    pm.test('Login iniciado com sucesso', function () {",
+              "      pm.expect(jsonData.success).to.be.true;",
+              "    });",
+              "  }",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{email}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/whitelabel/{{client_slug}}/login/initiate",
+          "host": ["{{base_url}}"],
+          "path": ["api", "whitelabel", "{{client_slug}}", "login", "initiate"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "✅ Confirmar Login e Vinculação",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "  var jsonData = pm.response.json();",
+              "  if (jsonData.success) {",
+              "    if (jsonData.requires2FA) {",
+              "      pm.collectionVariables.set('temp_token', jsonData.tempToken);",
+              "      pm.test('Login requer 2FA', function () {",
+              "        pm.expect(jsonData.requires2FA).to.be.true;",
+              "      });",
+              "    } else if (jsonData.data && jsonData.data.accessToken) {",
+              "      pm.collectionVariables.set('access_token', jsonData.data.accessToken);",
+              "      pm.collectionVariables.set('refresh_token', jsonData.data.refreshToken);",
+              "      pm.test('Login realizado com sucesso', function () {",
+              "        pm.expect(jsonData.data.accessToken).to.not.be.empty;",
+              "      });",
+              "    }",
+              "  }",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/whitelabel/{{client_slug}}/login/confirm",
+          "host": ["{{base_url}}"],
+          "path": ["api", "whitelabel", "{{client_slug}}", "login", "confirm"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "🔐 Completar Login com 2FA",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "  var jsonData = pm.response.json();",
+              "  if (jsonData.success && jsonData.data.accessToken) {",
+              "    pm.collectionVariables.set('access_token', jsonData.data.accessToken);",
+              "    pm.collectionVariables.set('refresh_token', jsonData.data.refreshToken);",
+              "    pm.test('Login 2FA completado com sucesso', function () {",
+              "      pm.expect(jsonData.data.accessToken).to.not.be.empty;",
+              "    });",
+              "  }",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"tempToken\": \"{{temp_token}}\",\n  \"code\": \"{{twofa_code}}\",\n  \"method\": \"totp\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/whitelabel/login/complete-2fa",
+          "host": ["{{base_url}}"],
+          "path": ["api", "whitelabel", "login", "complete-2fa"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "📋 Listar Clientes Vinculados",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{access_token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/whitelabel/linked-clients",
+          "host": ["{{base_url}}"],
+          "path": ["api", "whitelabel", "linked-clients"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "🗑️ Remover Vinculação",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{access_token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/whitelabel/unlink/{{client_id}}",
+          "host": ["{{base_url}}"],
+          "path": ["api", "whitelabel", "unlink", "{{client_id}}"]
+        }
+      },
+      "response": []
+    }
+  ]
+}

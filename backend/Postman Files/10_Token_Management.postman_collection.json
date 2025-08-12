@@ -1,0 +1,324 @@
+{
+  "info": {
+    "name": "🪙 Gerenciamento de Tokens",
+    "description": "Endpoints para gerenciamento de tokens ERC-20 na blockchain Azore",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": "1.0.0"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "{{base_url}}",
+      "type": "string"
+    },
+    {
+      "key": "api_key",
+      "value": "{{api_key}}",
+      "type": "string"
+    },
+    {
+      "key": "token_address",
+      "value": "{{token_address}}",
+      "type": "string"
+    },
+    {
+      "key": "wallet_address",
+      "value": "{{wallet_address}}",
+      "type": "string"
+    },
+    {
+      "key": "amount",
+      "value": "{{amount}}",
+      "type": "string"
+    },
+    {
+      "key": "to_address",
+      "value": "{{to_address}}",
+      "type": "string"
+    },
+    {
+      "key": "from_address",
+      "value": "{{from_address}}",
+      "type": "string"
+    },
+    {
+      "key": "gas_payer",
+      "value": "{{gas_payer}}",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Get Token Balance",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/tokens/balance?contractAddress={{token_address}}&walletAddress={{wallet_address}}",
+          "host": ["{{base_url}}"],
+          "path": ["api", "tokens", "balance"],
+          "query": [
+            {
+              "key": "contractAddress",
+              "value": "{{token_address}}"
+            },
+            {
+              "key": "walletAddress",
+              "value": "{{wallet_address}}"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Get AZE Balance",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/tokens/balanceAZE?walletAddress={{wallet_address}}",
+          "host": ["{{base_url}}"],
+          "path": ["api", "tokens", "balanceAZE"],
+          "query": [
+            {
+              "key": "walletAddress",
+              "value": "{{wallet_address}}"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Get Token Info",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/tokens/{{token_address}}/info",
+          "host": ["{{base_url}}"],
+          "path": ["api", "tokens", "{{token_address}}", "info"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Mint Tokens",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"contractAddress\": \"{{token_address}}\",\n  \"toAddress\": \"{{to_address}}\",\n  \"amount\": \"{{amount}}\",\n  \"gasPayer\": \"{{gas_payer}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/tokens/mint",
+          "host": ["{{base_url}}"],
+          "path": ["api", "tokens", "mint"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Burn Tokens",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"contractAddress\": \"{{token_address}}\",\n  \"fromAddress\": \"{{from_address}}\",\n  \"amount\": \"{{amount}}\",\n  \"gasPayer\": \"{{gas_payer}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/tokens/burn",
+          "host": ["{{base_url}}"],
+          "path": ["api", "tokens", "burn"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Transfer Tokens (Gasless)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"contractAddress\": \"{{token_address}}\",\n  \"fromAddress\": \"{{from_address}}\",\n  \"toAddress\": \"{{to_address}}\",\n  \"amount\": \"{{amount}}\",\n  \"gasPayer\": \"{{gas_payer}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/tokens/transfer-gasless",
+          "host": ["{{base_url}}"],
+          "path": ["api", "tokens", "transfer-gasless"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Register Token",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"address\": \"{{token_address}}\",\n  \"adminPublicKey\": \"{{wallet_address}}\",\n  \"network\": \"testnet\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/tokens/register",
+          "host": ["{{base_url}}"],
+          "path": ["api", "tokens", "register"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "List All Tokens",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/tokens",
+          "host": ["{{base_url}}"],
+          "path": ["api", "tokens"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Update Token Info",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"description\": \"Token atualizado via API\",\n  \"website\": \"https://example.com\",\n  \"explorer\": \"https://explorer.example.com\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/tokens/{{token_address}}/update-info",
+          "host": ["{{base_url}}"],
+          "path": ["api", "tokens", "{{token_address}}", "update-info"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Activate Token",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/tokens/{{token_address}}/activate",
+          "host": ["{{base_url}}"],
+          "path": ["api", "tokens", "{{token_address}}", "activate"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Deactivate Token",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/tokens/{{token_address}}/deactivate",
+          "host": ["{{base_url}}"],
+          "path": ["api", "tokens", "{{token_address}}", "deactivate"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Test Token Service",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/tokens/test/service",
+          "host": ["{{base_url}}"],
+          "path": ["api", "tokens", "test", "service"]
+        }
+      },
+      "response": []
+    }
+  ]
+} 

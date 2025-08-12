@@ -1,6 +1,7 @@
 import React from "react";
 import Icon from "@/components/ui/Icon";
 import SwitchDark from "./Tools/SwitchDark";
+import BalanceSwitch from "./Tools/BalanceSwitch";
 import HorizentalMenu from "./Tools/HorizentalMenu";
 import useWidth from "@/hooks/useWidth";
 import useSidebar from "@/hooks/useSidebar";
@@ -118,6 +119,7 @@ const Header = ({ className = "custom-class" }) => {
           <div className="nav-tools flex items-center lg:space-x-6 space-x-3 rtl:space-x-reverse">
             <Language />
             <SwitchDark />
+            <BalanceSwitch />
 
             {width >= breakpoints.md && <Message />}
             {width >= breakpoints.md && <Notification />}

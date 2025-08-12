@@ -1,0 +1,760 @@
+{
+  "info": {
+    "name": "🪙 Gerenciamento de Stakes",
+    "description": "Endpoints para gerenciamento completo de contratos de staking na blockchain Azore",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": "1.0.0"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "{{base_url}}",
+      "type": "string"
+    },
+    {
+      "key": "api_key",
+      "value": "{{api_key}}",
+      "type": "string"
+    },
+    {
+      "key": "stake_contract_address",
+      "value": "0xb23C10230c4C51790007690E8F806743aBb3C94D",
+      "type": "string"
+    },
+    {
+      "key": "token_contract_address",
+      "value": "0x575b05df92b1a2e7782322bb86a9ee1e5bf2edcd",
+      "type": "string"
+    },
+    {
+      "key": "user_address",
+      "value": "0x5528C065931f523CA9F3a6e49a911896fb1D2e6f",
+      "type": "string"
+    },
+    {
+      "key": "admin_public_key",
+      "value": "0x5528C065931f523CA9F3a6e49a911896fb1D2e6f",
+      "type": "string"
+    },
+    {
+      "key": "amount",
+      "value": "1.0",
+      "type": "string"
+    },
+    {
+      "key": "role",
+      "value": "DEFAULT_ADMIN_ROLE",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Register Stake Contract",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Test Stake Contract\",\n  \"address\": \"{{stake_contract_address}}\",\n  \"network\": \"testnet\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/stakes/register",
+          "host": ["{{base_url}}"],
+          "path": ["api", "stakes", "register"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Get Stake Info",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/stakes/{{stake_contract_address}}/info",
+          "host": ["{{base_url}}"],
+          "path": ["api", "stakes", "{{stake_contract_address}}", "info"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Invest Token (Stake)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"user\": \"{{user_address}}\",\n  \"amount\": \"{{amount}}\",\n  \"customTimestamp\": 0\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/stakes/{{stake_contract_address}}/invest",
+          "host": ["{{base_url}}"],
+          "path": ["api", "stakes", "{{stake_contract_address}}", "invest"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Withdraw Investment",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"user\": \"{{user_address}}\",\n  \"amount\": \"{{amount}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/stakes/{{stake_contract_address}}/withdraw",
+          "host": ["{{base_url}}"],
+          "path": ["api", "stakes", "{{stake_contract_address}}", "withdraw"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Claim Rewards",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"user\": \"{{user_address}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/stakes/{{stake_contract_address}}/claim-rewards",
+          "host": ["{{base_url}}"],
+          "path": ["api", "stakes", "{{stake_contract_address}}", "claim-rewards"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Compound Rewards",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"user\": \"{{user_address}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/stakes/{{stake_contract_address}}/compound",
+          "host": ["{{base_url}}"],
+          "path": ["api", "stakes", "{{stake_contract_address}}", "compound"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Deposit Rewards",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"amount\": \"{{amount}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/stakes/{{stake_contract_address}}/deposit-rewards",
+          "host": ["{{base_url}}"],
+          "path": ["api", "stakes", "{{stake_contract_address}}", "deposit-rewards"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Distribute Rewards",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"percentageInBasisPoints\": 1000\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/stakes/{{stake_contract_address}}/distribute-rewards",
+          "host": ["{{base_url}}"],
+          "path": ["api", "stakes", "{{stake_contract_address}}", "distribute-rewards"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Withdraw Reward Tokens",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"amount\": \"{{amount}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/stakes/{{stake_contract_address}}/withdraw-reward-tokens",
+          "host": ["{{base_url}}"],
+          "path": ["api", "stakes", "{{stake_contract_address}}", "withdraw-reward-tokens"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Set Cycle Duration",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"newDurationInDays\": 30,\n  \"adminPublicKey\": \"{{admin_public_key}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/stakes/{{stake_contract_address}}/set-cycle-duration",
+          "host": ["{{base_url}}"],
+          "path": ["api", "stakes", "{{stake_contract_address}}", "set-cycle-duration"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Set Allow Restake",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"status\": true,\n  \"adminPublicKey\": \"{{admin_public_key}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/stakes/{{stake_contract_address}}/set-allow-restake",
+          "host": ["{{base_url}}"],
+          "path": ["api", "stakes", "{{stake_contract_address}}", "set-allow-restake"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Remove From Blacklist",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"user\": \"{{user_address}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/stakes/{{stake_contract_address}}/remove-from-blacklist",
+          "host": ["{{base_url}}"],
+          "path": ["api", "stakes", "{{stake_contract_address}}", "remove-from-blacklist"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Set Staking Blocked",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"blocked\": false,\n  \"adminPublicKey\": \"{{admin_public_key}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/stakes/{{stake_contract_address}}/set-staking-blocked",
+          "host": ["{{base_url}}"],
+          "path": ["api", "stakes", "{{stake_contract_address}}", "set-staking-blocked"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Set Timelock",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"timestamp\": 1754329200,\n  \"adminPublicKey\": \"{{admin_public_key}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/stakes/{{stake_contract_address}}/set-timelock",
+          "host": ["{{base_url}}"],
+          "path": ["api", "stakes", "{{stake_contract_address}}", "set-timelock"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Set Allow Partial Withdrawal",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"allow\": true,\n  \"adminPublicKey\": \"{{admin_public_key}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/stakes/{{stake_contract_address}}/set-allow-partial-withdrawal",
+          "host": ["{{base_url}}"],
+          "path": ["api", "stakes", "{{stake_contract_address}}", "set-allow-partial-withdrawal"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Update Min Value Stake",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"value\": \"1.0\",\n  \"adminPublicKey\": \"{{admin_public_key}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/stakes/{{stake_contract_address}}/update-min-value-stake",
+          "host": ["{{base_url}}"],
+          "path": ["api", "stakes", "{{stake_contract_address}}", "update-min-value-stake"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Add To Whitelist",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"user\": \"{{user_address}}\",\n  \"adminPublicKey\": \"{{admin_public_key}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/stakes/{{stake_contract_address}}/add-to-whitelist",
+          "host": ["{{base_url}}"],
+          "path": ["api", "stakes", "{{stake_contract_address}}", "add-to-whitelist"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Remove From Whitelist",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"user\": \"{{user_address}}\",\n  \"adminPublicKey\": \"{{admin_public_key}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/stakes/{{stake_contract_address}}/remove-from-whitelist",
+          "host": ["{{base_url}}"],
+          "path": ["api", "stakes", "{{stake_contract_address}}", "remove-from-whitelist"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Set Whitelist Enabled",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"enabled\": true,\n  \"adminPublicKey\": \"{{admin_public_key}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/stakes/{{stake_contract_address}}/set-whitelist-enabled",
+          "host": ["{{base_url}}"],
+          "path": ["api", "stakes", "{{stake_contract_address}}", "set-whitelist-enabled"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Get Available Reward Balance",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/stakes/{{stake_contract_address}}/available-reward-balance",
+          "host": ["{{base_url}}"],
+          "path": ["api", "stakes", "{{stake_contract_address}}", "available-reward-balance"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Get Total Staked Supply",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/stakes/{{stake_contract_address}}/total-staked-supply",
+          "host": ["{{base_url}}"],
+          "path": ["api", "stakes", "{{stake_contract_address}}", "total-staked-supply"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Get Number of Active Users",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/stakes/{{stake_contract_address}}/number-of-active-users",
+          "host": ["{{base_url}}"],
+          "path": ["api", "stakes", "{{stake_contract_address}}", "number-of-active-users"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Get Total Reward Distributed",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/stakes/{{stake_contract_address}}/total-reward-distributed",
+          "host": ["{{base_url}}"],
+          "path": ["api", "stakes", "{{stake_contract_address}}", "total-reward-distributed"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Is Restake Allowed",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/stakes/{{stake_contract_address}}/is-restake-allowed",
+          "host": ["{{base_url}}"],
+          "path": ["api", "stakes", "{{stake_contract_address}}", "is-restake-allowed"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Get Blacklist Status",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"user\": \"{{user_address}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/stakes/{{stake_contract_address}}/blacklist-status",
+          "host": ["{{base_url}}"],
+          "path": ["api", "stakes", "{{stake_contract_address}}", "blacklist-status"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Get Total Stake Balance",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"user\": \"{{user_address}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/stakes/{{stake_contract_address}}/total-stake-balance",
+          "host": ["{{base_url}}"],
+          "path": ["api", "stakes", "{{stake_contract_address}}", "total-stake-balance"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Get Whitelisted Addresses",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/stakes/{{stake_contract_address}}/whitelisted-addresses",
+          "host": ["{{base_url}}"],
+          "path": ["api", "stakes", "{{stake_contract_address}}", "whitelisted-addresses"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Get Pending Reward",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"user\": \"{{user_address}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/stakes/{{stake_contract_address}}/pending-reward",
+          "host": ["{{base_url}}"],
+          "path": ["api", "stakes", "{{stake_contract_address}}", "pending-reward"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "List Stakes",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/stakes",
+          "host": ["{{base_url}}"],
+          "path": ["api", "stakes"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Test Stake Service",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/stakes/test/service",
+          "host": ["{{base_url}}"],
+          "path": ["api", "stakes", "test", "service"]
+        }
+      },
+      "response": []
+    }
+  ]
+} 

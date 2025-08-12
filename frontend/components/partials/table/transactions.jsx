@@ -75,7 +75,7 @@ const COLUMNS = [
     accessor: "status",
     Cell: (row) => {
       return (
-        <span className="block w-full">
+        <span className="block w-full balance">
           <span
             className={`${
               row?.cell?.value === "paid" ? "text-success-500 " : ""

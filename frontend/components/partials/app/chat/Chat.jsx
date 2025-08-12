@@ -38,7 +38,7 @@ const Chat = () => {
         sendMessage({
           content: message.trim(),
           sender: "me",
-          img: "/assets/images/users/user-1.jpg",
+          img: "/assets/images/users/ivan.jpg",
         })
       );
       setMessage("");
