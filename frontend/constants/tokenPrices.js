@@ -6,7 +6,7 @@
 
 export const TOKEN_PRICES = {
   'AZE': 1.00,
-  'AZE-t': 2000.50,  // Preço diferente para testar se funciona
+  'AZE-t': 200.50,  // Preço diferente para testar se funciona
   'cBRL': 1.00,
   'CNT': 0.75,
   'MJD': 1.25,

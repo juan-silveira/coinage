@@ -25,21 +25,23 @@ const SidebarLogo = ({ menuHover }) => {
       
       `}
     >
-      <Link href="/analytics">
-        <div className="flex items-center space-x-4">
+      <Link href="/dashboard">
+        <div className="flex items-center space-x-2">
           <div className="logo-icon">
             {!isDark && !isSemiDark ? (
-              <img src="/assets/images/logo/logo-c.svg" alt="" width={40} height={40}/>
+              <img src="/assets/images/logo/logo-c.svg" alt="" width={35} height={35}/>
             ) : (
-              <img src="/assets/images/logo/logo-c-white.svg" alt="" width={40} height={40}/>
+              <img src="/assets/images/logo/logo-c-white.svg" alt="" width={35} height={35}/>
             )}
           </div>
 
           {(!collapsed || menuHover) && (
             <div>
-              <h1 className="text-xl font-semibold text-slate-900 dark:text-slate-100">
-                Coinage
-              </h1>
+              {!isDark && !isSemiDark ? (
+              <img src="/assets/images/logo/text.svg" alt="" width={140}/>
+            ) : (
+              <img src="/assets/images/logo/text-white.svg" alt="" width={140}/>
+            )}
             </div>
           )}
         </div>

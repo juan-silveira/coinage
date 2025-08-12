@@ -1,4 +1,3 @@
-
 import "react-toastify/dist/ReactToastify.css";
 import "simplebar-react/dist/simplebar.min.css";
 import "flatpickr/dist/themes/light.css";
@@ -10,6 +9,9 @@ import { ToastContainer } from 'react-toastify';
 export const metadata = {
   title: 'Coinage - Sistema de Gestão',
   description: 'Sistema de gestão de tokens e transações blockchain.',
+  icons: {
+    icon: '/favicon.png',
+  },
 }
 
 import ThemeProvider from "./theme-provider"

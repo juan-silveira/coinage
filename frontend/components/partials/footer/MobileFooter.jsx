@@ -2,9 +2,14 @@ import React from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Icon from "@/components/ui/Icon";
+import { useNotifications } from "@/hooks/useNotifications";
+import { useChatMessages } from "@/hooks/useChatMessages";
 
 const MobileFooter = () => {
   const router = useRouter();
+  const { unreadCount: notificationCount } = useNotifications();
+  const { unreadCount: chatCount } = useChatMessages();
+  
   return (
     <div className="bg-white bg-no-repeat custom-dropshadow footer-bg dark:bg-slate-700 flex justify-around items-center backdrop-filter backdrop-blur-[40px] fixed left-0 w-full z-[9999] bottom-0 py-[12px] px-4">
       <Link href="chat">
@@ -19,9 +24,11 @@ const MobileFooter = () => {
           `}
           >
             <Icon icon="heroicons-outline:mail" />
-            <span className="absolute right-[5px] lg:top-0 -top-2 h-4 w-4 bg-red-500 text-[8px] font-semibold flex flex-col items-center justify-center rounded-full text-white z-[99]">
-              10
-            </span>
+            {chatCount > 0 && (
+              <span className="absolute right-[5px] lg:top-0 -top-2 h-4 w-4 bg-red-500 text-[8px] font-semibold flex flex-col items-center justify-center rounded-full text-white z-[99]">
+                {chatCount > 99 ? '99+' : chatCount}
+              </span>
+            )}
           </span>
           <span
             className={` block text-[11px]
@@ -66,9 +73,11 @@ const MobileFooter = () => {
           `}
           >
             <Icon icon="heroicons-outline:bell" />
-            <span className="absolute right-[17px] lg:top-0 -top-2 h-4 w-4 bg-red-500 text-[8px] font-semibold flex flex-col items-center justify-center rounded-full text-white z-[99]">
-              2
-            </span>
+            {notificationCount > 0 && (
+              <span className="absolute right-[17px] lg:top-0 -top-2 h-4 w-4 bg-red-500 text-[8px] font-semibold flex flex-col items-center justify-center rounded-full text-white z-[99]">
+                {notificationCount > 99 ? '99+' : notificationCount}
+              </span>
+            )}
           </span>
           <span
             className={` block text-[11px]
