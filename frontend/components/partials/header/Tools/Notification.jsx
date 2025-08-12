@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import Dropdown from "@/components/ui/Dropdown";
 import Icon from "@/components/ui/Icon";
 import Link from "next/link";
@@ -26,29 +26,8 @@ const Notification = () => {
 
 
 
-  // Buscar notificações não lidas
-  const fetchUnreadNotifications = async () => {
-    if (!isAuthenticated) return;
-    
-    try {
-      setLoading(true);
-      const response = await api.get('/api/notifications/unread');
-      
-      if (response.data.success) {
-        setNotifications(response.data.data);
-        setUnreadCount(response.data.data.length);
-      }
-    } catch (error) {
-      console.error('Erro ao buscar notificações:', error);
-      // Em caso de erro, tentar buscar a contagem
-      fetchUnreadCount();
-    } finally {
-      setLoading(false);
-    }
-  };
-
   // Buscar contagem de não lidas
-  const fetchUnreadCount = async () => {
+  const fetchUnreadCount = useCallback(async () => {
     if (!isAuthenticated) return;
     
     try {
@@ -72,11 +51,38 @@ const Notification = () => {
         console.error('Erro no fallback:', fallbackError);
       }
     }
-  };
+  }, [isAuthenticated]);
+
+  // Buscar notificações não lidas
+  const fetchUnreadNotifications = useCallback(async () => {
+    if (!isAuthenticated) return;
+    
+    try {
+      setLoading(true);
+      const response = await api.get('/api/notifications/unread');
+      
+      if (response.data.success) {
+        setNotifications(response.data.data);
+        setUnreadCount(response.data.data.length);
+      }
+    } catch (error) {
+      console.error('Erro ao buscar notificações:', error);
+      // Em caso de erro, tentar buscar a contagem
+      fetchUnreadCount();
+    } finally {
+      setLoading(false);
+    }
+  }, [isAuthenticated, fetchUnreadCount]);
 
   // Marcar notificação como lida
-  const markAsRead = async (notificationId) => {
+  const markAsRead = async (notificationId, event = null) => {
     if (!isAuthenticated) return;
+    
+    // Prevenir navegação se chamado de um botão
+    if (event) {
+      event.stopPropagation();
+      event.preventDefault();
+    }
     
     try {
       await api.put(`/api/notifications/${notificationId}/read`);
@@ -84,8 +90,27 @@ const Notification = () => {
       // Atualizar estado local
       setNotifications(prev => prev.filter(n => n.id !== notificationId));
       setUnreadCount(prev => Math.max(0, prev - 1));
+      
+      console.log(`✅ Notificação ${notificationId} marcada como lida`);
     } catch (error) {
       console.error('Erro ao marcar notificação como lida:', error);
+    }
+  };
+
+  // Marcar todas as notificações como lidas
+  const markAllAsRead = async () => {
+    if (!isAuthenticated) return;
+    
+    try {
+      await api.put('/api/notifications/mark-all-read');
+      
+      // Limpar estado local
+      setNotifications([]);
+      setUnreadCount(0);
+      
+      console.log('✅ Todas as notificações foram marcadas como lidas');
+    } catch (error) {
+      console.error('Erro ao marcar todas as notificações como lidas:', error);
     }
   };
 
@@ -111,25 +136,54 @@ const Notification = () => {
     });
   }, [isAuthenticated, unreadCount, notifications.length, loading]);
 
-  // Atualizar a cada 30 segundos
+  // Atualizar a cada 15 segundos (mais frequente)
   useEffect(() => {
     if (!isAuthenticated) return;
     
     const interval = setInterval(() => {
       fetchUnreadCount();
-    }, 30000);
+    }, 15000);
     
     return () => clearInterval(interval);
+  }, [isAuthenticated, fetchUnreadCount]);
+
+  // Ouvir evento personalizado para atualização imediata
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const handleRefreshNotifications = () => {
+      console.log('🔔 [Notification] Evento de refresh recebido - atualizando notificações...');
+      
+      // Usar funções diretas para evitar problemas de dependência
+      if (isAuthenticated) {
+        fetchUnreadCount();
+        fetchUnreadNotifications();
+      }
+    };
+
+    window.addEventListener('refreshNotifications', handleRefreshNotifications, { passive: true });
+    
+    return () => {
+      window.removeEventListener('refreshNotifications', handleRefreshNotifications);
+    };
   }, [isAuthenticated]);
 
   return (
     <Dropdown classMenuItems="md:w-[300px] top-[58px]" label={notifyLabel(unreadCount)}>
-      <div className="flex justify-between px-4 py-4 border-b border-slate-100 dark:border-slate-600">
+      <div className="flex justify-between items-center px-4 py-4 border-b border-slate-100 dark:border-slate-600">
         <div className="text-sm text-slate-800 dark:text-slate-200 font-medium leading-6">
-          Notificações
+          Notificações {unreadCount > 0 && <span className="text-xs text-slate-500">({unreadCount})</span>}
         </div>
-        <div className="text-slate-800 dark:text-slate-200 text-xs md:text-right">
-          <Link href="/notifications" className="underline">
+        <div className="flex items-center space-x-2">
+          {unreadCount > 0 && (
+            <button
+              onClick={markAllAsRead}
+              className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
+            >
+              Marcar todas lidas
+            </button>
+          )}
+          <Link href="/notifications" className="text-xs text-slate-800 dark:text-slate-200 hover:underline">
             Ver todas
           </Link>
         </div>
@@ -156,8 +210,11 @@ const Notification = () => {
                       ? "bg-slate-100 dark:bg-slate-700 dark:bg-opacity-70 text-slate-800"
                       : "text-slate-600 dark:text-slate-300"
                   } block w-full px-4 py-3 text-sm cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700`}
-                  onClick={() => {
-                    // Navegar para a página de notificações e abrir o slide
+                  onClick={async () => {
+                    // Marcar como lida automaticamente
+                    await markAsRead(item.id);
+                    
+                    // Navegar para a página de notificações
                     window.location.href = '/notifications?open=' + item.id;
                   }}
                 >
@@ -181,8 +238,17 @@ const Notification = () => {
                         <div className="text-slate-400 dark:text-slate-400 text-xs">
                           {new Date(item.createdAt).toLocaleString('pt-BR')}
                         </div>
-                        <div className="text-xs text-blue-600 dark:text-blue-400">
-                          {item.sender}
+                        <div className="flex items-center space-x-2">
+                          <button
+                            onClick={(e) => markAsRead(item.id, e)}
+                            className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
+                            title="Marcar como lida"
+                          >
+                            ✓
+                          </button>
+                          <div className="text-xs text-blue-600 dark:text-blue-400">
+                            {item.sender}
+                          </div>
                         </div>
                       </div>
                     </div>

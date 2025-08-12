@@ -2,12 +2,12 @@ import axios from 'axios';
 import useAuthStore from '@/store/authStore';
 
 // Configuração base da API
-const API_BASE_URL = 'http://localhost:8800';
+const API_BASE_URL = 'http://localhost:8801';
 
 // Instância do axios
 const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 10000,
+  timeout: 30000, // 30 segundos para dar mais tempo ao Redis
   headers: {
     'Content-Type': 'application/json',
   },
@@ -43,7 +43,7 @@ api.interceptors.response.use(
       if (isAuthenticated && refreshToken) {
         try {
           // Tentar renovar o token
-          const response = await axios.post(`${API_BASE_URL}/api/auth/refresh-token`, {
+          const response = await axios.post(`${API_BASE_URL}/api/auth/refresh`, {
             refreshToken
           });
 
@@ -56,9 +56,20 @@ api.interceptors.response.use(
           originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
           return api(originalRequest);
         } catch (refreshError) {
-          // Se falhar o refresh, fazer logout
-          logout();
-          window.location.href = '/login';
+          console.error('❌ [API] ERRO CRÍTICO no refresh de token (EVITANDO LOGOUT DESNECESSÁRIO):', refreshError);
+          console.error('❌ [API] Stack trace:', refreshError.stack);
+          
+          // Só fazer logout em casos específicos, não em erros de rede
+          const shouldLogout = refreshError.response?.status === 401 || refreshError.response?.status === 403;
+          
+          if (shouldLogout) {
+            console.log('🔐 [API] Fazendo logout devido a erro de autenticação');
+            logout();
+            window.location.href = '/login';
+          } else {
+            console.warn('⚠️ [API] Erro de rede no refresh - mantendo usuário logado');
+          }
+          
           return Promise.reject(refreshError);
         }
       } else if (isAuthenticated) {
@@ -98,6 +109,18 @@ export const authService = {
     }
   },
 
+  // Refresh Token
+  refreshToken: async (refreshToken) => {
+    try {
+      const response = await api.post('/api/auth/refresh-token', {
+        refreshToken
+      });
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+
   // Alterar senha
   changePassword: async (oldPassword, newPassword) => {
     const response = await api.post('/api/auth/change-password', {
@@ -109,7 +132,7 @@ export const authService = {
 
   // Refresh token
   refreshToken: async (refreshToken) => {
-    const response = await api.post('/api/auth/refresh-token', {
+    const response = await api.post('/api/auth/refresh', {
       refreshToken
     });
     return response.data;
@@ -154,11 +177,34 @@ export const userService = {
     return response.data;
   },
 
-  // Obter saldos do usuário por endereço (consulta direta à blockchain)
-  getUserBalances: async (address, network = 'testnet') => {
-    const response = await api.get(`/api/users/address/${address}/balances`, {
-      params: { network }
+  // Obter saldos do usuário por endereço (usa endpoint fresh que inclui AZE-t nativo)
+  getUserBalances: async (address, network = 'testnet', forceRefresh = false) => {
+    // Usar o novo endpoint que busca dados frescos incluindo AZE-t
+    const response = await api.get(`/api/balance-sync/fresh`, {
+      params: { 
+        address: address,
+        network: network
+      }
     });
+    
+    // Transformar resposta para o formato esperado pelos hooks
+    if (response.data.success && response.data.data) {
+      const balanceData = response.data.data;
+      return {
+        success: true,
+        data: {
+          network: balanceData.network || 'testnet',
+          balancesTable: balanceData.balancesTable || {},
+          tokenBalances: balanceData.tokenBalances || [],
+          totalTokens: balanceData.totalTokens || 0,
+          address: balanceData.address || address,
+          azeBalance: balanceData.azeBalance,
+          timestamp: balanceData.timestamp || new Date().toISOString(),
+          fromCache: false
+        }
+      };
+    }
+    
     return response.data;
   },
 

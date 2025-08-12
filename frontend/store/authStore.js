@@ -14,6 +14,7 @@ const useAuthStore = create(
       cacheLoaded: false, // indica se o cache já foi carregado nesta sessão
       cacheLoading: false, // evita concorrência em carregamentos
       maskBalances: false, // se true, aplica blur nos valores
+      notifications: [], // notificações do sistema
 
       // Ações
       setUser: (user) => set({ user }),
@@ -31,6 +32,23 @@ const useAuthStore = create(
 
       setMaskBalances: (masked) => set({ maskBalances: masked }),
       toggleMaskBalances: () => set((s) => ({ maskBalances: !s.maskBalances })),
+
+      // Notificações
+      addNotification: (notification) => set((state) => ({
+        notifications: [...state.notifications, notification]
+      })),
+      
+      removeNotification: (id) => set((state) => ({
+        notifications: state.notifications.filter(n => n.id !== id)
+      })),
+      
+      markNotificationAsRead: (id) => set((state) => ({
+        notifications: state.notifications.map(n => 
+          n.id === id ? { ...n, isRead: true } : n
+        )
+      })),
+      
+      clearNotifications: () => set({ notifications: [] }),
       
       login: (user, accessToken, refreshToken, requiresPasswordChange = false) => {
         if (user && user.name) {
@@ -60,6 +78,7 @@ const useAuthStore = create(
           isLoading: false,
           cacheLoaded: false,
           cacheLoading: false,
+          notifications: [], // limpar notificações ao fazer logout
         });
       },
       

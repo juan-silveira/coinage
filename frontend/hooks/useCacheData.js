@@ -1,8 +1,15 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { userService } from '@/services/api';
 import useAuthStore from '@/store/authStore';
+import api from '@/services/api';
 
-const REFRESH_INTERVAL_MS = 5 * 60 * 1000; // 5 minutos
+const REFRESH_INTERVAL_MS = 1 * 60 * 1000; // 1 minuto para máxima responsividade
+
+// Função para disparar evento de notificações
+const triggerNotificationRefresh = () => {
+  const event = new CustomEvent('refreshNotifications');
+  window.dispatchEvent(event);
+};
 
 const useCacheData = () => {
   const [cachedUser, setCachedUser] = useState(null);
@@ -30,7 +37,180 @@ const useCacheData = () => {
   const currentUserEmailRef = useRef(null);
   const refreshTimerRef = useRef(null);
 
+  // Função para criar notificação de mudança de balance
+  const createBalanceNotification = useCallback(async (changes) => {
+    if (!user?.id || changes.length === 0) return;
+
+    try {
+      // Se houver apenas 1 mudança, criar notificação detalhada
+      if (changes.length === 1) {
+        const change = changes[0];
+        const oldValue = parseFloat(change.oldValue);
+        const newValue = parseFloat(change.newValue);
+        const difference = parseFloat(change.difference);
+        const percentage = oldValue > 0 ? ((difference / oldValue) * 100).toFixed(2) : 0;
+        
+        let title = '';
+        let message = '';
+        let emoji = '';
+        
+        if (change.type === 'new') {
+          emoji = '🆕';
+          title = `${emoji} Novo Token Recebido - ${change.token}`;
+          message = `Você recebeu ${change.newValue} ${change.token} em sua carteira`;
+        } else if (change.type === 'increase') {
+          emoji = '💰';
+          title = `${emoji} Saldo Aumentou - ${change.token}`;
+          message = `Seu saldo do token ${change.token} aumentou ${Math.abs(difference).toFixed(6)} de ${change.oldValue} para ${change.newValue} (+${Math.abs(percentage)}%)`;
+        } else if (change.type === 'decrease') {
+          emoji = '📉';
+          title = `${emoji} Saldo Diminuiu - ${change.token}`;
+          message = `Seu saldo do token ${change.token} diminuiu ${Math.abs(difference).toFixed(6)} de ${change.oldValue} para ${change.newValue} (-${Math.abs(percentage)}%)`;
+        }
+
+        const notificationData = {
+          userId: user.id,
+          title,
+          message,
+          sender: 'coinage',
+          data: {
+            type: 'balance_update',
+            changes: [change],
+            timestamp: new Date().toISOString()
+          }
+        };
+
+        console.log('🔔 Criando notificação detalhada:', notificationData);
+        await api.post('/api/notifications/create', notificationData);
+        
+      } else {
+        // Múltiplas mudanças - criar uma notificação para cada uma
+        for (const change of changes) {
+          const oldValue = parseFloat(change.oldValue);
+          const newValue = parseFloat(change.newValue);
+          const difference = parseFloat(change.difference);
+          const percentage = oldValue > 0 ? ((difference / oldValue) * 100).toFixed(2) : 0;
+          
+          let title = '';
+          let message = '';
+          let emoji = '';
+          
+          if (change.type === 'new') {
+            emoji = '🆕';
+            title = `${emoji} Novo Token Recebido - ${change.token}`;
+            message = `Você recebeu ${change.newValue} ${change.token} em sua carteira`;
+          } else if (change.type === 'increase') {
+            emoji = '💰';
+            title = `${emoji} Saldo Aumentou - ${change.token}`;
+            message = `Seu saldo do token ${change.token} aumentou ${Math.abs(difference).toFixed(6)} de ${change.oldValue} para ${change.newValue} (+${Math.abs(percentage)}%)`;
+          } else if (change.type === 'decrease') {
+            emoji = '📉';
+            title = `${emoji} Saldo Diminuiu - ${change.token}`;
+            message = `Seu saldo do token ${change.token} diminuiu ${Math.abs(difference).toFixed(6)} de ${change.oldValue} para ${change.newValue} (-${Math.abs(percentage)}%)`;
+          }
+
+          const notificationData = {
+            userId: user.id,
+            title,
+            message,
+            sender: 'coinage',
+            data: {
+              type: 'balance_update',
+              changes: [change],
+              timestamp: new Date().toISOString()
+            }
+          };
+
+          console.log(`🔔 Criando notificação para ${change.token}:`, notificationData);
+          await api.post('/api/notifications/create', notificationData);
+          
+          // Pequeno delay entre notificações para evitar spam
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+      }
+      
+      // Disparar evento para atualizar o componente de notificações
+      triggerNotificationRefresh();
+      
+      console.log('✅ Notificações de balance criadas com sucesso');
+    } catch (error) {
+      console.error('❌ Erro ao criar notificação de balance:', error);
+    }
+  }, [user?.id]);
+
+  // Função para detectar mudanças nos balances
+  const detectBalanceChanges = useCallback((newBalances, oldBalances) => {
+    try {
+      console.log('🔍 [detectBalanceChanges] Iniciando detecção...');
+      console.log('🔍 [detectBalanceChanges] newBalances:', newBalances?.balancesTable);
+      console.log('🔍 [detectBalanceChanges] oldBalances:', oldBalances?.balancesTable);
+      
+      if (!newBalances?.balancesTable || !oldBalances?.balancesTable) {
+        console.log('🔍 [detectBalanceChanges] Dados incompletos - retornando array vazio');
+        return [];
+      }
+      
+      const changes = [];
+      const newTable = newBalances.balancesTable;
+      const oldTable = oldBalances.balancesTable;
+      
+      // Verificar mudanças em tokens existentes
+      Object.keys(newTable).forEach(token => {
+        try {
+          const newValue = parseFloat(newTable[token] || 0);
+          const oldValue = parseFloat(oldTable[token] || 0);
+          
+          console.log(`🔍 [detectBalanceChanges] ${token}: ${oldValue} -> ${newValue}`);
+          
+          if (Math.abs(newValue - oldValue) > 0.000001) { // Tolerância para precisão
+            const difference = newValue - oldValue;
+            const change = {
+              token,
+              oldValue: oldValue.toFixed(6),
+              newValue: newValue.toFixed(6),
+              difference: difference.toFixed(6),
+              type: oldValue === 0 ? 'new' : (difference > 0 ? 'increase' : 'decrease')
+            };
+            console.log(`🔍 [detectBalanceChanges] Mudança detectada em ${token}:`, change);
+            changes.push(change);
+          }
+        } catch (tokenError) {
+          console.error(`❌ [detectBalanceChanges] Erro ao processar token ${token}:`, tokenError);
+        }
+      });
+      
+      // Verificar tokens que sumiram
+      Object.keys(oldTable).forEach(token => {
+        try {
+          if (!(token in newTable) && parseFloat(oldTable[token]) > 0) {
+            const change = {
+              token,
+              oldValue: parseFloat(oldTable[token]).toFixed(6),
+              newValue: '0.000000',
+              difference: (-parseFloat(oldTable[token])).toFixed(6),
+              type: 'decrease'
+            };
+            console.log(`🔍 [detectBalanceChanges] Token removido ${token}:`, change);
+            changes.push(change);
+          }
+        } catch (tokenError) {
+          console.error(`❌ [detectBalanceChanges] Erro ao processar remoção de token ${token}:`, tokenError);
+        }
+      });
+      
+      console.log(`🔍 [detectBalanceChanges] Total de mudanças detectadas: ${changes.length}`);
+      return changes;
+    } catch (error) {
+      console.error('❌ [detectBalanceChanges] Erro crítico:', error);
+      return [];
+    }
+  }, []);
+
   const loadCacheData = useCallback(async (reason = 'auto') => {
+    console.log(`🚀 [loadCacheData] INICIADO com reason: ${reason}`);
+    console.log(`🚀 [loadCacheData] user?.email: ${user?.email}`);
+    console.log(`🚀 [loadCacheData] Time: ${new Date().toISOString()}`);
+    
     // Reset ao trocar usuário
     if (currentUserEmailRef.current !== user?.email) {
       hasLoadedRef.current = false;
@@ -64,16 +244,13 @@ const useCacheData = () => {
         const userData = userResponse.data.user;
         console.log('✅ useCacheData: Dados do usuário processados:', userData);
         
-        // Verificar se houve mudança significativa nos dados
+        // Sempre verificar mudanças nos dados do usuário
         if (reason === 'silent' && cachedUser && userData.id === cachedUser.id) {
           // Comparar timestamps ou dados importantes para detectar mudanças
           const hasChanges = JSON.stringify(userData) !== JSON.stringify(cachedUser);
           if (hasChanges) {
-            console.log('🔄 Detectada mudança silenciosa - forçando atualização completa');
-            // Force um refresh completo se detectar mudanças durante silent reload
-            hasLoadedRef.current = false;
-            setCacheLoaded(false);
-            setLoading(true); // Mostrar loading para indicar atualização
+            console.log('🔄 Detectada mudança silenciosa nos dados do usuário - atualizando');
+            setLoading(true); // Sempre mostrar loading para indicar atualização
           }
         }
         
@@ -88,21 +265,38 @@ const useCacheData = () => {
           if (balanceResponse.success) {
             const newBalanceData = balanceResponse.data;
             
-            // Detectar mudanças nos balances
+            // Sempre detectar mudanças nos balances (mais sensível)
             if (reason === 'silent' && balances && balances.totalTokens !== undefined) {
               const balanceChanged = newBalanceData.totalTokens !== balances.totalTokens ||
-                                   JSON.stringify(newBalanceData.balancesTable) !== JSON.stringify(balances.balancesTable);
+                                   JSON.stringify(newBalanceData.balancesTable) !== JSON.stringify(balances.balancesTable) ||
+                                   newBalanceData.timestamp !== balances.timestamp;
               
               if (balanceChanged) {
                 console.log('💰 Detectada mudança nos balances - atualizando interface');
-                setLoading(true); // Mostrar loading brevemente para indicar atualização
+                console.log('💰 Dados antigos:', JSON.stringify(balances.balancesTable));
+                console.log('💰 Dados novos:', JSON.stringify(newBalanceData.balancesTable));
                 
-                // Timeout de segurança para evitar loading infinito
-                setTimeout(() => {
-                  setLoading(false);
-                  console.log('⏰ Timeout de segurança - finalizando loading');
-                }, 3000);
+                // Detectar mudanças específicas nos tokens
+                const changes = detectBalanceChanges(newBalanceData, balances);
+                console.log('🔍 Mudanças detectadas:', changes);
+                
+                if (changes.length > 0) {
+                  // Criar notificação apenas se houver mudanças reais nos valores
+                  console.log('🔔 Criando notificação para mudanças detectadas');
+                  try {
+                    await createBalanceNotification(changes);
+                  } catch (notificationError) {
+                    console.error('❌ Erro ao criar notificação (continuando auto-sync):', notificationError);
+                    // Continuar mesmo se a notificação falhar
+                  }
+                }
+                
+                setLoading(true); // Mostrar loading brevemente para indicar atualização
               }
+            } else if (reason === 'silent') {
+              // Primeira vez ou dados não existiam - sempre mostrar loading
+              console.log('💰 Primeira carga ou dados inexistentes - mostrando loading');
+              setLoading(true);
             }
             
             setBalances(newBalanceData);
@@ -124,23 +318,47 @@ const useCacheData = () => {
       console.error('❌ useCacheData: Erro ao carregar dados:', error);
       setBalances({ network: 'testnet', balancesTable: {}, tokenBalances: [], totalTokens: 0, categories: null });
     } finally {
-      // Só parar loading se não for silent
-      if (reason !== 'silent') {
+      console.log(`🏁 [loadCacheData] FINALIZANDO com reason: ${reason}`);
+      
+      // Parar loading com timeout para dar tempo de mostrar a mudança
+      if (reason === 'silent') {
+        // Para silent, dar 1 segundo para mostrar que houve atualização
+        setTimeout(() => {
+          setLoading(false);
+          console.log('⏰ Auto-sync: Loading finalizado após timeout de 1s');
+        }, 1000);
+      } else {
         setLoading(false);
       }
       setCacheLoading(false);
       hasLoadedRef.current = true;
+      console.log(`✅ [loadCacheData] FINALIZADO com sucesso`);
     }
-  }, [user?.email, cacheLoaded, cacheLoading, setCacheLoaded, setCacheLoading]);
+  }, [user?.email, cacheLoaded, cacheLoading, setCacheLoaded, setCacheLoading, detectBalanceChanges, createBalanceNotification]);
 
-  // Atualização automática a cada 5 minutos (silenciosa)
+  // Atualização automática a cada 1 minuto (máxima responsividade)
   useEffect(() => {
     if (refreshTimerRef.current) clearInterval(refreshTimerRef.current);
+    
+    console.log('🔄 Auto-sync: Configurando verificação automática a cada 1 minuto');
+    console.log('🔄 Auto-sync: Intervalo configurado:', REFRESH_INTERVAL_MS, 'ms');
     refreshTimerRef.current = setInterval(() => {
-      loadCacheData('silent');
+      const now = new Date().toISOString();
+      console.log('🔄 Auto-sync: Executando verificação automática às', now);
+      console.log('🔄 Auto-sync: Chamando loadCacheData(silent)...');
+      try {
+        loadCacheData('silent');
+        console.log('✅ Auto-sync: loadCacheData chamado com sucesso');
+      } catch (error) {
+        console.error('❌ Auto-sync: Erro ao chamar loadCacheData:', error);
+      }
     }, REFRESH_INTERVAL_MS);
+    
     return () => {
-      if (refreshTimerRef.current) clearInterval(refreshTimerRef.current);
+      if (refreshTimerRef.current) {
+        console.log('🔄 Auto-sync: Limpando timer automático');
+        clearInterval(refreshTimerRef.current);
+      }
     };
   }, [loadCacheData]);
 
@@ -206,9 +424,14 @@ const useCacheData = () => {
   useEffect(() => {
     console.log('🚀 useCacheData: useEffect disparado - user.email:', user?.email, 'isAuthenticated:', user ? 'sim' : 'não');
     if (user?.email) {
+      console.log('🚀 Auto-sync: Iniciando carregamento inicial e configurando auto-sync');
       loadCacheData('initial');
     } else {
       console.log('⚠️ useCacheData: Usuário não autenticado, pulando carregamento');
+      // Limpar dados se não há usuário
+      setBalances({ network: 'testnet', balancesTable: {}, tokenBalances: [], totalTokens: 0, categories: null });
+      setCachedUser(null);
+      setLoading(false);
     }
   }, [user?.email, loadCacheData]);
 

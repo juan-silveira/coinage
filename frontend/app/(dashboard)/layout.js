@@ -26,6 +26,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import AuthGuard from "@/components/AuthGuard";
 import useAuthStore from "@/store/authStore";
 import { toast } from "react-toastify";
+import useTokenRenewal from "@/hooks/useTokenRenewal";
+import useErrorBoundary from "@/hooks/useErrorBoundary";
 
 export default function RootLayout({ children }) {
   // Verificar toast de login bem-sucedido
@@ -48,6 +50,12 @@ export default function RootLayout({ children }) {
   const [isMonoChrome] = useMonoChrome();
   const router = useRouter();
   const { isAuthenticated, user, logout } = useAuthStore();
+  
+  // Hook de renovação automática de token
+  useTokenRenewal();
+  
+  // Hook de proteção contra crashes
+  useErrorBoundary();
   const location = usePathname();
   // header switch class
   const switchHeaderClass = () => {
