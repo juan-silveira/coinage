@@ -9,11 +9,12 @@ import Link from "next/link";
 import SimpleBar from "simplebar-react";
 import Earnings from "@/components/partials/widget/Earnings";
 import CompanyTable from "@/components/partials/table/company-table";
-import HistoryChart from "@/components/partials/widget/chart/history-chart";
+import EarningsChart from "@/components/partials/widget/chart/earnings-chart";
 import AccountReceivable from "@/components/partials/widget/chart/account-receivable";
 import AccountPayable from "@/components/partials/widget/chart/account-payable";
 import useAuthStore from "@/store/authStore";
 import useCacheData from "@/hooks/useCacheData";
+import useEarnings from "@/hooks/useEarnings";
 
 const CardSlider = dynamic(
   () => import("@/components/partials/widget/CardSlider"),
@@ -54,6 +55,14 @@ const BankingPage = () => {
   const [activeIndex, setActiveIndex] = useState(0);
   const { user } = useAuthStore();
   const { balances, loading } = useCacheData();
+  
+  // Hook compartilhado para earnings
+  const earningsData = useEarnings({
+    limit: 100, // Buscar mais dados para o gráfico
+    autoFetch: true,
+  });
+  
+  // Não mostrar loading geral - deixar os componentes individuais lidarem com seus placeholders
 
   // Função para obter saudação baseada na hora
   const getGreeting = () => {
@@ -71,36 +80,6 @@ const BankingPage = () => {
         subtitle="Confira abaixo o seu patrimônio digital"
         bodyClass="p-4"
       >
-        <div className="grid lg:grid-cols-2 grid-cols-1 gap-6">
-          {/* Seção de boas-vindas */}
-          <div className="flex items-center justify-center">
-            <div className="flex space-x-4 items-center rtl:space-x-reverse">
-              <div className="flex-none">
-                <div className="h-20 w-20 rounded-full">
-                  <img
-                    src="/assets/images/users/ivan.jpg"
-                    alt=""
-                    className="block w-full h-full object-cover rounded-full"
-                  />
-                </div>
-              </div>
-              <div className="flex-1">
-                <h4 className="text-xl font-medium mb-2">
-                  <span className="block font-light">{getGreeting()},</span>
-                  <span className="block">{user?.name || "Usuário"}</span>
-                </h4>
-                <p className="text-sm dark:text-slate-300">
-                  Bem-vindo à Coinage
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Seção do gráfico donut */}
-          <div className="flex items-center justify-center">
-            <PortfolioDonutChart />
-          </div>
-        </div>
         <PortfolioSummary />
       </Card>
       <div className="grid grid-cols-12 gap-5">
@@ -113,9 +92,9 @@ const BankingPage = () => {
       </div>
       <div className="grid lg:grid-cols-2 grid-cols-1 gap-5">
         <Earnings />
-        <Card title="History" headerslot={<SelectMonth />}>
+        <Card title="Histórico de Proventos" subtitle="Acompanhe o histórico das distribuições dos proventos" headerslot={<SelectMonth />}>
           <div className="legend-ring4">
-            <HistoryChart />
+            <EarningsChart earnings={earningsData.earnings || []} />
           </div>
         </Card>
       </div>

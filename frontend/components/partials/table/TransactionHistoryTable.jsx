@@ -250,12 +250,6 @@ const TransactionHistoryTable = () => {
     setCurrentPage(totalPages);
   };
 
-  // Função para alterar itens por página
-  const handleItemsPerPageChange = (newItemsPerPage) => {
-    setItemsPerPage(newItemsPerPage);
-    setCurrentPage(1); // Reset para primeira página
-  };
-
   // Função para obter URL da blockchain baseada na rede
   const getBlockchainUrl = (txHash) => {
     const network = balances?.network || 'testnet';
@@ -293,21 +287,6 @@ const TransactionHistoryTable = () => {
     <Card 
       title="Histórico de Transações" 
       subtitle="Confira abaixo o histórico de transações"
-      headerslot={
-        <div className="flex items-center space-x-2">
-          <span className="text-sm text-slate-500 dark:text-slate-400">Mostrar:</span>
-          <select
-            value={itemsPerPage}
-            onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
-            className="px-2 py-1 text-sm border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-slate-900 dark:text-white"
-          >
-            <option value={5}>5</option>
-            <option value={10}>10</option>
-            <option value={20}>20</option>
-          </select>
-          <span className="text-sm text-slate-500 dark:text-slate-400">por página</span>
-        </div>
-      }
     >
       <div className="space-y-4">
         {/* Tabela */}
@@ -427,7 +406,7 @@ const TransactionHistoryTable = () => {
 
       {/* Pagination */}
       {mockTransactions.length > itemsPerPage && (
-        <div className="px-4 py-3 bg-slate-50 dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 rounded-lg">
+        <div className="px-4 py-3 bg-slate-50 dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-3 md:space-y-0">
             <div className="text-sm text-slate-500 dark:text-slate-400 text-center md:text-left">
               Exibindo {startIndex + 1} ao {Math.min(startIndex + itemsPerPage, mockTransactions.length)} de {mockTransactions.length} registros

@@ -130,7 +130,11 @@ const useBalanceSync = (onBalanceUpdate = null) => {
       
     } catch (error) {
       setRedisSyncStatus('error');
-      console.error('❌ [BalanceSync] Erro na sincronização com Redis:', error);
+      console.error('❌ [BalanceSync] Erro na sincronização com Redis:', {
+        error: error.message,
+        status: error.response?.status,
+        userId: user?.id
+      });
       showError('❌ Erro na sincronização com Redis');
       return null;
     }
@@ -366,7 +370,13 @@ const useBalanceSync = (onBalanceUpdate = null) => {
       }
       
     } catch (error) {
-      console.error('❌ [BalanceSync] Erro na sincronização de balances:', error);
+      console.error('❌ [BalanceSync] Erro na sincronização de balances:', {
+        error: error.message,
+        status: error.response?.status,
+        url: error.config?.url,
+        publicKey: user?.publicKey?.slice(0, 10) + '...',
+        manual
+      });
       setSyncError(error.message);
       
       if (manual) {
@@ -412,7 +422,11 @@ const useBalanceSync = (onBalanceUpdate = null) => {
         try {
           await syncBalances(false, true); // bypassActiveCheck=true para forçar
         } catch (error) {
-          console.error('❌ [BalanceSync] Erro na sincronização automática (continuando ativo):', error);
+          console.error('❌ [BalanceSync] Erro na sincronização automática (continuando ativo):', {
+            error: error.message,
+            status: error.response?.status,
+            timestamp: new Date().toISOString()
+          });
           // NÃO parar o serviço, apenas logar o erro
         }
       }

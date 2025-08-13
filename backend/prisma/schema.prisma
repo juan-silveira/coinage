@@ -54,6 +54,7 @@ model User {
   sessionTimeout         Int      @default(600) @map("session_timeout")
   globalRole             UserRole @default(USER) @map("global_role")
   isActive               Boolean  @default(true) @map("is_active")
+  userPlan               UserPlan @default(BASIC) @map("user_plan")
   metadata               Json?    @db.JsonB
   lastActivityAt         DateTime? @map("last_activity_at") @db.Timestamptz
   createdAt              DateTime @default(now()) @map("created_at") @db.Timestamptz
@@ -69,6 +70,7 @@ model User {
   approvedUserClients UserClient[]    @relation("UserClientApprover")
   deployedBrandings   ClientBranding[] @relation("ClientBrandingDeployer")
   notifications       Notification[]
+  earnings            Earnings[]
 
   @@map("users")
   @@index([email], map: "idx_users_email")
@@ -76,6 +78,7 @@ model User {
   @@index([globalRole], map: "idx_users_global_role")
   @@index([isActive], map: "idx_users_active")
   @@index([lastActivityAt], map: "idx_users_last_activity")
+  @@index([userPlan], map: "idx_users_user_plan")
 }
 
 // API Key Model
@@ -486,6 +489,32 @@ model Notification {
   @@index([createdAt], map: "idx_notifications_created")
 }
 
+// Earnings Model - Histórico de proventos distribuídos
+model Earnings {
+  id           String   @id @default(uuid()) @db.Uuid
+  userId       String   @map("user_id") @db.Uuid
+  tokenSymbol  String   @map("token_symbol") @db.VarChar(20)
+  tokenName    String   @map("token_name") @db.VarChar(100)
+  amount       Decimal  @db.Decimal(20, 8) // Quantidade de tokens distribuídos
+  quote        Decimal  @db.Decimal(20, 8) // Valor de 1 token em cBRL
+  network      Network  @default(testnet)
+  transactionHash String? @map("transaction_hash") @db.VarChar(66) // Hash da transação blockchain
+  distributionDate DateTime @map("distribution_date") @db.Timestamptz // Data da distribuição
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  // Relations
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("earnings")
+  @@index([userId], map: "idx_earnings_user_id")
+  @@index([tokenSymbol], map: "idx_earnings_token_symbol")
+  @@index([network], map: "idx_earnings_network")
+  @@index([distributionDate], map: "idx_earnings_distribution_date")
+  @@index([isActive], map: "idx_earnings_active")
+}
+
 // Enums
 enum Network {
   mainnet
@@ -512,6 +541,13 @@ enum UserRole {
   ADMIN       // Administrador (gestão de usuários do mesmo cliente, dono da carteira master)
   SUPER_ADMIN // Super administrador (acesso total ao sistema, inclusive chaves privadas)
   APP_ADMIN   // Administrador do APP (acesso a quase tudo, mas não chaves privadas)
+}
+
+// Planos de usuário para controle de funcionalidades
+enum UserPlan {
+  BASIC       // Plano básico: auto-sync a cada 5 minutos
+  PRO         // Plano profissional: auto-sync a cada 2 minutos
+  PREMIUM     // Plano premium: auto-sync a cada 1 minuto
 }
 
 enum DocumentCategory {

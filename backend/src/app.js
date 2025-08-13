@@ -34,6 +34,8 @@ const twoFactorRoutes = require('./routes/twoFactor.routes');
 const cacheRoutes = require('./routes/cache.routes');
 const notificationRoutes = require('./routes/notification.routes');
 const tokenAmountRoutes = require('./routes/tokenAmount.routes');
+const earningsRoutes = require('./routes/earnings.routes');
+const userPlanRoutes = require('./routes/userPlan.routes');
 
 // Importar serviços
 const contractService = require('./services/contract.service');
@@ -208,6 +210,10 @@ app.use('/api/balance-sync', balanceSyncRoutes);
 
 // Rotas de monitoramento de saldos de tokens
 app.use('/api/token-amounts', tokenAmountRoutes);
+app.use('/api/earnings', earningsRoutes);
+
+// Rotas de planos de usuário (públicas para consulta, autenticadas para admin)
+app.use('/api/user-plans', userPlanRoutes);
 
 // Middleware de tratamento de erros 404
 app.use('*', (req, res) => {

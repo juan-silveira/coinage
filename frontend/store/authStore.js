@@ -73,7 +73,13 @@ const useAuthStore = create(
         });
       },
       
-      logout: () => {
+      logout: (reason = 'manual') => {
+        console.error('🚪 [AuthStore] LOGOUT EXECUTADO:', {
+          reason,
+          timestamp: new Date().toISOString(),
+          stackTrace: new Error().stack
+        });
+        
         set({
           user: null,
           accessToken: null,

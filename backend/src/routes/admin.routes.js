@@ -5,7 +5,7 @@ const userController = require('../controllers/user.controller');
 const contractController = require('../controllers/contract.controller');
 const { authenticateApiKey, requireApiAdmin, requireAnyAdmin } = require('../middleware/auth.middleware');
 const { requirePasswordChange } = require('../middleware/session.middleware');
-const DatabaseReset = require('../../scripts/reset-database');
+// const DatabaseReset = require('../../scripts/reset-database');
 
 /**
  * @swagger
@@ -982,8 +982,8 @@ router.post('/database/reset', authenticateApiKey, requireApiAdmin, async (req, 
       });
     }
     
-    const databaseReset = new DatabaseReset();
-    const result = await databaseReset.run();
+    // const databaseReset = new DatabaseReset();
+    // const result = await databaseReset.run();
     
     res.json({
       success: true,
