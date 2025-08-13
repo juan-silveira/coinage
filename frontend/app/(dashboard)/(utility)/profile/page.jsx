@@ -1,4 +1,5 @@
 "use client";
+import { useEffect } from "react";
 import Link from "next/link";
 import Icon from "@/components/ui/Icon";
 import Card from "@/components/ui/Card";
@@ -14,6 +15,20 @@ const profile = () => {
 
   // Usar dados do cache se disponível, senão usar dados do store
   const displayUser = cachedUser || user;
+
+  const roleDisplayMap = {
+    USER: 'Usuário',
+    CLIENT_ADMIN: 'Admin do Cliente',
+    ADMIN: 'Administrador',
+    SUPER_ADMIN: 'Super Admin',
+  };
+  
+  // Console.log apenas quando displayUser.globalRole mudar
+  // useEffect(() => {
+  //   if (displayUser?.globalRole) {
+  //     console.log('🔍 [Profile] Global Role:', displayUser.globalRole);
+  //   }
+  // }, [displayUser?.globalRole]);
   
   return (
     <div>
@@ -42,21 +57,21 @@ const profile = () => {
                   {displayUser?.name || 'Usuário'}
                 </div>
                 <div className="text-sm font-light text-slate-600 dark:text-slate-400 mb-2">
-                  {displayUser?.roles?.includes('API_ADMIN') ? 'Administrador' : 'Usuário'}
-                </div>
-                {/* Exibir roles do cache */}
-                {displayUser?.roles && displayUser.roles.length > 0 && (
-                  <div className="flex flex-wrap gap-2">
-                    {displayUser.roles.map((role, index) => (
-                      <span
-                        key={index}
-                        className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
-                      >
-                        {role}
-                      </span>
-                    ))}
-                  </div>
-                )}
+  {/* Acessamos 'globalRole' para encontrar o nome de exibição no mapa */}
+  {roleDisplayMap[displayUser?.globalRole] || 'Role não definida'}
+</div>
+
+{/* Verificamos se 'globalRole' existe para exibir a tag */}
+{displayUser?.globalRole && (
+  <div className="flex flex-wrap gap-2">
+    <span
+      className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
+    >
+      {/* Exibimos o valor de 'globalRole' */}
+      {displayUser.globalRole}
+    </span>
+  </div>
+)}
               </div>
             </div>
           </div>

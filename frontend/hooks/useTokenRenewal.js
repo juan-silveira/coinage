@@ -3,18 +3,23 @@ import { useRouter, usePathname } from 'next/navigation';
 import useAuthStore from '@/store/authStore';
 import { authService } from '@/services/api';
 
+// Configurações de tempo
+const ACCESS_TOKEN_LIFETIME = 10 * 60 * 1000; // 10 minutos (deve ser igual ao backend)
+const REFRESH_BEFORE_EXPIRY = 2 * 60 * 1000; // Renovar 2 minutos antes de expirar
 const SESSION_TIMEOUT = 10 * 60 * 1000; // 10 minutos
 const WARNING_TIME = 2 * 60 * 1000; // Avisar 2 minutos antes
 
 const useTokenRenewal = () => {
-  const { isAuthenticated, refreshToken, setTokens, logout } = useAuthStore();
+  const { isAuthenticated, refreshToken, setTokens, logout, accessToken } = useAuthStore();
   const router = useRouter();
   const pathname = usePathname();
   
   const timeoutRef = useRef(null);
   const warningTimeoutRef = useRef(null);
+  const refreshTimerRef = useRef(null);
   const isRenewing = useRef(false);
   const lastActivity = useRef(Date.now());
+  const tokenCreatedAt = useRef(null);
 
   // Renovar token (resetar sessão para 10 minutos)
   const renewToken = useCallback(async () => {
@@ -25,11 +30,17 @@ const useTokenRenewal = () => {
     isRenewing.current = true;
 
     try {
+      console.log('🔄 [TokenRenewal] Renovando token...');
       const response = await authService.refreshToken(refreshToken);
       
       if (response.success) {
-        const { accessToken, refreshToken: newRefreshToken } = response.data;
-        setTokens(accessToken, newRefreshToken);
+        const { accessToken: newAccessToken, refreshToken: newRefreshToken } = response.data;
+        setTokens(newAccessToken, newRefreshToken);
+        
+        // Resetar timer de criação do token
+        tokenCreatedAt.current = Date.now();
+        
+        console.log('✅ [TokenRenewal] Token renovado com sucesso');
         return true;
       } else {
         console.warn('⚠️ [TokenRenewal] Falha na renovação');
@@ -45,6 +56,7 @@ const useTokenRenewal = () => {
 
   // Fazer logout por inatividade
   const logoutByInactivity = useCallback(() => {
+    console.log('🚪 [TokenRenewal] Logout por inatividade');
     logout();
     window.location.href = '/login?reason=inactivity';
   }, [logout]);
@@ -69,6 +81,24 @@ const useTokenRenewal = () => {
       // Aviso silencioso - pode implementar modal depois
     }, SESSION_TIMEOUT - WARNING_TIME);
   }, [logoutByInactivity]);
+
+  // Configurar refresh automático de token
+  const setupTokenRefresh = useCallback(() => {
+    if (refreshTimerRef.current) {
+      clearInterval(refreshTimerRef.current);
+    }
+
+    // Renovar token a cada 8 minutos (antes dos 10 minutos de expiração)
+    refreshTimerRef.current = setInterval(async () => {
+      if (isAuthenticated && refreshToken) {
+        try {
+          await renewToken();
+        } catch (error) {
+          console.error('❌ [TokenRenewal] Erro no refresh automático:', error);
+        }
+      }
+    }, 8 * 60 * 1000); // 8 minutos
+  }, [isAuthenticated, refreshToken, renewToken]);
 
   // Detectar atividade do usuário (PROTEGIDO CONTRA CRASHES)
   const handleUserActivity = useCallback(async () => {
@@ -116,6 +146,32 @@ const useTokenRenewal = () => {
       handleUserActivity();
     }
   }, [pathname, isAuthenticated, handleUserActivity]);
+
+  // Configurar refresh automático quando usuário logar
+  useEffect(() => {
+    if (isAuthenticated && refreshToken) {
+      // Resetar timer de criação do token
+      tokenCreatedAt.current = Date.now();
+      
+      // Configurar refresh automático
+      setupTokenRefresh();
+      
+      // Primeira renovação após 8 minutos
+      const firstRefreshTimer = setTimeout(async () => {
+        if (isAuthenticated && refreshToken) {
+          try {
+            await renewToken();
+          } catch (error) {
+            console.error('❌ [TokenRenewal] Erro na primeira renovação:', error);
+          }
+        }
+      }, 8 * 60 * 1000);
+      
+      return () => {
+        clearTimeout(firstRefreshTimer);
+      };
+    }
+  }, [isAuthenticated, refreshToken, setupTokenRefresh, renewToken]);
 
   // Listeners de atividade
   useEffect(() => {
@@ -172,6 +228,9 @@ const useTokenRenewal = () => {
       }
       if (warningTimeoutRef.current) {
         clearTimeout(warningTimeoutRef.current);
+      }
+      if (refreshTimerRef.current) {
+        clearInterval(refreshTimerRef.current);
       }
       if (throttleTimer) {
         clearTimeout(throttleTimer);

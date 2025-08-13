@@ -270,6 +270,20 @@ const TransactionHistoryTable = () => {
     return subType === 'credit' ? 'text-green-500' : 'text-red-500';
   };
 
+  // Mapeamento dos tipos de transação de inglês para português
+  const transactionTypeTranslation = {
+    transfer: "Transferência",
+    deposit: "Depósito", 
+    withdraw: "Saque",
+    stake: "Investimento",
+    unstake: "Resgate",
+    exchange: "Troca",
+    stake_reward: "Dividendo",
+    contract_deploy: "Deploy de Contrato",
+    contract_call: "Chamada de Contrato",
+    contract_read: "Leitura de Contrato"
+  };
+
   // Função para obter ícone do tipo de transação
   const getTransactionIcon = (type) => {
     const iconMap = {
@@ -278,7 +292,8 @@ const TransactionHistoryTable = () => {
       deposit: "heroicons:arrow-down-circle",
       withdraw: "heroicons:arrow-up-circle",
       stake: "heroicons:lock-closed",
-      unstake: "heroicons:lock-open"
+      unstake: "heroicons:lock-open",
+      stake_reward: "heroicons:gift"
     };
     return iconMap[type] || "heroicons:document";
   };
@@ -370,8 +385,8 @@ const TransactionHistoryTable = () => {
                         icon={getTransactionIcon(transaction.type)} 
                         className="w-4 h-4 text-slate-500"
                       />
-                      <span className="text-sm capitalize text-slate-700 dark:text-slate-300">
-                        {transaction.type}
+                      <span className="text-sm text-slate-700 dark:text-slate-300">
+                        {transactionTypeTranslation[transaction.type] || transaction.type}
                       </span>
                     </div>
                   </td>

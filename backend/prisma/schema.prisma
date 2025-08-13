@@ -523,6 +523,12 @@ enum Network {
 
 enum TransactionType {
   transfer
+  deposit
+  withdraw
+  stake
+  unstake
+  exchange
+  stake_reward
   contract_deploy
   contract_call
   contract_read

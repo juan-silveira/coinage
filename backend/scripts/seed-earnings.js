@@ -160,14 +160,14 @@ async function seedEarnings() {
   try {
     console.log('🌱 Iniciando seed de earnings...');
 
-    // Primeiro, vamos obter um usuário existente para associar os earnings
+    // Usar especificamente o usuário Ivan
     const user = await prisma.user.findFirst({
-      where: { isActive: true },
+      where: { email: 'ivan.alberton@navi.inf.br' },
       select: { id: true, email: true }
     });
 
     if (!user) {
-      console.error('❌ Nenhum usuário ativo encontrado. Crie um usuário primeiro.');
+      console.error('❌ Usuário Ivan não encontrado. Execute primeiro o seed-basic-data.js');
       return;
     }
 
