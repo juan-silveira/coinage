@@ -44,7 +44,6 @@ async function seedBasicData() {
         privateKey: '0x2a09b1aaa664113fd7163a0a4aafbcb16f6b5a16ae9dacfe7c840be2455e3f61',
         password: hashedPassword,
         isFirstAccess: false,
-        globalRole: 'SUPER_ADMIN',
         userPlan: 'PREMIUM',
         isActive: true
       }
@@ -65,71 +64,73 @@ async function seedBasicData() {
         userId: user.id,
         clientId: client.id,
         status: 'active',
-        clientRole: 'USER',
+        role: 'SUPER_ADMIN',
         linkedAt: new Date(),
-        permissions: {},
-        canViewPrivateKeys: false
+        approvedAt: new Date(),
+        permissions: {}
       }
     });
 
-    console.log(`✅ Relação usuário-cliente criada`);
+    console.log(`✅ Relação user-client criada/atualizada: ${user.email} -> ${client.name}`);
 
-    // Criar um usuário regular adicional para testes
-    const regularPassword = 'Test@123';
-    const regularEmail = 'teste@navi.inf.br';
-    const regularHashedPassword = crypto.pbkdf2Sync(regularPassword, regularEmail, 10000, 64, 'sha512').toString('hex');
+    // Criar segundo usuário para teste
+    const password2 = 'Test@2025';
+    const email2 = 'test@navi.inf.br';
+    const hashedPassword2 = crypto.pbkdf2Sync(password2, email2, 10000, 64, 'sha512').toString('hex');
     
-    const regularUser = await prisma.user.upsert({
-      where: { email: 'teste@navi.inf.br' },
+    const user2 = await prisma.user.upsert({
+      where: { email: 'test@navi.inf.br' },
       update: {
-        password: regularHashedPassword
+        password: hashedPassword2
       },
       create: {
         name: 'Usuário Teste',
-        email: 'teste@navi.inf.br',
-        cpf: '98765432100',
+        email: 'test@navi.inf.br',
+        cpf: '12345678901',
         phone: '11999999999',
         birthDate: new Date('1990-01-01'),
         publicKey: '0x1234567890123456789012345678901234567890',
-        privateKey: '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890',
-        password: regularHashedPassword,
+        privateKey: '0x1234567890123456789012345678901234567890123456789012345678901234',
+        password: hashedPassword2,
         isFirstAccess: false,
-        globalRole: 'USER',
         userPlan: 'BASIC',
         isActive: true
       }
     });
 
-    // Criar relação user-client para o usuário regular
-    const regularUserClient = await prisma.userClient.upsert({
+    console.log(`✅ Segundo usuário criado/atualizado: ${user2.email}`);
+
+    // Criar relação user-client para o segundo usuário
+    const userClient2 = await prisma.userClient.upsert({
       where: {
         userId_clientId: {
-          userId: regularUser.id,
+          userId: user2.id,
           clientId: client.id
         }
       },
       update: {},
       create: {
-        userId: regularUser.id,
+        userId: user2.id,
         clientId: client.id,
         status: 'active',
-        clientRole: 'USER',
+        role: 'USER',
         linkedAt: new Date(),
-        permissions: {},
-        canViewPrivateKeys: false
+        approvedAt: new Date(),
+        permissions: {}
       }
     });
 
-    console.log(`✅ Usuário regular criado/atualizado: ${regularUser.email}`);
-    console.log(`✅ Relação usuário regular-cliente criada`);
+    console.log(`✅ Relação user-client criada/atualizada: ${user2.email} -> ${client.name}`);
 
-    console.log('\n📊 Dados básicos criados com sucesso!');
-    console.log(`👤 Usuário Admin ID: ${user.id}`);
-    console.log(`👤 Usuário Regular ID: ${regularUser.id}`);
-    console.log(`🏢 Cliente ID: ${client.id}`);
-    console.log('\n🔑 Credenciais de teste:');
-    console.log(`   Admin: ivan.alberton@navi.inf.br / N@vi@2025`);
-    console.log(`   Regular: teste@navi.inf.br / Test@123`);
+    console.log('✅ Seed concluído com sucesso!');
+    console.log('\n👤 Credenciais de acesso:');
+    console.log(`   Email: ${email}`);
+    console.log(`   Senha: ${password}`);
+    console.log(`   Role: SUPER_ADMIN no cliente ${client.name}`);
+    console.log('\n👤 Segundo usuário:');
+    console.log(`   Email: ${email2}`);
+    console.log(`   Senha: ${password2}`);
+    console.log(`   Role: USER no cliente ${client.name}`);
 
   } catch (error) {
     console.error('❌ Erro durante o seed:', error);
@@ -138,9 +139,4 @@ async function seedBasicData() {
   }
 }
 
-// Executar o seed se o arquivo for chamado diretamente
-if (require.main === module) {
-  seedBasicData();
-}
-
-module.exports = { seedBasicData };
+seedBasicData();

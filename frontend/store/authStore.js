@@ -74,11 +74,11 @@ const useAuthStore = create(
       },
       
       logout: (reason = 'manual') => {
-        console.error('🚪 [AuthStore] LOGOUT EXECUTADO:', {
-          reason,
-          timestamp: new Date().toISOString(),
-          stackTrace: new Error().stack
-        });
+        // console.error('🚪 [AuthStore] LOGOUT EXECUTADO:', {
+        //   reason,
+        //   timestamp: new Date().toISOString(),
+        //   stackTrace: new Error().stack
+        // });
         
         set({
           user: null,

@@ -505,7 +505,7 @@ const useBalanceSync = (onBalanceUpdate = null) => {
       
       return () => clearTimeout(autoStartTimer);
     }
-  }, [user, isActive, startSync]);
+  }, [user?.publicKey, isActive]); // Remover startSync das dependências
 
   return {
     // Estado

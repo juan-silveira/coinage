@@ -4,7 +4,9 @@ import Icon from "@/components/ui/Icon";
 import Link from "next/link";
 import { Menu } from "@headlessui/react";
 import useAuthStore from "@/store/authStore";
+import useProactiveTokenRefresh from "@/hooks/useProactiveTokenRefresh";
 import api from "@/services/api";
+
 const notifyLabel = (unreadCount) => {
   return (
     <span className="relative h-[32px] w-[32px] bg-slate-100 dark:bg-slate-900 text-slate-900 dark:text-white cursor-pointer rounded-full text-[20px] flex flex-col items-center justify-center">
@@ -20,31 +22,36 @@ const notifyLabel = (unreadCount) => {
 
 const Notification = () => {
   const { isAuthenticated } = useAuthStore();
+  const { ensureValidToken } = useProactiveTokenRefresh();
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
-  
-
-
+  const [lastError, setLastError] = useState(null);
 
   // Buscar contagem de não lidas
   const fetchUnreadCount = useCallback(async () => {
     if (!isAuthenticated) return;
     
     try {
+      // Garantir que o token seja válido antes da requisição
+      await ensureValidToken();
+      
       const response = await api.get('/api/notifications/unread-count');
       
       if (response.data.success) {
         const count = response.data.data.count;
         setUnreadCount(count);
+        setLastError(null); // Limpar erro anterior
         return count;
       }
     } catch (error) {
+      console.warn('⚠️ [Notification] Erro ao buscar contagem:', error.message);
+      setLastError(error);
       // Fallback para contagem local sem usar notifications no callback
       setUnreadCount(0);
       return 0;
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, ensureValidToken]);
 
   // Buscar notificações não lidas
   const fetchUnreadNotifications = useCallback(async () => {
@@ -52,19 +59,26 @@ const Notification = () => {
     
     try {
       setLoading(true);
+      
+      // Garantir que o token seja válido antes da requisição
+      await ensureValidToken();
+      
       const response = await api.get('/api/notifications/unread');
       
       if (response.data.success) {
         const notificationsData = response.data.data || [];
         setNotifications(notificationsData);
+        setLastError(null); // Limpar erro anterior
       }
     } catch (error) {
+      console.warn('⚠️ [Notification] Erro ao buscar notificações:', error.message);
+      setLastError(error);
       // Em caso de erro, mantém o estado atual
       setNotifications([]);
     } finally {
       setLoading(false);
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, ensureValidToken]);
 
   // Marcar notificação como lida
   const markAsRead = async (notificationId, event = null) => {
@@ -77,6 +91,9 @@ const Notification = () => {
     }
     
     try {
+      // Garantir que o token seja válido antes da requisição
+      await ensureValidToken();
+      
       await api.put(`/api/notifications/${notificationId}/read`);
       
       // Atualizar estado local
@@ -84,6 +101,7 @@ const Notification = () => {
       setUnreadCount(prev => Math.max(0, prev - 1));
       
     } catch (error) {
+      console.warn('⚠️ [Notification] Erro ao marcar como lida:', error.message);
       // Em caso de erro, ainda remove da lista local para melhor UX
       setNotifications(prev => prev.filter(n => n.id !== notificationId));
       setUnreadCount(prev => Math.max(0, prev - 1));
@@ -95,6 +113,9 @@ const Notification = () => {
     if (!isAuthenticated) return;
     
     try {
+      // Garantir que o token seja válido antes da requisição
+      await ensureValidToken();
+      
       await api.put('/api/notifications/mark-all-read');
       
       // Limpar estado local
@@ -104,6 +125,7 @@ const Notification = () => {
       setUnreadCount(0);
       
     } catch (error) {
+      console.warn('⚠️ [Notification] Erro ao marcar todas como lidas:', error.message);
       // Em caso de erro, ainda limpa o estado local
       setNotifications([]);
       setUnreadCount(0);
@@ -128,45 +150,52 @@ const Notification = () => {
     if (!isAuthenticated) return;
     
     const interval = setInterval(async () => {
-      // Atualizar contagem
-      await fetchUnreadCount();
-      
-      // Atualizar lista silenciosamente (sem loading)
       try {
+        // Garantir que o token seja válido antes das requisições
+        await ensureValidToken();
+        
+        // Atualizar contagem
+        await fetchUnreadCount();
+        
+        // Atualizar lista silenciosamente (sem loading)
         const response = await api.get('/api/notifications/unread');
         if (response.data.success) {
           const notificationsData = response.data.data || [];
           setNotifications(notificationsData);
         }
       } catch (error) {
-        // Erro silencioso
+        // Erro silencioso - não interromper o intervalo
+        console.warn('⚠️ [Notification] Erro na atualização automática:', error.message);
       }
-    }, 10000); // 10 segundos para ser mais responsivo
+    }, 15000); // 15 segundos para ser mais responsivo
     
     return () => clearInterval(interval);
-  }, [isAuthenticated]);
+  }, [isAuthenticated, ensureValidToken, fetchUnreadCount]);
 
   // Listener para eventos de refresh
   useEffect(() => {
     const handleRefresh = async () => {
-      // Atualização completa quando há evento de refresh
-      await fetchUnreadCount();
-      
-      // Atualizar lista também
       try {
+        // Garantir que o token seja válido antes das requisições
+        await ensureValidToken();
+        
+        // Atualização completa quando há evento de refresh
+        await fetchUnreadCount();
+        
+        // Atualizar lista também
         const response = await api.get('/api/notifications/unread');
         if (response.data.success) {
           const notificationsData = response.data.data || [];
           setNotifications(notificationsData);
         }
       } catch (error) {
-        // Erro silencioso
+        console.warn('⚠️ [Notification] Erro no refresh por evento:', error.message);
       }
     };
 
     window.addEventListener('notificationRefresh', handleRefresh);
     return () => window.removeEventListener('notificationRefresh', handleRefresh);
-  }, []); // Sem dependências
+  }, [ensureValidToken, fetchUnreadCount]); // Com dependências corretas
 
   return (
     <Dropdown classMenuItems="md:w-[300px] top-[58px] z-[99999]" label={notifyLabel(unreadCount)}>

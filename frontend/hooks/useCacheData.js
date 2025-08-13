@@ -227,11 +227,34 @@ const useCacheData = () => {
       return;
     }
 
-    // Evitar reentrância dupla
-    if (isLoadingRef.current) return;
-    if (cacheLoading) return;
-    if (hasLoadedRef.current && reason !== 'silent') return;
+    // Evitar reentrância dupla com debounce
+    if (isLoadingRef.current) {
+      console.log('⏳ [CacheData] Requisição em andamento, ignorando nova chamada');
+      return;
+    }
+    if (cacheLoading) {
+      console.log('⏳ [CacheData] Cache em carregamento, ignorando nova chamada');
+      return;
+    }
+    if (hasLoadedRef.current && reason !== 'silent') {
+      console.log('⏳ [CacheData] Dados já carregados, ignorando nova chamada');
+      return;
+    }
 
+    // Debounce para evitar múltiplas chamadas em sequência
+    if (loadCacheData.debounceTimer) {
+      clearTimeout(loadCacheData.debounceTimer);
+    }
+    
+    loadCacheData.debounceTimer = setTimeout(async () => {
+      await executeLoadCacheData(reason);
+    }, 100);
+
+    return;
+  }, [user?.email, cacheLoaded, cacheLoading, setCacheLoaded, setCacheLoading, detectBalanceChanges, createBalanceNotification]);
+
+  // Função separada para executar o carregamento real
+  const executeLoadCacheData = useCallback(async (reason = 'auto') => {
     isLoadingRef.current = true;
     setCacheLoading(true);
     // Só mostrar loading se não for silent
@@ -240,6 +263,8 @@ const useCacheData = () => {
     }
 
     try {
+      console.log(`🔄 [CacheData] Iniciando carregamento (reason: ${reason})`);
+      
       const userResponse = await userService.getUserByEmail(user.email);
       
       if (userResponse.success && userResponse.data?.user) {
@@ -342,7 +367,7 @@ const useCacheData = () => {
       isLoadingRef.current = false;
       hasLoadedRef.current = true;
     }
-  }, [user?.email, cacheLoaded, cacheLoading, setCacheLoaded, setCacheLoading, detectBalanceChanges, createBalanceNotification]);
+  }, [user?.email, cachedUser, balances, detectBalanceChanges, createBalanceNotification]);
 
   // useEffect principal - carregar dados iniciais
   useEffect(() => {
@@ -354,7 +379,7 @@ const useCacheData = () => {
       setCachedUser(null);
       setLoading(false);
     }
-  }, [user?.email, loadCacheData]);
+  }, [user?.email]); // Remover loadCacheData das dependências
 
   // Atualização automática com intervalo configurável por usuário
   // IMPORTANTE: Este useEffect deve vir DEPOIS do principal para garantir que cachedUser seja carregado primeiro
@@ -408,7 +433,7 @@ const useCacheData = () => {
         clearInterval(refreshTimerRef.current);
       }
     };
-  }, [cachedUser?.userPlan, loadCacheData]);
+  }, [cachedUser?.userPlan]); // Remover loadCacheData das dependências
 
   const formatBalance = useCallback((balance) => {
     if (!balance || balance === '0' || balance === 0) return '0.000000';

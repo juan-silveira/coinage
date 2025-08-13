@@ -7,29 +7,32 @@ import BalancesTable from "@/components/partials/table/BalancesTable";
 import useAuthStore from "@/store/authStore";
 import useCachedBalances from "@/hooks/useCachedBalances";
 import useCacheData from "@/hooks/useCacheData";
+import useCurrentClient from "@/hooks/useCurrentClient";
 
 const profile = () => {
   const { user } = useAuthStore();
   const { cachedUser, formatCPF, formatPhone } = useCacheData();
-  const { balances, loading, getBalance, getCorrectAzeSymbol } = useCachedBalances();
+  const { balances, loading, getBalance, getCorrectAzeSymbol } =
+    useCachedBalances();
+  const { currentClient, loading: clientLoading } = useCurrentClient();
 
   // Usar dados do cache se disponível, senão usar dados do store
   const displayUser = cachedUser || user;
 
   const roleDisplayMap = {
-    USER: 'Usuário',
-    CLIENT_ADMIN: 'Admin do Cliente',
-    ADMIN: 'Administrador',
-    SUPER_ADMIN: 'Super Admin',
+    USER: "Usuário",
+    ADMIN: "Admin do Cliente",
+    APP_ADMIN: "Admin Coinage",
+    SUPER_ADMIN: "Super Admin",
   };
-  
-  // Console.log apenas quando displayUser.globalRole mudar
+
+  // Console.log apenas quando currentClient mudar
   // useEffect(() => {
-  //   if (displayUser?.globalRole) {
-  //     console.log('🔍 [Profile] Global Role:', displayUser.globalRole);
+  //   if (currentClient) {
+  //     console.log('🔍 [Profile] Current Client Role:', currentClient);
   //   }
-  // }, [displayUser?.globalRole]);
-  
+  // }, [currentClient]);
+
   return (
     <div>
       <div className="space-y-5 profile-page">
@@ -54,24 +57,22 @@ const profile = () => {
               </div>
               <div className="flex-1">
                 <div className="text-2xl font-medium text-slate-900 dark:text-slate-200 mb-[3px]">
-                  {displayUser?.name || 'Usuário'}
+                  {displayUser?.name || "Usuário"}
                 </div>
                 <div className="text-sm font-light text-slate-600 dark:text-slate-400 mb-2">
-  {/* Acessamos 'globalRole' para encontrar o nome de exibição no mapa */}
-  {roleDisplayMap[displayUser?.globalRole] || 'Role não definida'}
-</div>
+                  {/* Acessamos 'role' do currentClient para encontrar o nome de exibição no mapa */}
+                  {currentClient ? roleDisplayMap[currentClient.userRole] : "Role não definida"}
+                </div>
 
-{/* Verificamos se 'globalRole' existe para exibir a tag */}
-{displayUser?.globalRole && (
-  <div className="flex flex-wrap gap-2">
-    <span
-      className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
-    >
-      {/* Exibimos o valor de 'globalRole' */}
-      {displayUser.globalRole}
-    </span>
-  </div>
-)}
+                {/* Verificamos se 'role' existe para exibir a tag */}
+                {currentClient?.userRole && (
+                  <div className="flex flex-wrap gap-2">
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                      {/* Exibimos o valor de 'role' */}
+                      {roleDisplayMap[currentClient.userRole]}
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -82,7 +83,9 @@ const profile = () => {
                 {loading ? (
                   <div className="animate-pulse bg-slate-200 dark:bg-slate-600 h-4 w-16 rounded"></div>
                 ) : (
-                  `${getBalance(getCorrectAzeSymbol())} ${getCorrectAzeSymbol()}`
+                  `${getBalance(
+                    getCorrectAzeSymbol()
+                  )} ${getCorrectAzeSymbol()}`
                 )}
               </div>
               <div className="text-sm text-slate-600 font-light dark:text-slate-300">
@@ -95,7 +98,7 @@ const profile = () => {
                 {loading ? (
                   <div className="animate-pulse bg-slate-200 dark:bg-slate-600 h-4 w-16 rounded"></div>
                 ) : (
-                  `${getBalance('cBRL')} cBRL`
+                  `${getBalance("cBRL")} cBRL`
                 )}
               </div>
               <div className="text-sm text-slate-600 font-light dark:text-slate-300">
@@ -118,9 +121,31 @@ const profile = () => {
           </div>
         </div>
         <div className="grid grid-cols-12 gap-6">
-          <div className="lg:col-span-4 col-span-12">
+          <div className="lg:col-span-5 col-span-12">
             <Card title="Info">
               <ul className="list space-y-8">
+                <li className="flex space-x-3 rtl:space-x-reverse">
+                  <div className="flex-none text-2xl text-slate-600 dark:text-slate-300">
+                    <Icon icon="heroicons:building-office" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="uppercase text-xs text-slate-500 dark:text-slate-300 mb-1 leading-[12px]">
+                      CLIENTE ATUAL
+                    </div>
+                    <div className="text-base text-slate-600 dark:text-slate-50">
+                      {clientLoading ? (
+                        <div className="animate-pulse bg-slate-200 dark:bg-slate-600 h-4 w-24 rounded"></div>
+                      ) : currentClient ? (
+                        <span className="font-medium text-slate-900 dark:text-slate-100">
+                          {currentClient.name}
+                        </span>
+                      ) : (
+                        "Não informado"
+                      )}
+                    </div>
+                  </div>
+                </li>
+
                 <li className="flex space-x-3 rtl:space-x-reverse">
                   <div className="flex-none text-2xl text-slate-600 dark:text-slate-300">
                     <Icon icon="heroicons:envelope" />
@@ -130,10 +155,10 @@ const profile = () => {
                       EMAIL
                     </div>
                     <a
-                      href={`mailto:${displayUser?.email || ''}`}
+                      href={`mailto:${displayUser?.email || ""}`}
                       className="text-base text-slate-600 dark:text-slate-50"
                     >
-                      {displayUser?.email || 'Não informado'}
+                      {displayUser?.email || "Não informado"}
                     </a>
                   </div>
                 </li>
@@ -147,10 +172,12 @@ const profile = () => {
                       PHONE
                     </div>
                     <a
-                      href={`tel:${displayUser?.phone || ''}`}
+                      href={`tel:${displayUser?.phone || ""}`}
                       className="text-base text-slate-600 dark:text-slate-50"
                     >
-                      {displayUser?.phone ? formatPhone(displayUser.phone) : 'Não informado'}
+                      {displayUser?.phone
+                        ? formatPhone(displayUser.phone)
+                        : "Não informado"}
                     </a>
                   </div>
                 </li>
@@ -164,7 +191,9 @@ const profile = () => {
                       CPF
                     </div>
                     <div className="text-base text-slate-600 dark:text-slate-50">
-                      {displayUser?.cpf ? formatCPF(displayUser.cpf) : 'Não informado'}
+                      {displayUser?.cpf
+                        ? formatCPF(displayUser.cpf)
+                        : "Não informado"}
                     </div>
                   </div>
                 </li>
@@ -178,7 +207,11 @@ const profile = () => {
                       DATA DE NASCIMENTO
                     </div>
                     <div className="text-base text-slate-600 dark:text-slate-50">
-                      {displayUser?.birthDate ? new Date(displayUser.birthDate).toLocaleDateString('pt-BR') : 'Não informado'}
+                      {displayUser?.birthDate
+                        ? new Date(displayUser.birthDate).toLocaleDateString(
+                            "pt-BR"
+                          )
+                        : "Não informado"}
                     </div>
                   </div>
                 </li>
@@ -196,7 +229,9 @@ const profile = () => {
                         <span className="break-all">
                           {displayUser.publicKey}
                         </span>
-                      ) : 'Não informado'}
+                      ) : (
+                        "Não informado"
+                      )}
                     </div>
                   </div>
                 </li>
@@ -210,12 +245,14 @@ const profile = () => {
                       STATUS
                     </div>
                     <div className="text-base text-slate-600 dark:text-slate-50">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        displayUser?.isActive 
-                          ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                          : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                      }`}>
-                        {displayUser?.isActive ? 'Ativo' : 'Inativo'}
+                      <span
+                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          displayUser?.isActive
+                            ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+                            : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
+                        }`}
+                      >
+                        {displayUser?.isActive ? "Ativo" : "Inativo"}
                       </span>
                     </div>
                   </div>
@@ -223,7 +260,7 @@ const profile = () => {
               </ul>
             </Card>
           </div>
-          <div className="lg:col-span-8 col-span-12">
+          <div className="lg:col-span-7 col-span-12">
             <div className="space-y-6">
               <Card title="Balance de tokens">
                 <BalancesTable balances={balances} loading={loading} />

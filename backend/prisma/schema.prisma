@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
   output   = "../src/generated/prisma"
@@ -11,140 +8,125 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Client Model
 model Client {
-  id             String    @id @default(uuid()) @db.Uuid
-  name           String    @db.VarChar(255)
-  alias          String?   @unique @db.VarChar(50)
-  isActive       Boolean   @default(true) @map("is_active")
-  rateLimit      Json      @default("{\"requestsPerMinute\": 100, \"requestsPerHour\": 1000, \"requestsPerDay\": 10000}") @map("rate_limit") @db.JsonB
-  lastActivityAt DateTime? @map("last_activity_at") @db.Timestamptz
-  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz
-
-  // Relations
+  id              String          @id @default(uuid()) @db.Uuid
+  name            String          @db.VarChar(255)
+  isActive        Boolean         @default(true) @map("is_active")
+  rateLimit       Json            @default("{\"requestsPerDay\": 10000, \"requestsPerHour\": 1000, \"requestsPerMinute\": 100}") @map("rate_limit")
+  lastActivityAt  DateTime?       @map("last_activity_at") @db.Timestamptz(6)
+  createdAt       DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+  alias           String?         @unique @db.VarChar(50)
+  clientBrandings ClientBranding?
+  documents       Document[]
   requestLogs     RequestLog[]
   transactions    Transaction[]
-  webhooks        Webhook[]
-  documents       Document[]
-  clientBrandings ClientBranding[]
   userClients     UserClient[]
+  webhooks        Webhook[]
 
-  @@map("clients")
   @@index([isActive], map: "idx_clients_active")
   @@index([lastActivityAt], map: "idx_clients_last_activity")
   @@index([alias], map: "idx_clients_alias")
+  @@map("clients")
 }
 
-// User Model - Agora sem clientId fixo, suporte a múltiplos clientes
 model User {
-  id                     String   @id @default(uuid()) @db.Uuid
-  name                   String   @db.VarChar(255)
-  email                  String   @unique @db.VarChar(255)
-  cpf                    String   @unique @db.VarChar(14)
-  phone                  String?  @db.VarChar(20)
-  birthDate              DateTime? @map("birth_date") @db.Date
-  publicKey              String   @map("public_key") @db.Text
-  privateKey             String   @map("private_key") @db.Text
-  password               String   @db.VarChar(255)
-  passwordChangedAt      DateTime? @map("password_changed_at") @db.Timestamptz
-  isFirstAccess          Boolean  @default(true) @map("is_first_access")
-  sessionToken           String?  @unique @map("session_token") @db.VarChar(255)
-  sessionExpiresAt       DateTime? @map("session_expires_at") @db.Timestamptz
-  sessionTimeout         Int      @default(600) @map("session_timeout")
-  globalRole             UserRole @default(USER) @map("global_role")
-  isActive               Boolean  @default(true) @map("is_active")
-  userPlan               UserPlan @default(BASIC) @map("user_plan")
-  metadata               Json?    @db.JsonB
-  lastActivityAt         DateTime? @map("last_activity_at") @db.Timestamptz
-  createdAt              DateTime @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt              DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  id                   String           @id @default(uuid()) @db.Uuid
+  name                 String           @db.VarChar(255)
+  email                String           @unique @db.VarChar(255)
+  cpf                  String           @unique @db.VarChar(14)
+  phone                String?          @db.VarChar(20)
+  birthDate            DateTime?        @map("birth_date") @db.Date
+  publicKey            String           @map("public_key")
+  privateKey           String           @map("private_key")
+  password             String           @db.VarChar(255)
+  passwordChangedAt    DateTime?        @map("password_changed_at") @db.Timestamptz(6)
+  isFirstAccess        Boolean          @default(true) @map("is_first_access")
+  sessionToken         String?          @unique @map("session_token") @db.VarChar(255)
+  sessionExpiresAt     DateTime?        @map("session_expires_at") @db.Timestamptz(6)
+  sessionTimeout       Int              @default(600) @map("session_timeout")
+  isActive             Boolean          @default(true) @map("is_active")
+  metadata             Json?
+  lastActivityAt       DateTime?        @map("last_activity_at") @db.Timestamptz(6)
+  createdAt            DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+  userPlan             UserPlan         @default(BASIC) @map("user_plan")
+  apiKeys              ApiKey[]
+  deployedBrandings    ClientBranding[] @relation("ClientBrandingDeployer")
+  earnings             Earnings[]
+  notifications        Notification[]
+  requestLogs          RequestLog[]
+  transactions         Transaction[]
+  approvedUserClients  UserClient[]     @relation("UserClientApprover")
+  requestedUserClients UserClient[]     @relation("UserClientRequester")
+  userClients          UserClient[]
+  userTwoFactors       UserTwoFactor[]
 
-  // Relations
-  apiKeys             ApiKey[]
-  transactions        Transaction[]
-  requestLogs         RequestLog[]
-  userClients         UserClient[]
-  userTwoFactors      UserTwoFactor[]
-  requestedUserClients UserClient[]   @relation("UserClientRequester")
-  approvedUserClients UserClient[]    @relation("UserClientApprover")
-  deployedBrandings   ClientBranding[] @relation("ClientBrandingDeployer")
-  notifications       Notification[]
-  earnings            Earnings[]
-
-  @@map("users")
   @@index([email], map: "idx_users_email")
   @@index([cpf], map: "idx_users_cpf")
-  @@index([globalRole], map: "idx_users_global_role")
   @@index([isActive], map: "idx_users_active")
   @@index([lastActivityAt], map: "idx_users_last_activity")
   @@index([userPlan], map: "idx_users_user_plan")
+  @@map("users")
 }
 
-// API Key Model
 model ApiKey {
   id          String    @id @default(uuid()) @db.Uuid
   key         String    @unique @db.VarChar(64)
   keyHash     String    @unique @map("key_hash") @db.VarChar(255)
   name        String    @db.VarChar(100)
-  description String?   @db.Text
+  description String?
   isActive    Boolean   @default(true) @map("is_active")
-  expiresAt   DateTime? @map("expires_at") @db.Timestamptz
-  lastUsedAt  DateTime? @map("last_used_at") @db.Timestamptz
-  permissions Json?     @db.JsonB
+  expiresAt   DateTime? @map("expires_at") @db.Timestamptz(6)
+  lastUsedAt  DateTime? @map("last_used_at") @db.Timestamptz(6)
+  permissions Json?
   userId      String    @map("user_id") @db.Uuid
-  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz
-
-  // Relations
-  user User @relation(fields: [userId], references: [id])
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user        User      @relation(fields: [userId], references: [id])
 
   @@map("api_keys")
 }
 
-// Transaction Model
 model Transaction {
-  id               String            @id @default(uuid()) @db.Uuid
-  clientId         String            @map("client_id") @db.Uuid
-  userId           String?           @map("user_id") @db.Uuid
-  userClientId     String?           @map("user_client_id") @db.Uuid
-  requestLogId     String?           @map("request_log_id") @db.Uuid
-  contractId       String?           @map("contract_id") @db.Uuid
-  network          Network
-  transactionType  TransactionType   @map("transaction_type")
-  status           TransactionStatus @default(pending)
-  txHash           String?           @unique @map("tx_hash") @db.VarChar(66)
-  blockNumber      BigInt?           @map("block_number")
-  fromAddress      String?           @map("from_address") @db.VarChar(42)
-  toAddress        String?           @map("to_address") @db.VarChar(42)
-  value            Decimal?          @db.Decimal(65, 0)
-  gasPrice         Decimal?          @map("gas_price") @db.Decimal(65, 0)
-  gasLimit         BigInt?           @map("gas_limit")
-  gasUsed          BigInt?           @map("gas_used")
-  nonce            Int?
-  data             String?           @db.Text
-  functionName     String?           @map("function_name") @db.VarChar(255)
-  functionParams   Json?             @map("function_params") @db.JsonB
-  receipt          Json?             @db.JsonB
-  error            Json?             @db.JsonB
-  confirmations    Int?              @default(0)
-  estimatedGas     BigInt?           @map("estimated_gas")
-  actualGasCost    Decimal?          @map("actual_gas_cost") @db.Decimal(65, 0)
-  submittedAt      DateTime?         @map("submitted_at") @db.Timestamptz
-  confirmedAt      DateTime?         @map("confirmed_at") @db.Timestamptz
-  failedAt         DateTime?         @map("failed_at") @db.Timestamptz
-  metadata         Json?             @db.JsonB
-  createdAt        DateTime          @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt        DateTime          @updatedAt @map("updated_at") @db.Timestamptz
+  id              String            @id @default(uuid()) @db.Uuid
+  clientId        String            @map("client_id") @db.Uuid
+  userId          String?           @map("user_id") @db.Uuid
+  userClientId    String?           @map("user_client_id") @db.Uuid
+  requestLogId    String?           @map("request_log_id") @db.Uuid
+  contractId      String?           @map("contract_id") @db.Uuid
+  network         Network
+  transactionType TransactionType   @map("transaction_type")
+  status          TransactionStatus @default(pending)
+  txHash          String?           @unique @map("tx_hash") @db.VarChar(66)
+  blockNumber     BigInt?           @map("block_number")
+  fromAddress     String?           @map("from_address") @db.VarChar(42)
+  toAddress       String?           @map("to_address") @db.VarChar(42)
+  value           Decimal?          @db.Decimal(65, 0)
+  gasPrice        Decimal?          @map("gas_price") @db.Decimal(65, 0)
+  gasLimit        BigInt?           @map("gas_limit")
+  gasUsed         BigInt?           @map("gas_used")
+  nonce           Int?
+  data            String?
+  functionName    String?           @map("function_name") @db.VarChar(255)
+  functionParams  Json?             @map("function_params")
+  receipt         Json?
+  error           Json?
+  confirmations   Int?              @default(0)
+  estimatedGas    BigInt?           @map("estimated_gas")
+  actualGasCost   Decimal?          @map("actual_gas_cost") @db.Decimal(65, 0)
+  submittedAt     DateTime?         @map("submitted_at") @db.Timestamptz(6)
+  confirmedAt     DateTime?         @map("confirmed_at") @db.Timestamptz(6)
+  failedAt        DateTime?         @map("failed_at") @db.Timestamptz(6)
+  metadata        Json?
+  createdAt       DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+  client          Client            @relation(fields: [clientId], references: [id])
+  contract        SmartContract?    @relation(fields: [contractId], references: [id])
+  requestLog      RequestLog?       @relation(fields: [requestLogId], references: [id])
+  userClient      UserClient?       @relation(fields: [userClientId], references: [id])
+  user            User?             @relation(fields: [userId], references: [id])
 
-  // Relations
-  client       Client         @relation(fields: [clientId], references: [id])
-  user         User?          @relation(fields: [userId], references: [id])
-  userClient   UserClient?    @relation(fields: [userClientId], references: [id])
-  requestLog   RequestLog?    @relation(fields: [requestLogId], references: [id])
-  contract     SmartContract? @relation(fields: [contractId], references: [id])
-
-  @@map("transactions")
   @@index([clientId], map: "idx_transactions_client_id")
   @@index([txHash], map: "idx_transactions_tx_hash")
   @@index([status], map: "idx_transactions_status")
@@ -159,92 +141,84 @@ model Transaction {
   @@index([userId], map: "idx_transactions_user_id")
   @@index([userClientId], map: "idx_transactions_user_client_id")
   @@index([network, status], map: "idx_transactions_network_status")
+  @@map("transactions")
 }
 
-// Smart Contract Model
 model SmartContract {
-  id          String    @id @default(uuid()) @db.Uuid
-  clientId    String    @map("client_id") @db.Uuid
-  name        String    @db.VarChar(255)
-  address     String    @unique @db.VarChar(42)
-  network     Network
-  abi         Json      @db.JsonB
-  bytecode    String?   @db.Text
-  isActive    Boolean   @default(true) @map("is_active")
-  metadata    Json?     @db.JsonB
-  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz
-
-  // Relations
+  id           String        @id @default(uuid()) @db.Uuid
+  clientId     String        @map("client_id") @db.Uuid
+  name         String        @db.VarChar(255)
+  address      String        @unique @db.VarChar(42)
+  network      Network
+  abi          Json
+  bytecode     String?
+  isActive     Boolean       @default(true) @map("is_active")
+  metadata     Json?
+  createdAt    DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
   transactions Transaction[]
 
-  @@map("smart_contracts")
   @@index([address], map: "idx_smart_contracts_address")
   @@index([network], map: "idx_smart_contracts_network")
   @@index([isActive], map: "idx_smart_contracts_active")
+  @@map("smart_contracts")
 }
 
-// Stake Model
 model Stake {
   id        String   @id @default(uuid()) @db.Uuid
   clientId  String   @map("client_id") @db.Uuid
   name      String   @db.VarChar(255)
   address   String   @unique @db.VarChar(42)
   network   Network
-  abi       Json     @db.JsonB
+  abi       Json
   isActive  Boolean  @default(true) @map("is_active")
-  metadata  Json?    @db.JsonB
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  metadata  Json?
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  @@map("stakes")
   @@index([address], map: "idx_stakes_address")
   @@index([network], map: "idx_stakes_network")
   @@index([isActive], map: "idx_stakes_active")
+  @@map("stakes")
 }
 
-// Request Log Model
 model RequestLog {
-  id               String    @id @default(uuid()) @db.Uuid
-  clientId         String    @map("client_id") @db.Uuid
-  userId           String?   @map("user_id") @db.Uuid
-  method           String    @db.VarChar(10)
-  path             String    @db.VarChar(500)
-  statusCode       Int       @map("status_code")
-  responseTime     Int       @map("response_time")
-  userAgent        String?   @map("user_agent") @db.Text
-  ipAddress        String    @map("ip_address") @db.VarChar(45)
-  requestBody      Json?     @map("request_body") @db.JsonB
-  responseBody     Json?     @map("response_body") @db.JsonB
-  error            Json?     @db.JsonB
-  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz
-
-  // Relations
+  id           String        @id @default(uuid()) @db.Uuid
+  clientId     String        @map("client_id") @db.Uuid
+  userId       String?       @map("user_id") @db.Uuid
+  method       String        @db.VarChar(10)
+  path         String        @db.VarChar(500)
+  statusCode   Int           @map("status_code")
+  responseTime Int           @map("response_time")
+  userAgent    String?       @map("user_agent")
+  ipAddress    String        @map("ip_address") @db.VarChar(45)
+  requestBody  Json?         @map("request_body")
+  responseBody Json?         @map("response_body")
+  error        Json?
+  createdAt    DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
   client       Client        @relation(fields: [clientId], references: [id])
   user         User?         @relation(fields: [userId], references: [id])
   transactions Transaction[]
 
-  @@map("request_logs")
   @@index([clientId], map: "idx_request_logs_client_id")
   @@index([userId], map: "idx_request_logs_user_id")
   @@index([createdAt], map: "idx_request_logs_created_at")
+  @@map("request_logs")
 }
 
-// Password Reset Model
 model PasswordReset {
   id        String   @id @default(uuid()) @db.Uuid
   email     String   @db.VarChar(255)
   token     String   @unique @db.VarChar(255)
-  expiresAt DateTime @map("expires_at") @db.Timestamptz
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(6)
   used      Boolean  @default(false)
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  @@map("password_resets")
   @@index([email], map: "idx_password_resets_email")
   @@index([token], map: "idx_password_resets_token")
+  @@map("password_resets")
 }
 
-// Webhook Model
 model Webhook {
   id            String    @id @default(uuid()) @db.Uuid
   clientId      String    @map("client_id") @db.Uuid
@@ -255,267 +229,240 @@ model Webhook {
   isActive      Boolean   @default(true) @map("is_active")
   retryCount    Int       @default(3) @map("retry_count")
   timeout       Int       @default(30000)
-  lastTriggered DateTime? @map("last_triggered") @db.Timestamptz
-  lastSuccess   DateTime? @map("last_success") @db.Timestamptz
-  lastError     String?   @map("last_error") @db.Text
+  lastTriggered DateTime? @map("last_triggered") @db.Timestamptz(6)
+  lastSuccess   DateTime? @map("last_success") @db.Timestamptz(6)
+  lastError     String?   @map("last_error")
   totalTriggers Int       @default(0) @map("total_triggers")
   totalSuccess  Int       @default(0) @map("total_success")
   totalErrors   Int       @default(0) @map("total_errors")
-  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz
-
-  // Relations
-  client Client @relation(fields: [clientId], references: [id])
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  client        Client    @relation(fields: [clientId], references: [id])
 
   @@map("webhooks")
 }
 
-// Document Model
 model Document {
-  id          String            @id @default(uuid()) @db.Uuid
-  clientId    String            @map("client_id") @db.Uuid
-  userId      String?           @map("user_id") @db.Uuid
-  filename    String            @db.VarChar(255)
-  originalName String           @map("original_name") @db.VarChar(255)
-  mimeType    String            @map("mime_type") @db.VarChar(100)
-  size        BigInt
-  category    DocumentCategory  @default(other)
-  tags        Json?             @db.Json
-  metadata    Json?             @db.JsonB
-  path        String            @db.VarChar(500)
-  url         String?           @db.VarChar(500)
-  isPublic    Boolean           @default(false) @map("is_public")
-  expiresAt   DateTime?         @map("expires_at") @db.Timestamptz
-  downloadCount Int             @default(0) @map("download_count")
-  lastDownloadAt DateTime?      @map("last_download_at") @db.Timestamptz
-  createdAt   DateTime          @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt   DateTime          @updatedAt @map("updated_at") @db.Timestamptz
+  id             String           @id @default(uuid()) @db.Uuid
+  clientId       String           @map("client_id") @db.Uuid
+  userId         String?          @map("user_id") @db.Uuid
+  filename       String           @db.VarChar(255)
+  originalName   String           @map("original_name") @db.VarChar(255)
+  mimeType       String           @map("mime_type") @db.VarChar(100)
+  size           BigInt
+  category       DocumentCategory @default(other)
+  tags           Json?            @db.Json
+  metadata       Json?
+  path           String           @db.VarChar(500)
+  url            String?          @db.VarChar(500)
+  isPublic       Boolean          @default(false) @map("is_public")
+  expiresAt      DateTime?        @map("expires_at") @db.Timestamptz(6)
+  downloadCount  Int              @default(0) @map("download_count")
+  lastDownloadAt DateTime?        @map("last_download_at") @db.Timestamptz(6)
+  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+  client         Client           @relation(fields: [clientId], references: [id])
 
-  // Relations
-  client Client @relation(fields: [clientId], references: [id])
-
-  @@map("documents")
   @@index([clientId], map: "idx_documents_client_id")
   @@index([category], map: "idx_documents_category")
   @@index([expiresAt], map: "idx_documents_expires_at")
+  @@map("documents")
 }
 
-// User Client Model (for multi-client relationships)
 model UserClient {
-  id              String            @id @default(uuid()) @db.Uuid
-  userId          String            @map("user_id") @db.Uuid
-  clientId        String            @map("client_id") @db.Uuid
-  status          UserClientStatus  @default(pending)
-  clientRole      UserRole          @default(USER) @map("client_role")
-  linkedAt        DateTime?         @map("linked_at") @db.Timestamptz
-  permissions     Json              @default("{}") @db.JsonB
-  requestedBy     String?           @map("requested_by") @db.Uuid
-  approvedBy      String?           @map("approved_by") @db.Uuid
-  approvedAt      DateTime?         @map("approved_at") @db.Timestamptz
-  lastAccessAt    DateTime?         @map("last_access_at") @db.Timestamptz
-  accessCount     Int               @default(0) @map("access_count")
-  canViewPrivateKeys Boolean        @default(false) @map("can_view_private_keys")
-  metadata        Json?             @db.JsonB
-  createdAt       DateTime          @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt       DateTime          @updatedAt @map("updated_at") @db.Timestamptz
-  deletedAt       DateTime?         @map("deleted_at") @db.Timestamptz
-
-  // Relations
-  user         User          @relation(fields: [userId], references: [id])
-  client       Client        @relation(fields: [clientId], references: [id])
-  requester    User?         @relation("UserClientRequester", fields: [requestedBy], references: [id])
-  approver     User?         @relation("UserClientApprover", fields: [approvedBy], references: [id])
-  transactions Transaction[]
+  id                 String           @id @default(uuid()) @db.Uuid
+  userId             String           @map("user_id") @db.Uuid
+  clientId           String           @map("client_id") @db.Uuid
+  status             UserClientStatus @default(pending)
+  role               UserRole         @default(USER)
+  linkedAt           DateTime?        @map("linked_at") @db.Timestamptz(6)
+  permissions        Json             @default("{}")
+  requestedBy        String?          @map("requested_by") @db.Uuid
+  approvedBy         String?          @map("approved_by") @db.Uuid
+  approvedAt         DateTime?        @map("approved_at") @db.Timestamptz(6)
+  lastAccessAt       DateTime?        @map("last_access_at") @db.Timestamptz(6)
+  accessCount        Int              @default(0) @map("access_count")
+  canViewPrivateKeys Boolean          @default(false) @map("can_view_private_keys")
+  metadata           Json?
+  createdAt          DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt          DateTime?        @map("deleted_at") @db.Timestamptz(6)
+  transactions       Transaction[]
+  approver           User?            @relation("UserClientApprover", fields: [approvedBy], references: [id])
+  client             Client           @relation(fields: [clientId], references: [id])
+  requester          User?            @relation("UserClientRequester", fields: [requestedBy], references: [id])
+  user               User             @relation(fields: [userId], references: [id])
 
   @@unique([userId, clientId])
-  @@map("user_clients")
   @@index([userId], map: "idx_user_clients_user_id")
   @@index([clientId], map: "idx_user_clients_client_id")
   @@index([status], map: "idx_user_clients_status")
-  @@index([clientRole], map: "idx_user_clients_role")
+  @@index([role], map: "idx_user_clients_role")
   @@index([clientId, status], map: "idx_user_clients_client_status")
   @@index([userId, status], map: "idx_user_clients_user_status")
-  @@index([clientId, clientRole], map: "idx_user_clients_client_role")
+  @@index([clientId, role], map: "idx_user_clients_client_role")
+  @@map("user_clients")
 }
 
-// User Two Factor Model
 model UserTwoFactor {
-  id                 String        @id @default(uuid()) @db.Uuid
-  userId             String        @map("user_id") @db.Uuid
-  type               TwoFactorType
-  secret             String?       @db.Text
-  phoneNumber        String?       @map("phone_number") @db.VarChar(20)
-  email              String?       @db.VarChar(255)
-  isActive           Boolean       @default(false) @map("is_active")
-  isVerified         Boolean       @default(false) @map("is_verified")
-  backupCodes        Json?         @map("backup_codes") @db.JsonB
-  usedBackupCodes    Json          @default("[]") @map("used_backup_codes") @db.JsonB
-  setupCompletedAt   DateTime?     @map("setup_completed_at") @db.Timestamptz
-  lastUsedAt         DateTime?     @map("last_used_at") @db.Timestamptz
-  failedAttempts     Int           @default(0) @map("failed_attempts")
-  lockedUntil        DateTime?     @map("locked_until") @db.Timestamptz
-  settings           Json          @default("{}") @db.JsonB
-  createdAt          DateTime      @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt          DateTime      @updatedAt @map("updated_at") @db.Timestamptz
-  deletedAt          DateTime?     @map("deleted_at") @db.Timestamptz
-
-  // Relations
-  user User @relation(fields: [userId], references: [id])
+  id               String        @id @default(uuid()) @db.Uuid
+  userId           String        @map("user_id") @db.Uuid
+  type             TwoFactorType
+  secret           String?
+  phoneNumber      String?       @map("phone_number") @db.VarChar(20)
+  email            String?       @db.VarChar(255)
+  isActive         Boolean       @default(false) @map("is_active")
+  isVerified       Boolean       @default(false) @map("is_verified")
+  backupCodes      Json?         @map("backup_codes")
+  usedBackupCodes  Json          @default("[]") @map("used_backup_codes")
+  setupCompletedAt DateTime?     @map("setup_completed_at") @db.Timestamptz(6)
+  lastUsedAt       DateTime?     @map("last_used_at") @db.Timestamptz(6)
+  failedAttempts   Int           @default(0) @map("failed_attempts")
+  lockedUntil      DateTime?     @map("locked_until") @db.Timestamptz(6)
+  settings         Json          @default("{}")
+  createdAt        DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt        DateTime?     @map("deleted_at") @db.Timestamptz(6)
+  user             User          @relation(fields: [userId], references: [id])
 
   @@unique([userId, type])
-  @@map("user_two_factors")
   @@index([userId], map: "idx_user_two_factors_user_id")
   @@index([userId, isActive], map: "idx_user_two_factors_user_active")
+  @@map("user_two_factors")
 }
 
-// Email Templates Model
 model EmailTemplate {
-  id          String    @id @default(uuid()) @db.Uuid
-  name        String    @unique @db.VarChar(100)
-  subject     String    @db.VarChar(255)
-  htmlContent String    @map("html_content") @db.Text
-  textContent String?   @map("text_content") @db.Text
-  variables   Json?     @db.JsonB
-  isActive    Boolean   @default(true) @map("is_active")
-  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  id          String     @id @default(uuid()) @db.Uuid
+  name        String     @unique @db.VarChar(100)
+  subject     String     @db.VarChar(255)
+  htmlContent String     @map("html_content")
+  textContent String?    @map("text_content")
+  variables   Json?
+  isActive    Boolean    @default(true) @map("is_active")
+  createdAt   DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
+  emailLogs   EmailLog[]
 
-  // Relations
-  emailLogs EmailLog[]
-
-  @@map("email_templates")
   @@index([name], map: "idx_email_templates_name")
   @@index([isActive], map: "idx_email_templates_active")
+  @@map("email_templates")
 }
 
-// Email Logs Model
 model EmailLog {
-  id                String        @id @default(uuid()) @db.Uuid
-  templateId        String?       @map("template_id") @db.Uuid
-  toEmail           String        @map("to_email") @db.VarChar(255)
-  fromEmail         String        @map("from_email") @db.VarChar(255)
-  subject           String        @db.VarChar(255)
-  status            EmailStatus   @default(pending)
-  providerId        String?       @map("provider_id") @db.VarChar(255)
-  errorMessage      String?       @map("error_message") @db.Text
-  sentAt            DateTime?     @map("sent_at") @db.Timestamptz
-  deliveredAt       DateTime?     @map("delivered_at") @db.Timestamptz
-  openedAt          DateTime?     @map("opened_at") @db.Timestamptz
-  clickedAt         DateTime?     @map("clicked_at") @db.Timestamptz
-  bounced           Boolean       @default(false)
-  bouncedAt         DateTime?     @map("bounced_at") @db.Timestamptz
-  metadata          Json?         @db.JsonB
-  createdAt         DateTime      @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt         DateTime      @updatedAt @map("updated_at") @db.Timestamptz
+  id           String         @id @default(uuid()) @db.Uuid
+  templateId   String?        @map("template_id") @db.Uuid
+  toEmail      String         @map("to_email") @db.VarChar(255)
+  fromEmail    String         @map("from_email") @db.VarChar(255)
+  subject      String         @db.VarChar(255)
+  status       EmailStatus    @default(pending)
+  providerId   String?        @map("provider_id") @db.VarChar(255)
+  errorMessage String?        @map("error_message")
+  sentAt       DateTime?      @map("sent_at") @db.Timestamptz(6)
+  deliveredAt  DateTime?      @map("delivered_at") @db.Timestamptz(6)
+  openedAt     DateTime?      @map("opened_at") @db.Timestamptz(6)
+  clickedAt    DateTime?      @map("clicked_at") @db.Timestamptz(6)
+  bounced      Boolean        @default(false)
+  bouncedAt    DateTime?      @map("bounced_at") @db.Timestamptz(6)
+  metadata     Json?
+  createdAt    DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+  template     EmailTemplate? @relation(fields: [templateId], references: [id])
 
-  // Relations
-  template EmailTemplate? @relation(fields: [templateId], references: [id])
-
-  @@map("email_logs")
   @@index([toEmail], map: "idx_email_logs_to_email")
   @@index([status], map: "idx_email_logs_status")
   @@index([createdAt], map: "idx_email_logs_created_at")
   @@index([templateId], map: "idx_email_logs_template_id")
+  @@map("email_logs")
 }
 
-// Client Branding Model
 model ClientBranding {
-  id                  String    @id @default(uuid()) @db.Uuid
-  clientId            String    @unique @map("client_id") @db.Uuid
-  primaryColor        String    @default("#007bff") @map("primary_color") @db.VarChar(7)
-  secondaryColor      String?   @map("secondary_color") @db.VarChar(7)
-  accentColor         String?   @map("accent_color") @db.VarChar(7)
-  backgroundColor     String    @default("#ffffff") @map("background_color") @db.VarChar(7)
-  textColor           String    @default("#333333") @map("text_color") @db.VarChar(7)
-  logoUrl             String?   @map("logo_url") @db.Text
-  logoUrlDark         String?   @map("logo_url_dark") @db.Text
-  faviconUrl          String?   @map("favicon_url") @db.Text
-  backgroundImageUrl  String?   @map("background_image_url") @db.Text
-  layoutStyle         LayoutStyle @default(default) @map("layout_style")
-  borderRadius        Int       @default(8) @map("border_radius")
-  fontFamily          String?   @map("font_family") @db.VarChar(100)
-  fontSize            FontSize  @default(medium) @map("font_size")
-  loginTitle          String?   @map("login_title") @db.VarChar(100)
-  loginSubtitle       String?   @map("login_subtitle") @db.VarChar(200)
-  welcomeMessage      String?   @map("welcome_message") @db.Text
-  footerText          String?   @map("footer_text") @db.Text
-  supportUrl          String?   @map("support_url") @db.Text
-  privacyPolicyUrl    String?   @map("privacy_policy_url") @db.Text
-  termsOfServiceUrl   String?   @map("terms_of_service_url") @db.Text
-  contactEmail        String?   @map("contact_email") @db.VarChar(255)
-  customCss           String?   @map("custom_css") @db.Text
-  customJs            String?   @map("custom_js") @db.Text
-  allowCustomization  Boolean   @default(true) @map("allow_customization")
-  isActive            Boolean   @default(true) @map("is_active")
-  version             Int       @default(1)
-  deployedAt          DateTime? @map("deployed_at") @db.Timestamptz
-  deployedBy          String?   @map("deployed_by") @db.Uuid
-  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt           DateTime  @updatedAt @map("updated_at") @db.Timestamptz
-  deletedAt           DateTime? @map("deleted_at") @db.Timestamptz
+  id                 String      @id @default(uuid()) @db.Uuid
+  clientId           String      @unique @map("client_id") @db.Uuid
+  primaryColor       String      @default("#007bff") @map("primary_color") @db.VarChar(7)
+  secondaryColor     String?     @map("secondary_color") @db.VarChar(7)
+  accentColor        String?     @map("accent_color") @db.VarChar(7)
+  backgroundColor    String      @default("#ffffff") @map("background_color") @db.VarChar(7)
+  textColor          String      @default("#333333") @map("text_color") @db.VarChar(7)
+  logoUrl            String?     @map("logo_url")
+  logoUrlDark        String?     @map("logo_url_dark")
+  faviconUrl         String?     @map("favicon_url")
+  backgroundImageUrl String?     @map("background_image_url")
+  layoutStyle        LayoutStyle @default(default) @map("layout_style")
+  borderRadius       Int         @default(8) @map("border_radius")
+  fontFamily         String?     @map("font_family") @db.VarChar(100)
+  fontSize           FontSize    @default(medium) @map("font_size")
+  loginTitle         String?     @map("login_title") @db.VarChar(100)
+  loginSubtitle      String?     @map("login_subtitle") @db.VarChar(200)
+  welcomeMessage     String?     @map("welcome_message")
+  footerText         String?     @map("footer_text")
+  supportUrl         String?     @map("support_url")
+  privacyPolicyUrl   String?     @map("privacy_policy_url")
+  termsOfServiceUrl  String?     @map("terms_of_service_url")
+  contactEmail       String?     @map("contact_email") @db.VarChar(255)
+  customCss          String?     @map("custom_css")
+  customJs           String?     @map("custom_js")
+  allowCustomization Boolean     @default(true) @map("allow_customization")
+  isActive           Boolean     @default(true) @map("is_active")
+  version            Int         @default(1)
+  deployedAt         DateTime?   @map("deployed_at") @db.Timestamptz(6)
+  deployedBy         String?     @map("deployed_by") @db.Uuid
+  createdAt          DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt          DateTime?   @map("deleted_at") @db.Timestamptz(6)
+  client             Client      @relation(fields: [clientId], references: [id])
+  deployer           User?       @relation("ClientBrandingDeployer", fields: [deployedBy], references: [id])
 
-  // Relations
-  client   Client @relation(fields: [clientId], references: [id])
-  deployer User?  @relation("ClientBrandingDeployer", fields: [deployedBy], references: [id])
-
-  @@map("client_brandings")
   @@index([clientId], map: "idx_client_brandings_client_id")
   @@index([isActive], map: "idx_client_brandings_is_active")
+  @@map("client_brandings")
 }
 
-// Notification Model
 model Notification {
-  id         String   @id @default(uuid()) @db.Uuid
-  userId     String   @map("user_id") @db.Uuid
-  sender     String   @default("coinage") @db.VarChar(50)
-  title      String   @db.VarChar(255)
-  message    String   @db.Text
-  isRead     Boolean  @default(false) @map("is_read")
-  isActive   Boolean  @default(true) @map("is_active")
-  isFavorite Boolean  @default(false) @map("is_favorite")
-  readDate   DateTime? @map("read_date") @db.Timestamptz
-  deleteDate DateTime? @map("delete_date") @db.Timestamptz
-  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  id         String    @id @default(uuid()) @db.Uuid
+  sender     String    @default("coinage") @db.VarChar(50)
+  title      String    @db.VarChar(255)
+  message    String
+  isRead     Boolean   @default(false) @map("is_read")
+  isActive   Boolean   @default(true) @map("is_active")
+  readDate   DateTime? @map("read_date") @db.Timestamptz(6)
+  deleteDate DateTime? @map("delete_date") @db.Timestamptz(6)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  userId     String    @map("user_id") @db.Uuid
+  isFavorite Boolean   @default(false) @map("is_favorite")
+  user       User      @relation(fields: [userId], references: [id])
 
-  // Relations
-  user User @relation(fields: [userId], references: [id])
-
-  @@map("notifications")
   @@index([userId], map: "idx_notifications_user_id")
   @@index([isActive], map: "idx_notifications_active")
   @@index([isRead], map: "idx_notifications_read")
   @@index([isFavorite], map: "idx_notifications_favorite")
   @@index([createdAt], map: "idx_notifications_created")
+  @@map("notifications")
 }
 
-// Earnings Model - Histórico de proventos distribuídos
 model Earnings {
-  id           String   @id @default(uuid()) @db.Uuid
-  userId       String   @map("user_id") @db.Uuid
-  tokenSymbol  String   @map("token_symbol") @db.VarChar(20)
-  tokenName    String   @map("token_name") @db.VarChar(100)
-  amount       Decimal  @db.Decimal(20, 8) // Quantidade de tokens distribuídos
-  quote        Decimal  @db.Decimal(20, 8) // Valor de 1 token em cBRL
-  network      Network  @default(testnet)
-  transactionHash String? @map("transaction_hash") @db.VarChar(66) // Hash da transação blockchain
-  distributionDate DateTime @map("distribution_date") @db.Timestamptz // Data da distribuição
-  isActive     Boolean  @default(true) @map("is_active")
-  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  id               String   @id @default(uuid()) @db.Uuid
+  userId           String   @map("user_id") @db.Uuid
+  tokenSymbol      String   @map("token_symbol") @db.VarChar(20)
+  tokenName        String   @map("token_name") @db.VarChar(100)
+  amount           Decimal  @db.Decimal(20, 8)
+  quote            Decimal  @db.Decimal(20, 8)
+  network          Network  @default(testnet)
+  transactionHash  String?  @map("transaction_hash") @db.VarChar(66)
+  distributionDate DateTime @map("distribution_date") @db.Timestamptz(6)
+  isActive         Boolean  @default(true) @map("is_active")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user             User     @relation(fields: [userId], references: [id])
 
-  // Relations
-  user User @relation(fields: [userId], references: [id])
-
-  @@map("earnings")
   @@index([userId], map: "idx_earnings_user_id")
   @@index([tokenSymbol], map: "idx_earnings_token_symbol")
   @@index([network], map: "idx_earnings_network")
   @@index([distributionDate], map: "idx_earnings_distribution_date")
   @@index([isActive], map: "idx_earnings_active")
+  @@map("earnings")
 }
 
-// Enums
 enum Network {
   mainnet
   testnet
@@ -523,15 +470,15 @@ enum Network {
 
 enum TransactionType {
   transfer
+  contract_deploy
+  contract_call
+  contract_read
   deposit
   withdraw
   stake
   unstake
   exchange
   stake_reward
-  contract_deploy
-  contract_call
-  contract_read
 }
 
 enum TransactionStatus {
@@ -541,19 +488,17 @@ enum TransactionStatus {
   cancelled
 }
 
-// Novo sistema de roles
 enum UserRole {
-  USER        // Usuário básico (acesso a próprios dados, menos chave privada)
-  ADMIN       // Administrador (gestão de usuários do mesmo cliente, dono da carteira master)
-  SUPER_ADMIN // Super administrador (acesso total ao sistema, inclusive chaves privadas)
-  APP_ADMIN   // Administrador do APP (acesso a quase tudo, mas não chaves privadas)
+  USER
+  ADMIN
+  SUPER_ADMIN
+  APP_ADMIN
 }
 
-// Planos de usuário para controle de funcionalidades
 enum UserPlan {
-  BASIC       // Plano básico: auto-sync a cada 5 minutos
-  PRO         // Plano profissional: auto-sync a cada 2 minutos
-  PREMIUM     // Plano premium: auto-sync a cada 1 minuto
+  BASIC
+  PRO
+  PREMIUM
 }
 
 enum DocumentCategory {

@@ -114,11 +114,11 @@ class WhitelabelService {
         };
       }
 
-      // Criar vinculação
-      const userClient = await userClientService.linkUserToClient(userId, clientId, {
-        clientRole: 'USER',
-        autoApprove: true,
-        approvedBy: userId // Auto-aprovação
+      // Criar vinculação user-client se não existir
+      const userClient = await userClientService.createUserClientLink(user.id, clientId, {
+        status: 'active',
+        role: 'USER',
+        permissions: {}
       });
 
       // Buscar dados do cliente para personalização
@@ -233,7 +233,6 @@ class WhitelabelService {
             id: user.id,
             name: user.name,
             email: user.email,
-            globalRole: user.globalRole,
             isFirstAccess: user.isFirstAccess
           },
           client: {
@@ -243,7 +242,7 @@ class WhitelabelService {
           },
           userClient: {
             id: userClient.id,
-            clientRole: userClient.clientRole,
+            role: userClient.role,
             canViewPrivateKeys: userClient.canViewPrivateKeys,
             linkedAt: userClient.linkedAt
           }

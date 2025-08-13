@@ -34,33 +34,30 @@ class UserService {
       // Criar usuário usando transação para garantir consistência
       const result = await this.prisma.$transaction(async (tx) => {
         // Criar usuário
-        const user = await tx.user.create({
+        const user = await this.prisma.user.create({
           data: {
             name: userData.name,
             email: userData.email.toLowerCase(),
-            cpf: userData.cpf.replace(/[.-]/g, ''),
-            phone: userData.phone?.replace(/[^\d]/g, ''),
-            birthDate: userData.birthDate ? new Date(userData.birthDate) : null,
+            cpf: userData.cpf,
+            phone: userData.password,
+            birthDate: userData.birthDate,
             publicKey: userData.publicKey,
             privateKey: userData.privateKey,
             password: hashedPassword,
-            globalRole: userData.globalRole || 'USER',
-            isFirstAccess: true,
-            passwordChangedAt: new Date()
+            isFirstAccess: userData.isFirstAccess !== false,
+            userPlan: userData.userPlan || 'BASIC',
+            isActive: true
           }
         });
 
         // Se fornecido clientId, criar vinculação automática
         if (defaultClientId) {
-          await tx.userClient.create({
-            data: {
-              userId: user.id,
-              clientId: defaultClientId,
-              clientRole: userData.clientRole || 'USER',
-              status: 'active',
-              linkedAt: new Date(),
-              approvedAt: new Date()
-            }
+          const userClientService = require('./userClient.service');
+          // Criar vinculação user-client
+          const userClient = await userClientService.createUserClientLink(user.id, defaultClientId, {
+            status: 'active',
+            role: userData.role || 'USER',
+            permissions: {}
           });
         }
 
@@ -90,7 +87,6 @@ class UserService {
         email: result.email,
         cpf: result.cpf,
         publicKey: result.publicKey,
-        globalRole: result.globalRole,
         isActive: result.isActive,
         createdAt: result.createdAt
       };
@@ -601,8 +597,20 @@ class UserService {
 
       return {
         success: true,
-        message: 'UserService (Prisma) funcionando corretamente',
-        timestamp: new Date().toISOString()
+        message: 'Usuário atualizado com sucesso',
+        data: {
+          id: result.id,
+          name: result.name,
+          email: result.email,
+          cpf: result.cpf,
+          phone: result.phone,
+          birthDate: result.birthDate,
+          publicKey: result.publicKey,
+          isFirstAccess: result.isFirstAccess,
+          userPlan: result.userPlan,
+          isActive: result.isActive,
+          updatedAt: result.updatedAt
+        }
       };
     } catch (error) {
       return {

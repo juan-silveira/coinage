@@ -7,7 +7,7 @@ const API_BASE_URL = 'http://localhost:8800';
 // Instância do axios
 const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 10000, // 10 segundos para evitar timeout
+  timeout: 30000, // 30 segundos para evitar timeout prematuro
   headers: {
     'Content-Type': 'application/json',
   },
@@ -55,6 +55,31 @@ api.interceptors.response.use(
       
       if (isSyncRequest) {
         console.log('⚠️ [API] Erro 401 em requisição de sync - NÃO fazendo logout automático');
+        
+        // Para notificações, tentar refresh token silenciosamente
+        if (isAuthenticated && refreshToken && originalRequest?.url?.includes('/notifications/')) {
+          try {
+            console.log('🔄 [API] Tentando renovar token para notificações...');
+            const response = await axios.post(`${API_BASE_URL}/api/auth/refresh`, {
+              refreshToken
+            });
+
+            const { accessToken: newAccessToken, refreshToken: newRefreshToken } = response.data.data;
+            
+            console.log('✅ [API] Token renovado para notificações');
+            // Atualizar tokens no store
+            useAuthStore.getState().setTokens(newAccessToken, newRefreshToken);
+            
+            // Retry da requisição original
+            originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+            return api(originalRequest);
+          } catch (refreshError) {
+            console.warn('⚠️ [API] Falha no refresh para notificações - continuando sem notificações');
+            // Não fazer logout, apenas rejeitar a requisição
+            return Promise.reject(error);
+          }
+        }
+        
         return Promise.reject(error);
       }
       
@@ -327,6 +352,21 @@ export const earningsService = {
     const response = await api.delete(`/api/earnings/${id}`);
     return response.data;
   },
+};
+
+// Serviços de whitelabel
+export const whitelabelService = {
+  // Obter cliente atual do usuário
+  getCurrentClient: async () => {
+    const response = await api.get('/api/whitelabel/user/current-client');
+    return response.data;
+  },
+
+  // Listar clientes do usuário
+  getUserClients: async (params = {}) => {
+    const response = await api.get('/api/whitelabel/user/clients', { params });
+    return response.data;
+  }
 };
 
 export default api;
