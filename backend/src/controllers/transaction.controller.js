@@ -10,22 +10,23 @@ class TransactionController {
    */
   async getTransactionsByClient(req, res) {
     try {
-      const { page = 1, limit = 50, status, network, transactionType, startDate, endDate } = req.query;
-      const clientId = req.client?.id;
+      const { page = 1, limit = 50, status, network, transactionType, tokenSymbol, startDate, endDate } = req.query;
+      const userId = req.user.id;
 
-      if (!clientId) {
+      if (!userId) {
         return res.status(400).json({
           success: false,
-          message: 'ID do cliente não encontrado'
+          message: 'ID do usuário não encontrado'
         });
       }
 
-      const result = await transactionService.getTransactionsByClient(clientId, {
+      const result = await transactionService.getTransactionsByUser(userId, {
         page: parseInt(page),
         limit: parseInt(limit),
         status,
         network,
         transactionType,
+        tokenSymbol,
         startDate,
         endDate
       });

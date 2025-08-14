@@ -1,10 +1,12 @@
 "use client";
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import Icon from "@/components/ui/Icon";
 import Card from "@/components/ui/Card";
 import Select from "react-select";
 import Button from "@/components/ui/Button";
 import useCacheData from "@/hooks/useCacheData";
+import useTransactions from "@/hooks/useTransactions";
+import useTransactionFilters from "@/hooks/useTransactionFilters";
 
 const StatementPage = () => {
   const [currentPage, setCurrentPage] = useState(1);
@@ -13,6 +15,28 @@ const StatementPage = () => {
   const [typeFilter, setTypeFilter] = useState(null);
   const [statusFilter, setStatusFilter] = useState(null);
   const { balances } = useCacheData();
+  
+  // Hook para buscar opções de filtro
+  const { tokenOptions, typeOptions, statusOptions } = useTransactionFilters();
+
+  // Memoizar parâmetros - se há filtro de token, buscar todos os dados
+  const transactionParams = useMemo(() => ({
+    page: tokenFilter ? 1 : currentPage, // Se há filtro de token, sempre página 1
+    limit: tokenFilter ? 1000 : itemsPerPage, // Se há filtro de token, buscar muito mais dados
+    status: statusFilter?.value && statusFilter.value !== "" ? statusFilter.value : undefined,
+    network: balances?.network || 'testnet',
+    transactionType: typeFilter?.value && typeFilter.value !== "" ? typeFilter.value : undefined
+    // Não enviar tokenSymbol para o backend - faremos filtro local
+  }), [currentPage, itemsPerPage, statusFilter?.value, balances?.network, typeFilter?.value, tokenFilter]);
+
+  // Buscar transações reais do banco de dados
+  const { 
+    transactions: realTransactions, 
+    loading: transactionsLoading, 
+    error: transactionsError,
+    pagination: transactionsPagination,
+    updatePagination 
+  } = useTransactions(transactionParams);
 
   // Mapeamento dos tipos de transação de inglês para português
   const transactionTypeTranslation = {
@@ -33,210 +57,27 @@ const StatementPage = () => {
     return `/assets/images/currencies/${symbol}.png`;
   };
 
-  // Mock data expandido com mais transações usando os novos tipos
-  const mockTransactions = [
-    {
-      id: 1,
-      tokenSymbol: "AZE-t",
-      tokenName: "Azore",
-      txHash: "0xa1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6",
-      type: "transfer",
-      subType: "debit",
-      amount: -150.75,
-      date: "2025-01-15T10:30:00Z",
-      status: "confirmed"
-    },
-    {
-      id: 2,
-      tokenSymbol: "STT", 
-      tokenName: "Stake Token",
-      txHash: "0xb3c4d5e6f7g8h9i0j1k2l3m4n5o6p7q8r9s0t1u2v3w4x5y6z7a8",
-      type: "transfer",
-      subType: "credit",
-      amount: +1500000.25,
-      date: "2025-01-15T11:00:00Z",
-      status: "confirmed"
-    },
-    {
-      id: 3,
-      tokenSymbol: "cBRL",
-      tokenName: "Coinage Real Brasil", 
-      txHash: "0xb2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6a1",
-      type: "deposit",
-      subType: "credit",
-      amount: +250.0,
-      date: "2025-01-14T09:15:00Z",
-      status: "confirmed"
-    },
-    {
-      id: 4,
-      tokenSymbol: "CNT",
-      tokenName: "Coinage Trade",
-      txHash: "0xc3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6a1b2",
-      type: "withdraw",
-      subType: "debit",
-      amount: -75.50,
-      date: "2025-01-13T14:20:00Z",
-      status: "confirmed"
-    },
-    {
-      id: 5,
-      tokenSymbol: "MJD",
-      tokenName: "Meu Jurídico Digital",
-      txHash: "0xd4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6a1b2c3",
-      type: "stake", 
-      subType: "debit",
-      amount: -500.0,
-      date: "2025-01-12T16:45:00Z",
-      status: "confirmed"
-    },
-    {
-      id: 6,
-      tokenSymbol: "AZE-t",
-      tokenName: "Azore",
-      txHash: "0xe5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6a1b2c3d4",
-      type: "exchange",
-      subType: "debit", 
-      amount: -200.0,
-      date: "2025-01-11T08:15:00Z",
-      status: "confirmed"
-    },
-    {
-      id: 7,
-      tokenSymbol: "PCN",
-      tokenName: "Pratique Coin",
-      txHash: "0xf6g8h9i0j1k2l3m4n5o6p7q8r9s0t1u2v3w4x5y6z7a8b9c0d1e2",
-      type: "exchange",
-      subType: "credit",
-      amount: +400.0,
-      date: "2025-01-11T08:18:30Z",
-      status: "confirmed"
-    },
-    {
-      id: 8,
-      tokenSymbol: "STT",
-      tokenName: "Stake Token", 
-      txHash: "0xf6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6a1b2c3d4e5",
-      type: "unstake",
-      subType: "credit",
-      amount: +750000.0,
-      date: "2025-01-10T12:30:00Z",
-      status: "confirmed"
-    },
-    {
-      id: 9,
-      tokenSymbol: "CNT",
-      tokenName: "Coinage Trade",
-      txHash: "0xg7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6a1b2c3d4e5f6",
-      type: "deposit",
-      subType: "credit",
-      amount: +125.25,
-      date: "2025-01-09T15:30:00Z",
-      status: "confirmed"
-    },
-    {
-      id: 10,
-      tokenSymbol: "MJD", 
-      tokenName: "Meu Jurídico Digital",
-      txHash: "0xh8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6a1b2c3d4e5f6g7",
-      type: "withdraw",
-      subType: "debit",
-      amount: -300.0,
-      date: "2025-01-08T11:20:00Z",
-      status: "confirmed"
-    },
-    {
-      id: 11,
-      tokenSymbol: "AZE-t",
-      tokenName: "Azore",
-      txHash: "0x1a2b3c4d5e6f7g8h9i0j1k2l3m4n5o6p7q8r9s0t1u2v3w4x5y6z7",
-      type: "stake_reward",
-      subType: "credit",
-      amount: +25.75,
-      date: "2025-01-09T06:00:00Z",
-      status: "confirmed"
-    },
-    {
-      id: 12,
-      tokenSymbol: "STT",
-      tokenName: "Stake Token",
-      txHash: "0x2b3c4d5e6f7g8h9i0j1k2l3m4n5o6p7q8r9s0t1u2v3w4x5y6z7a8",
-      type: "stake_reward",
-      subType: "credit", 
-      amount: +1250.0,
-      date: "2025-01-07T06:00:00Z",
-      status: "confirmed"
-    },
-    {
-      id: 13,
-      tokenSymbol: "PCN",
-      tokenName: "Pratique Coin",
-      txHash: "0x3c4d5e6f7g8h9i0j1k2l3m4n5o6p7q8r9s0t1u2v3w4x5y6z7a8b9",
-      type: "transfer",
-      subType: "debit",
-      amount: -50.0,
-      date: "2025-01-07T15:20:00Z",
-      status: "pending"
-    },
-    {
-      id: 14,
-      tokenSymbol: "cBRL",
-      tokenName: "Coinage Real Brasil",
-      txHash: "0x4d5e6f7g8h9i0j1k2l3m4n5o6p7q8r9s0t1u2v3w4x5y6z7a8b9c0",
-      type: "deposit",
-      subType: "credit",
-      amount: +180.50,
-      date: "2025-01-06T12:45:00Z",
-      status: "confirmed"
-    },
-    {
-      id: 15,
-      tokenSymbol: "AZE-t",
-      tokenName: "Azore",
-      txHash: "0x5e6f7g8h9i0j1k2l3m4n5o6p7q8r9s0t1u2v3w4x5y6z7a8b9c0d1",
-      type: "unstake",
-      subType: "credit",
-      amount: +75.0,
-      date: "2025-01-05T09:30:00Z",
-      status: "confirmed"
-    }
-  ];
+  // Usar transações reais do banco de dados
+  const allTransactions = realTransactions || [];
 
-  // Filtrar transações
+  // WORKAROUND: Aplicar filtro de token no frontend temporariamente
+  // até corrigirmos o problema no backend
   const filteredTransactions = useMemo(() => {
-    return mockTransactions.filter(transaction => {
-      const tokenMatch = !tokenFilter || transaction.tokenSymbol === tokenFilter.value;
-      const typeMatch = !typeFilter || transaction.type === typeFilter.value;
-      const statusMatch = !statusFilter || transaction.status === statusFilter.value;
-      return tokenMatch && typeMatch && statusMatch;
+    if (!tokenFilter || !tokenFilter.value) return allTransactions;
+    return allTransactions.filter(transaction => {
+      return transaction.tokenSymbol === tokenFilter.value;
     });
-  }, [tokenFilter, typeFilter, statusFilter]);
+  }, [allTransactions, tokenFilter]);
 
-  // Paginação
-  const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const currentTransactions = filteredTransactions.slice(startIndex, startIndex + itemsPerPage);
+  // Usar paginação ajustada para filtros locais
+  const totalPages = tokenFilter ? 
+    Math.ceil(filteredTransactions.length / itemsPerPage) : 
+    transactionsPagination.totalPages || 0;
+  
+  const currentTransactions = tokenFilter ? 
+    filteredTransactions.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage) :
+    allTransactions;
 
-  // Opções para os filtros
-  const tokenOptions = [
-    { value: "", label: "Todos os tokens" },
-    ...Array.from(new Set(mockTransactions.map(t => t.tokenSymbol)))
-      .map(token => ({ value: token, label: token }))
-  ];
-
-  const typeOptions = [
-    { value: "", label: "Todos os tipos" },
-    ...Array.from(new Set(mockTransactions.map(t => t.type)))
-      .map(type => ({ value: type, label: transactionTypeTranslation[type] || type }))
-  ];
-
-  const statusOptions = [
-    { value: "", label: "Todos os status" },
-    { value: "pending", label: "Pendente" },
-    { value: "confirmed", label: "Confirmado" },
-    { value: "failed", label: "Falhou" },
-    { value: "cancelled", label: "Cancelado" }
-  ];
 
   const itemsPerPageOptions = [
     { value: 10, label: "10 por página" },
@@ -245,25 +86,68 @@ const StatementPage = () => {
     { value: 100, label: "100 por página" }
   ];
 
-  // Navegação de páginas
+  // Navegação de páginas 
   const goToPage = (page) => {
     setCurrentPage(page);
+    // Só atualizar backend se não houver filtro de token (que é local)
+    if (!tokenFilter) {
+      updatePagination({ 
+        page, 
+        limit: itemsPerPage,
+        status: statusFilter?.value && statusFilter.value !== "" ? statusFilter.value : undefined,
+        transactionType: typeFilter?.value && typeFilter.value !== "" ? typeFilter.value : undefined
+      });
+    }
   };
 
   const goToPreviousPage = () => {
-    setCurrentPage(prev => Math.max(1, prev - 1));
+    const newPage = Math.max(1, currentPage - 1);
+    setCurrentPage(newPage);
+    if (!tokenFilter) {
+      updatePagination({ 
+        page: newPage, 
+        limit: itemsPerPage,
+        status: statusFilter?.value && statusFilter.value !== "" ? statusFilter.value : undefined,
+        transactionType: typeFilter?.value && typeFilter.value !== "" ? typeFilter.value : undefined
+      });
+    }
   };
 
   const goToNextPage = () => {
-    setCurrentPage(prev => Math.min(totalPages, prev + 1));
+    const newPage = Math.min(totalPages, currentPage + 1);
+    setCurrentPage(newPage);
+    if (!tokenFilter) {
+      updatePagination({ 
+        page: newPage, 
+        limit: itemsPerPage,
+        status: statusFilter?.value && statusFilter.value !== "" ? statusFilter.value : undefined,
+        transactionType: typeFilter?.value && typeFilter.value !== "" ? typeFilter.value : undefined
+      });
+    }
   };
 
   const goToFirstPage = () => {
     setCurrentPage(1);
+    if (!tokenFilter) {
+      updatePagination({ 
+        page: 1, 
+        limit: itemsPerPage,
+        status: statusFilter?.value && statusFilter.value !== "" ? statusFilter.value : undefined,
+        transactionType: typeFilter?.value && typeFilter.value !== "" ? typeFilter.value : undefined
+      });
+    }
   };
 
   const goToLastPage = () => {
     setCurrentPage(totalPages);
+    if (!tokenFilter) {
+      updatePagination({ 
+        page: totalPages, 
+        limit: itemsPerPage,
+        status: statusFilter?.value && statusFilter.value !== "" ? statusFilter.value : undefined,
+        transactionType: typeFilter?.value && typeFilter.value !== "" ? typeFilter.value : undefined
+      });
+    }
   };
 
   // Função para obter URL da blockchain baseada na rede
@@ -332,10 +216,33 @@ const StatementPage = () => {
     setCurrentPage(1);
   };
 
-  // Reset pagination when filters change
-  React.useEffect(() => {
+  // Reset pagination when filters change (apenas para filtros backend)
+  useEffect(() => {
     setCurrentPage(1);
-  }, [tokenFilter, typeFilter, statusFilter]);
+    // Só atualizar paginação backend se não houver filtro de token (que é aplicado no frontend)
+    if (!tokenFilter) {
+      updatePagination({ 
+        page: 1, 
+        limit: itemsPerPage,
+        status: statusFilter?.value && statusFilter.value !== "" ? statusFilter.value : undefined,
+        transactionType: typeFilter?.value && typeFilter.value !== "" ? typeFilter.value : undefined
+      });
+    }
+  }, [statusFilter, typeFilter, itemsPerPage, updatePagination, tokenFilter]);
+
+  // Handle items per page change
+  const handleItemsPerPageChange = (option) => {
+    setItemsPerPage(option.value);
+    setCurrentPage(1);
+    if (!tokenFilter) {
+      updatePagination({ 
+        page: 1, 
+        limit: option.value,
+        status: statusFilter?.value && statusFilter.value !== "" ? statusFilter.value : undefined,
+        transactionType: typeFilter?.value && typeFilter.value !== "" ? typeFilter.value : undefined
+      });
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -422,7 +329,7 @@ const StatementPage = () => {
               classNamePrefix="select"
               options={itemsPerPageOptions}
               value={itemsPerPageOptions.find(option => option.value === itemsPerPage)}
-              onChange={(option) => setItemsPerPage(option.value)}
+              onChange={handleItemsPerPageChange}
               styles={selectStyles}
             />
           </div>
@@ -468,13 +375,30 @@ const StatementPage = () => {
           {/* Cabeçalho da tabela com contador */}
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
-              Transações ({filteredTransactions.length})
+              Transações ({transactionsLoading ? '...' : (tokenFilter ? filteredTransactions.length : (transactionsPagination.total || 0))})
             </h3>
           </div>
 
+          {/* Loading/Error States */}
+          {transactionsLoading && (
+            <div className="flex justify-center items-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500"></div>
+              <span className="ml-2 text-slate-600 dark:text-slate-400">Carregando transações...</span>
+            </div>
+          )}
+
+          {transactionsError && !transactionsLoading && (
+            <div className="flex flex-col items-center py-8">
+              <Icon icon="heroicons-outline:exclamation-triangle" className="w-12 h-12 mb-2 text-red-500" />
+              <span className="font-medium text-red-600 dark:text-red-400">Erro ao carregar transações</span>
+              <span className="text-sm text-slate-500 dark:text-slate-400">{transactionsError}</span>
+            </div>
+          )}
+
           {/* Tabela responsiva */}
-          <div className="overflow-x-auto">
-            <table className="min-w-full">
+          {!transactionsLoading && !transactionsError && (
+            <div className="overflow-x-auto">
+              <table className="min-w-full">
               <thead className="bg-slate-50 dark:bg-slate-800">
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
@@ -600,13 +524,21 @@ const StatementPage = () => {
               </tbody>
             </table>
           </div>
+        )}
 
           {/* Pagination */}
-          {filteredTransactions.length > itemsPerPage && (
+          {!transactionsLoading && !transactionsError && (
+            (tokenFilter && filteredTransactions.length > itemsPerPage) || 
+            (!tokenFilter && (transactionsPagination.total || 0) > itemsPerPage)
+          ) && (
             <div className="px-4 py-3 bg-slate-50 dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700">
               <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-3 md:space-y-0">
                 <div className="text-sm text-slate-500 dark:text-slate-400 text-center md:text-left">
-                  Exibindo {startIndex + 1} ao {Math.min(startIndex + itemsPerPage, filteredTransactions.length)} de {filteredTransactions.length} registros
+                  {tokenFilter ? (
+                    `Exibindo ${((currentPage - 1) * itemsPerPage) + 1} ao ${Math.min(currentPage * itemsPerPage, filteredTransactions.length)} de ${filteredTransactions.length} registros`
+                  ) : (
+                    `Exibindo ${((currentPage - 1) * itemsPerPage) + 1} ao ${Math.min(currentPage * itemsPerPage, transactionsPagination.total || 0)} de ${transactionsPagination.total || 0} registros`
+                  )}
                 </div>
                 <div className="flex items-center justify-center space-x-1">
                   <button

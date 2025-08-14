@@ -175,7 +175,7 @@ app.use('/api/tokens', authenticateApiKey, transactionRateLimiter, addUserInfo, 
 app.use('/api/stakes', authenticateApiKey, transactionRateLimiter, addUserInfo, logAuthenticatedRequest, QueueMiddleware.enqueueExternalOperations, CacheRefreshMiddleware.refreshAfterQueueOperation, stakeRoutes);
 
 // Rotas de transações (com autenticação JWT)
-app.use('/api/transactions', authenticateJWT, transactionRateLimiter, addUserInfo, logAuthenticatedRequest, CacheRefreshMiddleware.refreshAfterTransaction, transactionRoutes);
+app.use('/api/transactions', transactionRoutes);
 
 // Rotas de logs (com autenticação JWT)
 app.use('/api/logs', authenticateJWT, apiRateLimiter, addUserInfo, logAuthenticatedRequest, logRoutes);

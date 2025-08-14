@@ -3,6 +3,10 @@ const router = express.Router();
 const transactionController = require('../controllers/transaction.controller');
 const { authenticateApiKey } = require('../middleware/auth.middleware');
 const { transactionRateLimiter } = require('../middleware/rateLimit.middleware');
+const { authenticateToken } = require('../middleware/jwt.middleware');
+
+// Middleware de autenticação para todas as rotas
+router.use(authenticateToken);
 
 /**
  * @swagger

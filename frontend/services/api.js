@@ -275,17 +275,63 @@ export const userService = {
 
 // Serviços de transações
 export const transactionService = {
-  // Listar transações
+  // Listar transações do usuário
   getTransactions: async (params = {}) => {
     const response = await api.get('/api/transactions', { params });
     return response.data;
   },
 
-  // Obter estatísticas
-  getStats: async () => {
-    const response = await api.get('/api/transactions/stats');
+  // Obter transação por hash
+  getTransactionByHash: async (txHash) => {
+    const response = await api.get(`/api/transactions/${txHash}`);
     return response.data;
   },
+
+  // Obter estatísticas gerais
+  getStats: async (params = {}) => {
+    const response = await api.get('/api/transactions/stats/overview', { params });
+    return response.data;
+  },
+
+  // Obter estatísticas por status
+  getStatusStats: async (params = {}) => {
+    const response = await api.get('/api/transactions/stats/status', { params });
+    return response.data;
+  },
+
+  // Obter estatísticas por tipo
+  getTypeStats: async (params = {}) => {
+    const response = await api.get('/api/transactions/stats/type', { params });
+    return response.data;
+  },
+
+  // Enfileirar transação
+  enqueueTransaction: async (transactionData) => {
+    const response = await api.post('/api/transactions/enqueue', transactionData);
+    return response.data;
+  },
+
+  // Obter status de transação enfileirada
+  getQueuedTransactionStatus: async (jobId) => {
+    const response = await api.get(`/api/transactions/queue/${jobId}`);
+    return response.data;
+  },
+
+  // Obter status de múltiplas transações enfileiradas
+  getMultipleQueuedTransactionStatus: async (jobIds) => {
+    const response = await api.post('/api/transactions/queue/batch', { jobIds });
+    return response.data;
+  },
+  // Obter opções para filtros (busca todas as transações sem filtros para popular as opções)
+  getFilterOptions: async () => {
+    const response = await api.get('/api/transactions', { 
+      params: { 
+        page: 1, 
+        limit: 1000 // Buscar uma quantidade grande para obter todas as opções
+      } 
+    });
+    return response.data;
+  }
 };
 
 // Serviços de tokens

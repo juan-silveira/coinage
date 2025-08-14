@@ -397,6 +397,141 @@ class TransactionService {
   }
 
   /**
+   * Busca transações por usuário (versão corrigida)
+   */
+  async getTransactionsByUser(userId, options = {}) {
+    try {
+      if (!this.prisma) {
+        await this.initialize();
+      }
+
+      const { 
+        page = 1, 
+        limit = 50, 
+        status, 
+        network, 
+        transactionType, 
+        tokenSymbol, 
+        startDate, 
+        endDate 
+      } = options;
+
+      // TESTE: Se tokenSymbol for STT, usar filtro específico
+      if (tokenSymbol === 'STT') {
+        const whereSTT = {
+          userId,
+          metadata: {
+            path: ['tokenSymbol'],
+            equals: 'STT'
+          }
+        };
+
+        const [transactions, count] = await Promise.all([
+          this.prisma.transaction.findMany({
+            where: whereSTT,
+            orderBy: { createdAt: 'desc' },
+            skip: (page - 1) * limit,
+            take: limit
+          }),
+          this.prisma.transaction.count({ where: whereSTT })
+        ]);
+
+        return {
+          rows: transactions.map(tx => ({
+            ...tx,
+            getFormattedResponse: () => tx
+          })),
+          count
+        };
+      }
+
+      // Caso normal para outros filtros
+      const where = { userId };
+      
+      if (status) where.status = status;
+      if (network) where.network = network;
+      if (transactionType) where.transactionType = transactionType;
+      if (tokenSymbol && tokenSymbol !== 'STT') {
+        where.metadata = {
+          path: ['tokenSymbol'],
+          equals: tokenSymbol
+        };
+      }
+      if (startDate && endDate) {
+        where.createdAt = {
+          gte: new Date(startDate),
+          lte: new Date(endDate)
+        };
+      }
+
+      const [transactions, count] = await Promise.all([
+        this.prisma.transaction.findMany({
+          where,
+          orderBy: { createdAt: 'desc' },
+          skip: (page - 1) * limit,
+          take: limit
+        }),
+        this.prisma.transaction.count({ where })
+      ]);
+
+      return {
+        rows: transactions.map(tx => ({
+          ...tx,
+          getFormattedResponse: () => tx
+        })),
+        count
+      };
+    } catch (error) {
+      console.error('Erro ao buscar transações do usuário:', error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Debug - busca transações com logs detalhados
+   */
+  async debugGetTransactionsByUser(userId, options = {}) {
+    try {
+      if (!this.prisma) {
+        await this.initialize();
+      }
+
+      console.log('🐛 DEBUG - Parâmetros recebidos:', options);
+      
+      const { page = 1, limit = 50, tokenSymbol } = options;
+      
+      const where = { userId };
+      
+      if (tokenSymbol) {
+        where.metadata = {
+          path: ['tokenSymbol'],
+          equals: tokenSymbol
+        };
+        console.log('🐛 DEBUG - Aplicando filtro tokenSymbol:', tokenSymbol);
+      }
+      
+      console.log('🐛 DEBUG - Where final:', JSON.stringify(where, null, 2));
+      
+      const [transactions, count] = await Promise.all([
+        this.prisma.transaction.findMany({
+          where,
+          orderBy: { createdAt: 'desc' },
+          skip: (page - 1) * limit,
+          take: limit
+        }),
+        this.prisma.transaction.count({ where })
+      ]);
+      
+      console.log('🐛 DEBUG - Resultados: count =', count, ', rows =', transactions.length);
+      
+      return { rows: transactions, count };
+    } catch (error) {
+      console.error('Erro no debug:', error.message);
+      throw error;
+    }
+  }
+
+  /**
    * Busca transação por hash
    */
   async getTransactionByHash(txHash) {
