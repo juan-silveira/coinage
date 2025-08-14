@@ -13,13 +13,21 @@ class TransactionController {
       const { page = 1, limit = 50, status, network, transactionType, tokenSymbol, startDate, endDate } = req.query;
       const userId = req.user.id;
 
+      console.log('🔍 [TransactionController] Buscar transações:', {
+        userId,
+        filters: { page, limit, status, network, transactionType, tokenSymbol, startDate, endDate }
+      });
+
       if (!userId) {
+        console.error('❌ [TransactionController] UserID não encontrado');
         return res.status(400).json({
           success: false,
           message: 'ID do usuário não encontrado'
         });
       }
 
+      console.log('🔍 [TransactionController] Chamando transactionService.getTransactionsByUser...');
+      
       const result = await transactionService.getTransactionsByUser(userId, {
         page: parseInt(page),
         limit: parseInt(limit),
@@ -31,7 +39,14 @@ class TransactionController {
         endDate
       });
 
-      res.status(200).json({
+      console.log('🔍 [TransactionController] Result obtido:', {
+        count: result.count,
+        rowsLength: result.rows?.length,
+        firstRow: result.rows?.[0] ? Object.keys(result.rows[0]) : null
+      });
+
+      // Use a custom JSON.stringify to handle BigInt values
+      const responseData = {
         success: true,
         message: 'Transações obtidas com sucesso',
         data: {
@@ -43,8 +58,35 @@ class TransactionController {
             totalPages: Math.ceil(result.count / parseInt(limit))
           }
         }
-      });
+      };
+
+      // Send response with comprehensive BigInt handling
+      res.setHeader('Content-Type', 'application/json');
+      
+      // Use a more comprehensive replacer function
+      const bigIntReplacer = (key, value) => {
+        if (typeof value === 'bigint') {
+          return value.toString();
+        }
+        if (value && typeof value === 'object') {
+          // Handle nested objects that might have BigInt
+          for (const prop in value) {
+            if (typeof value[prop] === 'bigint') {
+              value[prop] = value[prop].toString();
+            }
+          }
+        }
+        return value;
+      };
+      
+      const responseString = JSON.stringify(responseData, bigIntReplacer);
+      res.status(200).send(responseString);
     } catch (error) {
+      console.error('❌ [TransactionController] Erro ao buscar transações:', {
+        error: error.message,
+        stack: error.stack,
+        userId: req.user?.id
+      });
       res.status(400).json({
         success: false,
         message: 'Erro ao obter transações',

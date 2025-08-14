@@ -141,6 +141,9 @@ const TransactionHistoryTable = () => {
               <thead className="bg-slate-50 dark:bg-slate-800">
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                    Cliente
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                     Token
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
@@ -164,6 +167,13 @@ const TransactionHistoryTable = () => {
                   key={transaction.id}
                   className="hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors duration-150"
                 >
+                  {/* Cliente */}
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <div className="text-sm font-medium text-slate-900 dark:text-white">
+                      {transaction.client?.name || 'N/A'}
+                    </div>
+                  </td>
+                  
                   {/* Token - Logo, Symbol, Name */}
                   <td className="px-4 py-3 whitespace-nowrap">
                     <div className="flex items-center space-x-3">
@@ -237,7 +247,7 @@ const TransactionHistoryTable = () => {
               ))
             ) : (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-slate-500 dark:text-slate-400">
+                <td colSpan={6} className="px-4 py-8 text-center text-slate-500 dark:text-slate-400">
                   <div className="flex flex-col items-center">
                     <Icon icon="heroicons-outline:document-text" className="w-12 h-12 mb-2 opacity-50" />
                     <span className="font-medium">Sem resultados</span>

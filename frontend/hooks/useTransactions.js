@@ -124,6 +124,16 @@ const useTransactions = (initialParams = {}) => {
           subType = 'debit';
           amount = parseFloat(metadata.amount || 0);
           break;
+        case 'stake':
+          type = 'stake';
+          subType = 'debit';
+          amount = -parseFloat(metadata.amount || 0);
+          break;
+        case 'unstake':
+          type = 'unstake';
+          subType = 'credit';
+          amount = parseFloat(metadata.amount || 0);
+          break;
         case 'grant_role':
         case 'revoke_role':
           type = 'contract_call';
@@ -182,7 +192,10 @@ const useTransactions = (initialParams = {}) => {
       gasUsed: tx.gasUsed,
       gasPrice: tx.gasPrice,
       metadata: tx.metadata,
-      network: tx.network || 'testnet'
+      network: tx.network || 'testnet',
+      // Preservar dados do cliente da API
+      client: tx.client || null,
+      clientId: tx.clientId
     };
   });
 

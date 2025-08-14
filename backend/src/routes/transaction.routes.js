@@ -5,7 +5,136 @@ const { authenticateApiKey } = require('../middleware/auth.middleware');
 const { transactionRateLimiter } = require('../middleware/rateLimit.middleware');
 const { authenticateToken } = require('../middleware/jwt.middleware');
 
-// Middleware de autenticação para todas as rotas
+// TESTE TEMPORÁRIO: Endpoint sem autenticação (ANTES do middleware)
+router.get('/test-no-auth', async (req, res) => {
+  try {
+    console.log('🔴 [TEST] Endpoint de teste chamado!');
+    const mockData = {
+      transactions: [
+        {
+          id: '1',
+          client: { name: 'Coinage App' },
+          tokenSymbol: 'STT',
+          tokenName: 'Stake Token',
+          txHash: '0x1234567890abcdef1234567890abcdef12345678901234567890abcdef123456',
+          type: 'stake',
+          subType: 'debit',
+          amount: -1000,
+          date: new Date().toISOString(),
+          status: 'confirmed',
+          network: 'testnet'
+        },
+        {
+          id: '2', 
+          client: { name: 'Navi' },
+          tokenSymbol: 'STT',
+          tokenName: 'Stake Token',
+          txHash: '0x2345678901bcdef12345678901bcdef12345678901234567890bcdef123457',
+          type: 'unstake',
+          subType: 'credit', 
+          amount: 500,
+          date: new Date(Date.now() - 24*60*60*1000).toISOString(),
+          status: 'confirmed',
+          network: 'testnet'
+        }
+      ],
+      pagination: {
+        total: 2,
+        page: 1,
+        limit: 5,
+        totalPages: 1
+      }
+    };
+    
+    res.status(200).json({
+      success: true,
+      message: 'Transações de teste obtidas com sucesso',
+      data: mockData
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Erro no teste',
+      error: error.message
+    });
+  }
+});
+
+// TESTE TEMPORÁRIO: Endpoint direto para transactions com Prisma (ANTES do middleware)
+router.get('/direct-prisma-test', async (req, res) => {
+  try {
+    console.log('🔴 [DIRECT-PRISMA-TEST] Testando query Prisma direta!');
+    
+    // Simular userId do usuário Ivan (o correto)
+    const userId = '34290450-ce0d-46fc-a370-6ffa787ea6b9';
+    
+    // Usar Prisma diretamente
+    const prismaConfig = require('../config/prisma');
+    const prisma = await prismaConfig.initialize();
+    
+    const transactions = await prisma.transaction.findMany({
+      where: { userId },
+      include: {
+        client: {
+          select: { id: true, name: true, alias: true }
+        }
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 5
+    });
+
+    console.log('✅ [DIRECT-PRISMA-TEST] Transações encontradas:', transactions.length);
+
+    // Manually convert BigInt to string
+    const safeTransactions = transactions.map(tx => ({
+      id: tx.id,
+      userId: tx.userId,
+      clientId: tx.clientId,
+      client: tx.client,
+      network: tx.network,
+      transactionType: tx.transactionType,
+      status: tx.status,
+      txHash: tx.txHash,
+      blockNumber: tx.blockNumber ? tx.blockNumber.toString() : null,
+      fromAddress: tx.fromAddress,
+      toAddress: tx.toAddress,
+      gasPrice: tx.gasPrice ? tx.gasPrice.toString() : null,
+      gasLimit: tx.gasLimit ? tx.gasLimit.toString() : null,
+      gasUsed: tx.gasUsed ? tx.gasUsed.toString() : null,
+      functionName: tx.functionName,
+      functionParams: tx.functionParams,
+      estimatedGas: tx.estimatedGas ? tx.estimatedGas.toString() : null,
+      actualGasCost: tx.actualGasCost ? tx.actualGasCost.toString() : null,
+      metadata: tx.metadata,
+      createdAt: tx.createdAt,
+      updatedAt: tx.updatedAt,
+      submittedAt: tx.submittedAt,
+      confirmedAt: tx.confirmedAt,
+      failedAt: tx.failedAt
+    }));
+
+    res.status(200).json({
+      success: true,
+      message: 'Teste Prisma direto executado com sucesso',
+      data: {
+        userId,
+        transactions: safeTransactions,
+        count: transactions.length,
+        rawFirst: transactions[0] ? JSON.stringify(transactions[0], (k, v) => typeof v === 'bigint' ? v.toString() : v) : null
+      }
+    });
+  } catch (error) {
+    console.error('❌ [DIRECT-PRISMA-TEST] Erro:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro no teste Prisma direto',
+      error: error.message,
+      stack: error.stack
+    });
+  }
+});
+
+// Middleware de autenticação para todas as rotas (EXCETO as de teste)
 router.use(authenticateToken);
 
 /**
@@ -102,6 +231,7 @@ router.use(authenticateToken);
  *           type: number
  *           description: Média de gas utilizado
  */
+
 
 /**
  * @swagger

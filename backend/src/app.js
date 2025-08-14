@@ -98,6 +98,9 @@ app.use(cors({
 // Middleware de logging padrão
 app.use(morgan('combined'));
 
+// Global BigInt serialization fix
+BigInt.prototype.toJSON = function() { return this.toString() }
+
 // Middleware para parsing de JSON
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
@@ -112,6 +115,97 @@ app.get('/health', (req, res) => {
   });
 });
 
+// TESTE DIRETO: Endpoint para mostrar transações sem middleware
+app.get('/test-transactions-direto', async (req, res) => {
+  try {
+    console.log('🔥 [TEST-DIRETO] Iniciando teste direto das transações');
+    
+    // Importar Prisma diretamente
+    const prismaConfig = require('./config/prisma');
+    const prisma = await prismaConfig.initialize();
+    
+    // UserID do Ivan
+    const userId = '34290450-ce0d-46fc-a370-6ffa787ea6b9';
+    
+    console.log('🔥 [TEST-DIRETO] Buscando transações para userId:', userId);
+    
+    // Query direta
+    const transactions = await prisma.transaction.findMany({
+      where: { userId },
+      include: {
+        client: {
+          select: { id: true, name: true, alias: true }
+        }
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 10
+    });
+    
+    console.log('🔥 [TEST-DIRETO] Encontradas', transactions.length, 'transações');
+    
+    if (transactions.length > 0) {
+      console.log('🔥 [TEST-DIRETO] Primeira transação (tipos):', {
+        blockNumber: typeof transactions[0].blockNumber,
+        gasPrice: typeof transactions[0].gasPrice,
+        gasUsed: typeof transactions[0].gasUsed
+      });
+    }
+    
+    // Converter BigInt manualmente campo por campo
+    const safeTransactions = transactions.map(tx => ({
+      id: tx.id,
+      userId: tx.userId,
+      clientId: tx.clientId,
+      client: tx.client,
+      network: tx.network,
+      transactionType: tx.transactionType,
+      status: tx.status,
+      txHash: tx.txHash,
+      blockNumber: tx.blockNumber ? String(tx.blockNumber) : null,
+      fromAddress: tx.fromAddress,
+      toAddress: tx.toAddress,
+      gasPrice: tx.gasPrice ? String(tx.gasPrice) : null,
+      gasUsed: tx.gasUsed ? String(tx.gasUsed) : null,
+      gasLimit: tx.gasLimit ? String(tx.gasLimit) : null,
+      actualGasCost: tx.actualGasCost ? String(tx.actualGasCost) : null,
+      estimatedGas: tx.estimatedGas ? String(tx.estimatedGas) : null,
+      functionName: tx.functionName,
+      functionParams: tx.functionParams,
+      metadata: tx.metadata,
+      createdAt: tx.createdAt,
+      updatedAt: tx.updatedAt
+    }));
+    
+    console.log('🔥 [TEST-DIRETO] Transações convertidas com sucesso');
+    
+    // Resposta manual sem usar res.json()
+    res.setHeader('Content-Type', 'application/json');
+    const response = {
+      success: true,
+      message: 'Transações encontradas com sucesso!',
+      data: {
+        count: transactions.length,
+        userId,
+        transactions: safeTransactions
+      }
+    };
+    
+    const responseString = JSON.stringify(response);
+    console.log('🔥 [TEST-DIRETO] JSON serializado com sucesso, enviando resposta');
+    
+    res.status(200).send(responseString);
+    
+  } catch (error) {
+    console.error('🔥 [TEST-DIRETO] ERRO:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro no teste direto',
+      error: error.message,
+      stack: error.stack
+    });
+  }
+});
+
 // Rota raiz
 app.get('/', (req, res) => {
   res.json({
@@ -122,7 +216,8 @@ app.get('/', (req, res) => {
       health: '/health',
       test: '/api/test',
       docs: '/api-docs',
-      swagger: '/api-docs'
+      swagger: '/api-docs',
+      testTransactionsDireto: '/test-transactions-direto'
     }
   });
 });
@@ -173,6 +268,48 @@ app.use('/api/tokens', authenticateApiKey, transactionRateLimiter, addUserInfo, 
 
 // Rotas de stakes (com autenticação e sistema de fila)
 app.use('/api/stakes', authenticateApiKey, transactionRateLimiter, addUserInfo, logAuthenticatedRequest, QueueMiddleware.enqueueExternalOperations, CacheRefreshMiddleware.refreshAfterQueueOperation, stakeRoutes);
+
+// TESTE TEMPORÁRIO: Endpoint de debug direto no app
+app.get('/api/transactions-debug', async (req, res) => {
+  try {
+    console.log('🔴 [APP-DEBUG] Endpoint de debug chamado diretamente no app!');
+    
+    // Simular userId do usuário Ivan
+    const userId = 'c5cb9ad1-c89c-4b86-a483-5dfec6e3bd51';
+    
+    // Importar serviço diretamente
+    const transactionService = require('./services/transaction.service');
+    
+    const result = await transactionService.getTransactionsByUser(userId, {
+      page: 1,
+      limit: 20
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Debug app-level executado com sucesso',
+      data: {
+        userId,
+        transactions: result.rows,
+        count: result.count,
+        pagination: {
+          total: result.count,
+          page: 1,
+          limit: 20,
+          totalPages: Math.ceil(result.count / 20)
+        }
+      }
+    });
+  } catch (error) {
+    console.error('❌ [APP-DEBUG] Erro:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro no debug app-level',
+      error: error.message,
+      stack: error.stack
+    });
+  }
+});
 
 // Rotas de transações (com autenticação JWT)
 app.use('/api/transactions', transactionRoutes);

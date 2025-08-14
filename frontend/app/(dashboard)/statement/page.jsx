@@ -27,7 +27,7 @@ const StatementPage = () => {
     network: balances?.network || 'testnet',
     transactionType: typeFilter?.value && typeFilter.value !== "" ? typeFilter.value : undefined
     // Não enviar tokenSymbol para o backend - faremos filtro local
-  }), [currentPage, itemsPerPage, statusFilter?.value, balances?.network, typeFilter?.value, tokenFilter]);
+  }), [tokenFilter ? 1 : currentPage, tokenFilter ? 1000 : itemsPerPage, statusFilter?.value, balances?.network, typeFilter?.value, tokenFilter?.value]);
 
   // Buscar transações reais do banco de dados
   const { 
@@ -219,16 +219,7 @@ const StatementPage = () => {
   // Reset pagination when filters change (apenas para filtros backend)
   useEffect(() => {
     setCurrentPage(1);
-    // Só atualizar paginação backend se não houver filtro de token (que é aplicado no frontend)
-    if (!tokenFilter) {
-      updatePagination({ 
-        page: 1, 
-        limit: itemsPerPage,
-        status: statusFilter?.value && statusFilter.value !== "" ? statusFilter.value : undefined,
-        transactionType: typeFilter?.value && typeFilter.value !== "" ? typeFilter.value : undefined
-      });
-    }
-  }, [statusFilter, typeFilter, itemsPerPage, updatePagination, tokenFilter]);
+  }, [statusFilter, typeFilter, tokenFilter, itemsPerPage]);
 
   // Handle items per page change
   const handleItemsPerPageChange = (option) => {
@@ -402,6 +393,9 @@ const StatementPage = () => {
               <thead className="bg-slate-50 dark:bg-slate-800">
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                    Cliente
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                     Token
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
@@ -428,6 +422,13 @@ const StatementPage = () => {
                       key={transaction.id}
                       className="hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors duration-150"
                     >
+                      {/* Cliente */}
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <div className="text-sm font-medium text-slate-900 dark:text-white">
+                          {transaction.client?.name || 'N/A'}
+                        </div>
+                      </td>
+                      
                       {/* Token - Logo, Symbol, Name */}
                       <td className="px-4 py-3 whitespace-nowrap">
                         <div className="flex items-center space-x-3">
@@ -512,7 +513,7 @@ const StatementPage = () => {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={6} className="px-4 py-8 text-center text-slate-500 dark:text-slate-400">
+                    <td colSpan={7} className="px-4 py-8 text-center text-slate-500 dark:text-slate-400">
                       <div className="flex flex-col items-center">
                         <Icon icon="heroicons-outline:document-text" className="w-12 h-12 mb-2 opacity-50" />
                         <span className="font-medium">Nenhuma transação encontrada</span>
@@ -557,32 +558,19 @@ const StatementPage = () => {
                   </button>
                   
                   {/* Page Numbers */}
-                  {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
-                    let page;
-                    if (totalPages <= 5) {
-                      page = i + 1;
-                    } else if (currentPage <= 3) {
-                      page = i + 1;
-                    } else if (currentPage >= totalPages - 2) {
-                      page = totalPages - 4 + i;
-                    } else {
-                      page = currentPage - 2 + i;
-                    }
-                    
-                    return (
-                      <button
-                        key={page}
-                        onClick={() => goToPage(page)}
-                        className={`px-3 py-1 rounded text-sm transition-colors ${
-                          currentPage === page
-                            ? "bg-primary-500 text-white"
-                            : "text-slate-500 hover:text-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700"
-                        }`}
-                      >
-                        {page}
-                      </button>
-                    );
-                  })}
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                    <button
+                      key={page}
+                      onClick={() => goToPage(page)}
+                      className={`px-3 py-1 rounded text-sm transition-colors ${
+                        currentPage === page
+                          ? "bg-primary-500 text-white"
+                          : "text-slate-500 hover:text-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700"
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  ))}
                   
                   <button
                     onClick={goToNextPage}

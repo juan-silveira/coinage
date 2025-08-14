@@ -44,9 +44,19 @@ api.interceptors.response.use(
 
     // Se o erro for 401 e não for uma tentativa de refresh
     if (error.response?.status === 401 && !originalRequest._retry) {
+      console.log('🔍 [API] Detectado erro 401, tentando refresh...', {
+        url: originalRequest?.url,
+        hasRetry: originalRequest._retry
+      });
+      
       originalRequest._retry = true;
 
       const { refreshToken, logout, isAuthenticated } = useAuthStore.getState();
+      
+      console.log('🔍 [API] Estado de autenticação:', {
+        isAuthenticated,
+        hasRefreshToken: !!refreshToken
+      });
       
       // IMPORTANTE: Não fazer logout automático em endpoints de sincronização
       const isSyncRequest = originalRequest?.url?.includes('/balance-sync/') || 

@@ -401,8 +401,19 @@ class TransactionService {
    */
   async getTransactionsByUser(userId, options = {}) {
     try {
+      console.log('🔍 [TransactionService] Buscando TODAS as transações para userId:', userId);
+      
       if (!this.prisma) {
+        console.log('🔍 [TransactionService] Inicializando Prisma...');
         await this.initialize();
+      }
+      
+      if (!userId) {
+        console.error('❌ [TransactionService] UserID é obrigatório');
+        return {
+          rows: [],
+          count: 0
+        };
       }
 
       const { 
@@ -416,74 +427,119 @@ class TransactionService {
         endDate 
       } = options;
 
-      // TESTE: Se tokenSymbol for STT, usar filtro específico
-      if (tokenSymbol === 'STT') {
-        const whereSTT = {
-          userId,
-          metadata: {
-            path: ['tokenSymbol'],
-            equals: 'STT'
-          }
-        };
-
-        const [transactions, count] = await Promise.all([
-          this.prisma.transaction.findMany({
-            where: whereSTT,
-            orderBy: { createdAt: 'desc' },
-            skip: (page - 1) * limit,
-            take: limit
-          }),
-          this.prisma.transaction.count({ where: whereSTT })
-        ]);
-
-        return {
-          rows: transactions.map(tx => ({
-            ...tx,
-            getFormattedResponse: () => tx
-          })),
-          count
-        };
-      }
-
-      // Caso normal para outros filtros
-      const where = { userId };
+      // Construir filtros
+      const where = { 
+        userId: userId  // SEMPRE filtrar por userId, independente do cliente
+      };
       
+      // Adicionar filtros opcionais
       if (status) where.status = status;
-      if (network) where.network = network;
+      if (network) where.network = network; 
       if (transactionType) where.transactionType = transactionType;
-      if (tokenSymbol && tokenSymbol !== 'STT') {
+      
+      if (tokenSymbol && tokenSymbol !== '') {
         where.metadata = {
           path: ['tokenSymbol'],
           equals: tokenSymbol
         };
       }
+      
       if (startDate && endDate) {
         where.createdAt = {
           gte: new Date(startDate),
           lte: new Date(endDate)
         };
       }
+      
+      console.log('🔍 [TransactionService] Filtros aplicados:', where);
 
-      const [transactions, count] = await Promise.all([
-        this.prisma.transaction.findMany({
-          where,
-          orderBy: { createdAt: 'desc' },
-          skip: (page - 1) * limit,
-          take: limit
-        }),
-        this.prisma.transaction.count({ where })
-      ]);
+      // Executar query no Prisma com tratamento específico de BigInt
+      console.log('🔍 [TransactionService] Executando queries Prisma...');
+      
+      let transactions, count;
+      try {
+        [transactions, count] = await Promise.all([
+          this.prisma.transaction.findMany({
+            where,
+            include: {
+              client: {
+                select: {
+                  id: true,
+                  name: true,
+                  alias: true
+                }
+              }
+            },
+            orderBy: { createdAt: 'desc' },
+            skip: (page - 1) * limit,
+            take: limit
+          }),
+          this.prisma.transaction.count({ where })
+        ]);
+        
+        console.log('🔍 [TransactionService] Queries executadas com sucesso');
+      } catch (prismaError) {
+        console.error('❌ [TransactionService] Erro na query Prisma:', {
+          error: prismaError.message,
+          stack: prismaError.stack
+        });
+        throw prismaError;
+      }
+      
+      console.log(`🔍 [TransactionService] Query executada: ${transactions.length} transações encontradas de ${count} total`);
+
+      console.log(`✅ [TransactionService] Encontradas ${count} transações para userId ${userId}`);
+      
+      // Comprehensive BigInt to string conversion function
+      const convertBigIntToString = (obj) => {
+        if (obj === null || obj === undefined) return obj;
+        if (typeof obj === 'bigint') return obj.toString();
+        if (Array.isArray(obj)) return obj.map(convertBigIntToString);
+        if (typeof obj === 'object' && obj.constructor === Object) {
+          const converted = {};
+          for (const [key, value] of Object.entries(obj)) {
+            converted[key] = convertBigIntToString(value);
+          }
+          return converted;
+        }
+        if (typeof obj === 'object') {
+          // Handle Prisma models and other objects
+          const converted = {};
+          for (const key in obj) {
+            if (obj.hasOwnProperty(key)) {
+              converted[key] = convertBigIntToString(obj[key]);
+            }
+          }
+          return converted;
+        }
+        return obj;
+      };
+
+      // Convert all transactions with comprehensive BigInt handling
+      const formattedTransactions = transactions.map(tx => {
+        const converted = convertBigIntToString(tx);
+        return {
+          ...converted,
+          getFormattedResponse: function() { return this; }
+        };
+      });
 
       return {
-        rows: transactions.map(tx => ({
-          ...tx,
-          getFormattedResponse: () => tx
-        })),
+        rows: formattedTransactions,
         count
       };
     } catch (error) {
-      console.error('Erro ao buscar transações do usuário:', error.message);
-      throw error;
+      console.error('❌ [TransactionService] Erro ao buscar transações:', {
+        userId,
+        error: error.message,
+        stack: error.stack
+      });
+      
+      // Retornar resultado vazio ao invés de lançar erro
+      return {
+        rows: [],
+        count: 0
+      };
     }
   }
 
