@@ -435,13 +435,83 @@ class TransactionService {
       // Adicionar filtros opcionais
       if (status) where.status = status;
       if (network) where.network = network; 
-      if (transactionType) where.transactionType = transactionType;
+      
+      // Filtro de tipo de transação complexo - considerar tanto transactionType quanto operation nos metadados
+      console.log('🔍 [TransactionService] Verificando filtro transactionType:', transactionType, 'tipo:', typeof transactionType);
+      if (transactionType) {
+        // Mapear tipos do frontend para tipos/operations do backend
+        const typeMapping = {
+          'deposit': {
+            OR: [
+              { transactionType: 'deposit' },
+              { transactionType: 'contract_call', metadata: { path: ['operation'], equals: 'deposit' } },
+              { transactionType: 'contract_call', metadata: { path: ['operation'], equals: 'mint' } }
+            ]
+          },
+          'withdraw': {
+            OR: [
+              { transactionType: 'withdraw' },
+              { transactionType: 'contract_call', metadata: { path: ['operation'], equals: 'withdraw' } },
+              { transactionType: 'contract_call', metadata: { path: ['operation'], equals: 'burn' } }
+            ]
+          },
+          'exchange': {
+            OR: [
+              { transactionType: 'exchange' },
+              { transactionType: 'contract_call', metadata: { path: ['operation'], equals: 'exchange' } },
+              { transactionType: 'transfer', metadata: { path: ['operation'], equals: 'exchange' } }
+            ]
+          },
+          'transfer': {
+            AND: [
+              { 
+                OR: [
+                  { transactionType: 'transfer' },
+                  { transactionType: 'contract_call', metadata: { path: ['operation'], equals: 'transfer' } }
+                ]
+              },
+              {
+                NOT: {
+                  metadata: { path: ['operation'], equals: 'exchange' }
+                }
+              }
+            ]
+          },
+          'stake': {
+            OR: [
+              { transactionType: 'stake' },
+              { transactionType: 'contract_call', metadata: { path: ['operation'], equals: 'stake' } }
+            ]
+          },
+          'unstake': {
+            OR: [
+              { transactionType: 'unstake' },
+              { transactionType: 'contract_call', metadata: { path: ['operation'], equals: 'unstake' } }
+            ]
+          }
+        };
+        
+        console.log('🔍 [TransactionService] transactionType solicitado:', transactionType);
+        console.log('🔍 [TransactionService] typeMapping disponível:', Object.keys(typeMapping));
+        
+        if (typeMapping[transactionType]) {
+          console.log('🔍 [TransactionService] Aplicando mapeamento complexo para:', transactionType);
+          where.AND = where.AND || [];
+          where.AND.push(typeMapping[transactionType]);
+        } else {
+          console.log('🔍 [TransactionService] Usando fallback para tipo não mapeado:', transactionType);
+          where.transactionType = transactionType;
+        }
+      }
       
       if (tokenSymbol && tokenSymbol !== '') {
-        where.metadata = {
-          path: ['tokenSymbol'],
-          equals: tokenSymbol
-        };
+        where.AND = where.AND || [];
+        where.AND.push({
+          metadata: {
+            path: ['tokenSymbol'],
+            equals: tokenSymbol
+          }
+        });
       }
       
       if (startDate && endDate) {
@@ -451,7 +521,7 @@ class TransactionService {
         };
       }
       
-      console.log('🔍 [TransactionService] Filtros aplicados:', where);
+      console.log('🔍 [TransactionService] Filtros aplicados:', JSON.stringify(where, null, 2));
 
       // Executar query no Prisma com tratamento específico de BigInt
       console.log('🔍 [TransactionService] Executando queries Prisma...');
@@ -494,6 +564,12 @@ class TransactionService {
       const convertBigIntToString = (obj) => {
         if (obj === null || obj === undefined) return obj;
         if (typeof obj === 'bigint') return obj.toString();
+        
+        // Preserve Date objects by converting to ISO string
+        if (obj instanceof Date) {
+          return obj.toISOString();
+        }
+        
         if (Array.isArray(obj)) return obj.map(convertBigIntToString);
         if (typeof obj === 'object' && obj.constructor === Object) {
           const converted = {};
@@ -503,7 +579,7 @@ class TransactionService {
           return converted;
         }
         if (typeof obj === 'object') {
-          // Handle Prisma models and other objects
+          // Handle Prisma models and other objects, but preserve Date objects
           const converted = {};
           for (const key in obj) {
             if (obj.hasOwnProperty(key)) {
