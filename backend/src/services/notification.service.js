@@ -57,10 +57,39 @@ class NotificationService {
           isActive: true
         }
       });
+      
+      // Emitir evento para notificações em tempo real
+      this.emitNotificationEvent(notification);
+      
       return notification;
     } catch (error) {
       console.error('Erro ao criar notificação:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Emitir evento de notificação criada
+   */
+  emitNotificationEvent(notification) {
+    try {
+      // Emitir evento no processo para que outros componentes possam escutar
+      process.emit('notification:created', {
+        userId: notification.userId,
+        notification: notification,
+        timestamp: new Date().toISOString()
+      });
+      
+      // Se existir WebSocket global, emitir para o usuário específico
+      if (global.io) {
+        global.io.to(`user:${notification.userId}`).emit('notification', {
+          notification: notification,
+          timestamp: new Date().toISOString()
+        });
+      }
+      
+    } catch (error) {
+      console.error('❌ Erro ao emitir evento de notificação:', error);
     }
   }
 

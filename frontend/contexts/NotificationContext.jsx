@@ -1,17 +1,41 @@
 "use client";
-import React, { createContext, useContext, useCallback } from 'react';
+import React, { createContext, useContext, useCallback, useEffect } from 'react';
+import { getNotificationSoundService } from '@/services/notificationSoundService';
 
 const NotificationContext = createContext();
 
 export const useNotificationEvents = () => {
   const context = useContext(NotificationContext);
   if (!context) {
-    throw new Error('useNotificationEvents must be used within a NotificationProvider');
+    console.warn('useNotificationEvents: NotificationProvider não encontrado, retornando funções vazias');
+    // Retornar funções vazias como fallback
+    return {
+      notifyMarkAsRead: () => {},
+      notifyMarkAsUnread: () => {},
+      notifyDeleted: () => {},
+      notifyRestored: () => {},
+      notifyNewNotification: () => {},
+      notifyBatchNotifications: () => {},
+      notifyMultipleMarkedAsRead: () => {},
+      notifyAllMarkedAsRead: () => {},
+      notifyAllMarkedAsUnread: () => {},
+      triggerUnreadCountUpdate: () => {},
+      triggerUnreadListUpdate: () => {},
+      triggerFullRefresh: () => {}
+    };
   }
   return context;
 };
 
 export const NotificationProvider = ({ children }) => {
+  
+  // Inicializar serviço de som
+  useEffect(() => {
+    const soundService = getNotificationSoundService();
+    if (soundService) {
+      console.log('🔊 Serviço de som de notificação inicializado no contexto');
+    }
+  }, []);
   
   // Trigger para atualizar o badge de notificações não lidas
   const triggerUnreadCountUpdate = useCallback(() => {
@@ -97,12 +121,44 @@ export const NotificationProvider = ({ children }) => {
     }));
   }, [triggerUnreadCountUpdate, triggerUnreadListUpdate]);
 
+  // Evento para quando uma nova notificação é criada
+  const notifyNewNotification = useCallback((notification) => {
+    triggerUnreadCountUpdate();
+    triggerUnreadListUpdate();
+    window.dispatchEvent(new CustomEvent('notificationCreated', { 
+      detail: { notification } 
+    }));
+    
+    // Tocar som de notificação
+    const soundService = getNotificationSoundService();
+    if (soundService) {
+      soundService.playNotificationSound(1);
+    }
+  }, [triggerUnreadCountUpdate, triggerUnreadListUpdate]);
+
+  // Evento para quando múltiplas notificações são criadas (batch)
+  const notifyBatchNotifications = useCallback((notifications) => {
+    triggerUnreadCountUpdate();
+    triggerUnreadListUpdate();
+    window.dispatchEvent(new CustomEvent('notificationBatchCreated', { 
+      detail: { notifications, count: notifications.length } 
+    }));
+    
+    // Tocar som apenas uma vez para o batch
+    const soundService = getNotificationSoundService();
+    if (soundService && notifications.length > 0) {
+      soundService.playNotificationSound(notifications.length);
+    }
+  }, [triggerUnreadCountUpdate, triggerUnreadListUpdate]);
+
   const value = {
     // Eventos específicos
     notifyMarkAsRead,
     notifyMarkAsUnread,
     notifyDeleted,
     notifyRestored,
+    notifyNewNotification,
+    notifyBatchNotifications,
     notifyMultipleMarkedAsRead,
     notifyAllMarkedAsRead,
     notifyAllMarkedAsUnread,

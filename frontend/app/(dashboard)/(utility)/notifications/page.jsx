@@ -316,14 +316,27 @@ const NotificationPage = () => {
     if (selectedNotifications.size === 0) return;
     
     try {
+      // Verificar quais notificações estavam não lidas antes de excluir
+      const notificationsToDelete = Array.from(selectedNotifications);
+      const unreadNotifications = notificationsToDelete.filter(id => {
+        const notification = notifications.find(n => n.id === id);
+        return notification && !notification.isRead;
+      });
+
       await api.delete('/api/notifications/delete-multiple', {
-        data: { notificationIds: Array.from(selectedNotifications) }
+        data: { notificationIds: notificationsToDelete }
       });
       
       // Atualizar estado local (soft delete)
       setNotifications(prev => prev.map(n => 
         selectedNotifications.has(n.id) ? { ...n, isActive: false } : n
       ));
+      
+      // Notificar o sistema sobre cada exclusão para atualizar o header
+      notificationsToDelete.forEach(notificationId => {
+        const wasUnread = unreadNotifications.includes(notificationId);
+        notifyDeleted(notificationId, wasUnread);
+      });
       
       // Fechar modal se alguma notificação excluída estava aberta
       if (selectedNotification && selectedNotifications.has(selectedNotification.id)) {
@@ -372,6 +385,12 @@ const NotificationPage = () => {
       // Excluir todas as notificações filtradas
       const notificationIds = filteredNotifications.map(n => n.id);
       
+      // Verificar quais notificações estavam não lidas antes de excluir
+      const unreadNotifications = notificationIds.filter(id => {
+        const notification = notifications.find(n => n.id === id);
+        return notification && !notification.isRead;
+      });
+      
       await api.delete('/api/notifications/delete-multiple', {
         data: { notificationIds }
       });
@@ -380,6 +399,12 @@ const NotificationPage = () => {
       setNotifications(prev => prev.map(n => 
         notificationIds.includes(n.id) ? { ...n, isActive: false } : n
       ));
+      
+      // Notificar o sistema sobre cada exclusão para atualizar o header
+      notificationIds.forEach(notificationId => {
+        const wasUnread = unreadNotifications.includes(notificationId);
+        notifyDeleted(notificationId, wasUnread);
+      });
       
       // Fechar modal se alguma notificação excluída estava aberta
       if (selectedNotification && notificationIds.includes(selectedNotification.id)) {

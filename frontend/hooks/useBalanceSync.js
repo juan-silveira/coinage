@@ -42,6 +42,16 @@ const useBalanceSync = (onBalanceUpdate = null) => {
     try {
       const cached = localStorage.getItem(cacheKey);
       const result = cached ? JSON.parse(cached) : {};
+      
+      // Log detalhado dos valores em cache no login
+      console.log('📋 [BalanceSync] Valores em cache no login:', {
+        cacheKey,
+        hasCachedData: !!cached,
+        cachedBalances: result?.balancesTable || {},
+        lastUpdated: result?.lastUpdated || 'nunca',
+        totalTokensInCache: Object.keys(result?.balancesTable || {}).length
+      });
+      
       return result;
     } catch (error) {
       console.error('❌ Erro ao carregar cache de balances:', error);
@@ -64,16 +74,31 @@ const useBalanceSync = (onBalanceUpdate = null) => {
   // Busca balances diretamente da API do Azorescan
   const fetchBalancesFromAzorescan = useCallback(async (address) => {
     try {
-      const response = await fetch(`${AZORESCAN_API_BASE}/?module=account&action=tokenlist&address=${address}`);
+      console.log('🔄 [BalanceSync] Buscando balances do Azorescan para:', address);
       
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      // Fazer duas chamadas: uma para tokens ERC-20 e outra para balance nativo
+      const [tokensResponse, balanceResponse] = await Promise.all([
+        // Buscar tokens ERC-20
+        fetch(`${AZORESCAN_API_BASE}/?module=account&action=tokenlist&address=${address}`),
+        // Buscar balance nativo AZE-t
+        fetch(`${AZORESCAN_API_BASE}/?module=account&action=balance&address=${address}&tag=latest`)
+      ]);
+      
+      if (!tokensResponse.ok || !balanceResponse.ok) {
+        throw new Error(`HTTP error! tokens: ${tokensResponse.status}, balance: ${balanceResponse.status}`);
       }
       
-      const data = await response.json();
+      const [tokensData, balanceData] = await Promise.all([
+        tokensResponse.json(),
+        balanceResponse.json()
+      ]);
       
-      if (data.status !== '1') {
-        throw new Error(`API error: ${data.message || 'Unknown error'}`);
+      if (tokensData.status !== '1' && tokensData.message !== 'No tokens found') {
+        throw new Error(`Tokens API error: ${tokensData.message || 'Unknown error'}`);
+      }
+      
+      if (balanceData.status !== '1') {
+        throw new Error(`Balance API error: ${balanceData.message || 'Unknown error'}`);
       }
       
       // Transformar dados da API do Azorescan para o formato esperado
@@ -85,12 +110,35 @@ const useBalanceSync = (onBalanceUpdate = null) => {
         source: 'azorescan'
       };
       
-      // Processar cada token retornado
-      data.result.forEach(token => {
-        const symbol = token.symbol;
-        const balance = parseFloat(token.balance) / Math.pow(10, parseInt(token.decimals));
-        
-        transformedBalances.balancesTable[symbol] = balance.toFixed(6);
+      // Adicionar balance nativo AZE-t primeiro
+      if (balanceData.result) {
+        const nativeBalance = parseFloat(balanceData.result) / Math.pow(10, 18); // AZE-t tem 18 decimais
+        transformedBalances.balancesTable['AZE-t'] = nativeBalance.toFixed(6);
+        console.log('💰 [BalanceSync] Balance nativo AZE-t detectado:', nativeBalance.toFixed(6));
+      }
+      
+      // Processar tokens ERC-20 se existirem
+      if (tokensData.result && Array.isArray(tokensData.result)) {
+        tokensData.result.forEach(token => {
+          const symbol = token.symbol;
+          const balance = parseFloat(token.balance) / Math.pow(10, parseInt(token.decimals));
+          
+          transformedBalances.balancesTable[symbol] = balance.toFixed(6);
+        });
+      }
+      
+      // Log detalhado dos valores detectados no refresh
+      console.log('🆕 [BalanceSync] Valores detectados no refresh:', {
+        address,
+        totalTokens: Object.keys(transformedBalances.balancesTable).length,
+        detectedBalances: transformedBalances.balancesTable,
+        incluiAZEt: 'AZE-t' in transformedBalances.balancesTable,
+        balanceAZEt: transformedBalances.balancesTable['AZE-t'] || 'não encontrado',
+        timestamp: transformedBalances.lastUpdated,
+        rawApiResponses: {
+          tokens: tokensData.result?.length || 0,
+          nativeBalance: balanceData.result || 'erro'
+        }
       });
       
       return transformedBalances;
@@ -116,29 +164,32 @@ const useBalanceSync = (onBalanceUpdate = null) => {
         balances
       );
       
-      if (result.success) {
+      if (result && result.success) {
         setRedisSyncStatus('synced');
         
-        if (result.synced && result.changes.length > 0) {
+        if (result.synced && result.changes && result.changes.length > 0) {
           showInfo(`🔄 Redis sincronizado - ${result.changes.length} mudanças detectadas`);
         }
         
         return result;
       } else {
-        throw new Error('Falha na sincronização com Redis');
+        // Falha silenciosa se Redis não estiver disponível
+        setRedisSyncStatus('error');
+        console.warn('⚠️ [BalanceSync] Redis não disponível, continuando sem sync');
+        return { success: false, synced: false, changes: [] };
       }
       
     } catch (error) {
       setRedisSyncStatus('error');
-      console.error('❌ [BalanceSync] Erro na sincronização com Redis:', {
+      console.warn('⚠️ [BalanceSync] Erro na sincronização com Redis (continuando):', {
         error: error.message,
         status: error.response?.status,
         userId: user?.id
       });
-      showError('❌ Erro na sincronização com Redis');
-      return null;
+      // Não mostrar erro para usuário, continuar sem Redis
+      return { success: false, synced: false, changes: [] };
     }
-  }, [user?.id, user?.publicKey, showInfo, showError]);
+  }, [user?.id, user?.publicKey, showInfo]);
 
   // Compara balances e detecta mudanças (PROTEGIDO CONTRA CRASHES)
   const detectBalanceChanges = useCallback((newBalances, previousBalances) => {
@@ -146,6 +197,15 @@ const useBalanceSync = (onBalanceUpdate = null) => {
       const changes = [];
       const newTable = newBalances?.balancesTable || {};
       const prevTable = previousBalances?.balancesTable || {};
+
+      // Log detalhado da comparação
+      console.log('🔍 [BalanceSync] Comparando balances:', {
+        novosBalances: newTable,
+        balancesAnteriores: prevTable,
+        temBalancesAnteriores: Object.keys(prevTable).length > 0,
+        totalTokensNovos: Object.keys(newTable).length,
+        totalTokensAnteriores: Object.keys(prevTable).length
+      });
 
       // Função para comparar valores com tolerância para problemas de precisão
       const isSignificantChange = (newVal, oldVal, tolerance = 0.000001) => {
@@ -157,6 +217,13 @@ const useBalanceSync = (onBalanceUpdate = null) => {
       Object.keys(newTable).forEach(token => {
         const newBalance = parseFloat(newTable[token] || 0);
         const prevBalance = parseFloat(prevTable[token] || 0);
+        
+        console.log(`🔢 [BalanceSync] Comparando token ${token}:`, {
+          balanceAnterior: prevBalance.toFixed(6),
+          balanceNovo: newBalance.toFixed(6),
+          diferenca: (newBalance - prevBalance).toFixed(6),
+          ehMudancaSignificativa: isSignificantChange(newBalance, prevBalance)
+        });
         
         if (isSignificantChange(newBalance, prevBalance)) {
           const difference = newBalance - prevBalance;
@@ -175,6 +242,8 @@ const useBalanceSync = (onBalanceUpdate = null) => {
       // Verificar novos tokens
       Object.keys(newTable).forEach(token => {
         if (!(token in prevTable) && parseFloat(newTable[token] || 0) > 0) {
+          console.log(`🆕 [BalanceSync] Novo token detectado: ${token} = ${newTable[token]}`);
+          
           changes.push({
             token,
             previousBalance: '0.000000',
@@ -191,6 +260,8 @@ const useBalanceSync = (onBalanceUpdate = null) => {
         if (!(token in newTable) || parseFloat(newTable[token] || 0) === 0) {
           const prevBalance = parseFloat(prevTable[token] || 0);
           if (prevBalance > 0) {
+            console.log(`📉 [BalanceSync] Token removido/zerado: ${token} (era ${prevBalance.toFixed(6)})`);
+            
             changes.push({
               token,
               previousBalance: prevBalance.toFixed(6),
@@ -201,6 +272,13 @@ const useBalanceSync = (onBalanceUpdate = null) => {
             });
           }
         }
+      });
+
+      // Log final do resultado da comparação
+      console.log('📊 [BalanceSync] Resultado da comparação:', {
+        totalMudancas: changes.length,
+        mudancasDetectadas: changes,
+        resumo: changes.length === 0 ? 'Nenhuma mudança detectada' : `${changes.length} mudança(s) detectada(s)`
       });
 
       return changes;
@@ -282,10 +360,29 @@ const useBalanceSync = (onBalanceUpdate = null) => {
           sender: 'coinage',
           data: notificationData.data
         };
-        await api.post('/api/notifications/create', apiPayload);
+        
+        console.log('📤 [BalanceSync] Enviando notificação para API:', apiPayload);
+        
+        const response = await api.post('/api/notifications/create', apiPayload);
+        
+        console.log('✅ [BalanceSync] Notificação criada com sucesso:', response.data);
+        
+        // Disparar evento para atualizar o dropdown de notificações
+        if (response.data.success && response.data.data) {
+          const newNotification = response.data.data;
+          
+          // Disparar evento customizado para notificar o sistema
+          window.dispatchEvent(new CustomEvent('notificationCreated', { 
+            detail: { notification: newNotification } 
+          }));
+          
+          console.log('🔔 [BalanceSync] Evento de nova notificação disparado');
+        }
+        
       } catch (apiError) {
         console.error('❌ [BalanceSync] Erro ao enviar notificação para API:', apiError);
         console.error('❌ [BalanceSync] Detalhes do erro:', apiError.response?.data);
+        console.error('❌ [BalanceSync] Status:', apiError.response?.status);
         // Continuar mesmo se API falhar - a notificação local ainda funciona
       }
 
@@ -393,14 +490,28 @@ const useBalanceSync = (onBalanceUpdate = null) => {
       return;
     }
 
+    console.log('🚀 [BalanceSync] Iniciando serviço de sincronização:', {
+      userId: user?.id,
+      publicKey: user?.publicKey,
+      timestamp: new Date().toISOString()
+    });
+
     setIsActive(true);
     isActiveRef.current = true;
     
     // Pequeno delay para garantir que o estado seja atualizado
     await new Promise(resolve => setTimeout(resolve, 100));
     
-    // Limpar cache antigo e carregar novos balances
+    // Carregar cache existente antes de limpar (para debug)
     const cacheKey = getCacheKey();
+    const existingCache = cacheKey ? localStorage.getItem(cacheKey) : null;
+    if (existingCache) {
+      console.log('🗂️ [BalanceSync] Cache existente encontrado (será limpo):', JSON.parse(existingCache));
+    } else {
+      console.log('📭 [BalanceSync] Nenhum cache existente encontrado');
+    }
+    
+    // Limpar cache antigo e carregar novos balances
     if (cacheKey) {
       localStorage.removeItem(cacheKey);
     }

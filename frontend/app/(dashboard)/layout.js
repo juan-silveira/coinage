@@ -30,6 +30,24 @@ import useTokenRenewal from "@/hooks/useTokenRenewal";
 import useErrorBoundary from "@/hooks/useErrorBoundary";
 import useProactiveTokenRefresh from "@/hooks/useProactiveTokenRefresh";
 import { NotificationProvider } from "@/contexts/NotificationContext";
+import useRealTimeNotifications from "@/hooks/useRealTimeNotifications";
+import useBalanceSync from "@/hooks/useBalanceSync";
+
+// Componente interno que usa os hooks de notificação
+const DashboardContent = ({ children }) => {
+  // Hook de notificações em tempo real (agora dentro do provider)
+  useRealTimeNotifications();
+  
+  // Hook de sincronização de balance em tempo real
+  const { isActive, startSync } = useBalanceSync();
+  
+  // Iniciar sincronização de balance automaticamente
+  useEffect(() => {
+    startSync();
+  }, [startSync]);
+  
+  return children;
+};
 
 export default function RootLayout({ children }) {
   // Verificar toast de login bem-sucedido
@@ -61,6 +79,7 @@ export default function RootLayout({ children }) {
   
   // Hook de proteção contra crashes
   useErrorBoundary();
+  
   const location = usePathname();
   // header switch class
   const switchHeaderClass = () => {
@@ -160,8 +179,10 @@ export default function RootLayout({ children }) {
               }}
             >
               <Suspense fallback={<Loading />}>
-                <Breadcrumbs />
-                {children}
+                <DashboardContent>
+                  <Breadcrumbs />
+                  {children}
+                </DashboardContent>
               </Suspense>
             </motion.div>
           </div>

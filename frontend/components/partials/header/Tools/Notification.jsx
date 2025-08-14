@@ -7,6 +7,7 @@ import useAuthStore from "@/store/authStore";
 import useProactiveTokenRefresh from "@/hooks/useProactiveTokenRefresh";
 import api from "@/services/api";
 import { useNotificationEvents } from "@/contexts/NotificationContext";
+import NotificationSoundSettings from "./NotificationSoundSettings";
 
 const notifyLabel = (unreadCount) => {
   return (
@@ -27,6 +28,7 @@ const Notification = () => {
   const { notifyMarkAsRead } = useNotificationEvents();
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [showSoundSettings, setShowSoundSettings] = useState(false);
   const [loading, setLoading] = useState(true);
   const [lastError, setLastError] = useState(null);
 
@@ -192,12 +194,34 @@ const Notification = () => {
       }
     };
 
+    const handleNotificationCreated = (event) => {
+      const { notification } = event.detail;
+      // Adicionar nova notificação à lista
+      setNotifications(prev => [notification, ...prev]);
+      setUnreadCount(prev => prev + 1);
+      
+      // Log para debug
+      console.log('🔔 Nova notificação recebida em tempo real:', notification);
+    };
+
+    const handleNotificationBatchCreated = (event) => {
+      const { notifications, count } = event.detail;
+      // Adicionar múltiplas notificações à lista
+      setNotifications(prev => [...notifications, ...prev]);
+      setUnreadCount(prev => prev + count);
+      
+      // Log para debug
+      console.log(`🔔 ${count} notificações recebidas em batch:`, notifications);
+    };
+
     // Registrar event listeners
     window.addEventListener('notificationUnreadCountChanged', handleUnreadCountChanged);
     window.addEventListener('notificationUnreadListChanged', handleUnreadListChanged);
     window.addEventListener('notificationMarkedAsRead', handleNotificationMarkedAsRead);
     window.addEventListener('notificationMarkedAsUnread', handleNotificationMarkedAsUnread);
     window.addEventListener('notificationRestored', handleNotificationRestored);
+    window.addEventListener('notificationCreated', handleNotificationCreated);
+    window.addEventListener('notificationBatchCreated', handleNotificationBatchCreated);
     window.addEventListener('notificationAllMarkedAsRead', handleAllMarkedAsRead);
     window.addEventListener('notificationAllMarkedAsUnread', handleUnreadListChanged);
     
@@ -207,6 +231,8 @@ const Notification = () => {
       window.removeEventListener('notificationMarkedAsRead', handleNotificationMarkedAsRead);
       window.removeEventListener('notificationMarkedAsUnread', handleNotificationMarkedAsUnread);
       window.removeEventListener('notificationRestored', handleNotificationRestored);
+      window.removeEventListener('notificationCreated', handleNotificationCreated);
+      window.removeEventListener('notificationBatchCreated', handleNotificationBatchCreated);
       window.removeEventListener('notificationAllMarkedAsRead', handleAllMarkedAsRead);
       window.removeEventListener('notificationAllMarkedAsUnread', handleUnreadListChanged);
     };
@@ -247,6 +273,7 @@ const Notification = () => {
   }, [isAuthenticated, fetchUnreadCount]);
 
   return (
+    <>
     <Dropdown classMenuItems="md:w-[300px] top-[58px] z-[99999]" label={notifyLabel(unreadCount)}>
       <div className="flex justify-between items-center px-4 py-4 border-b border-slate-100 dark:border-slate-600">
         <div className="text-sm text-slate-800 dark:text-slate-200 font-medium leading-6">
@@ -261,6 +288,13 @@ const Notification = () => {
               Marcar todas lidas
             </button>
           )}
+          <button
+            onClick={() => setShowSoundSettings(true)}
+            className="text-xs text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:underline"
+            title="Configurações de som"
+          >
+            🔊 Som
+          </button>
           <Link href="/notifications" className="text-xs text-slate-800 dark:text-slate-200 hover:underline">
             Ver todas
           </Link>
@@ -349,6 +383,13 @@ const Notification = () => {
         );
       })()}
     </Dropdown>
+    
+    {/* Modal de Configurações de Som */}
+    <NotificationSoundSettings 
+      isOpen={showSoundSettings}
+      onClose={() => setShowSoundSettings(false)}
+    />
+  </>
   );
 };
 

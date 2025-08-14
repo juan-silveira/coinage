@@ -116,12 +116,27 @@ class UserCacheService {
       const blockchainData = await this.loadBlockchainData(postgresData.user.publicKey);
       // console.log(`✅ [UserCacheService] Dados blockchain carregados:`, blockchainData);
       
-      // 3. Detectar mudanças nos saldos e criar notificações
+      // 3. Verificar se é primeira sessão do usuário
+      const isFirstSession = !this.activeSessions.has(userId);
+      
+      // 4. Detectar mudanças nos saldos e criar notificações
       if (blockchainData.balancesTable) {
-        await this.tokenAmountService.detectBalanceChanges(userId, blockchainData, postgresData.user.publicKey);
+        const detectionResult = await this.tokenAmountService.detectBalanceChanges(
+          userId, 
+          blockchainData, 
+          postgresData.user.publicKey, 
+          isFirstSession
+        );
+        
+        // Log de informações para debug
+        if (detectionResult.isFirstLoad) {
+          console.log(`🆕 [UserCacheService] Primeira sessão para usuário ${userId}: ${Object.keys(blockchainData.balancesTable).length} tokens encontrados`);
+        } else if (detectionResult.changes.length > 0 || detectionResult.newTokens.length > 0) {
+          console.log(`🔄 [UserCacheService] Usuário ${userId}: ${detectionResult.changes.length} mudanças e ${detectionResult.newTokens.length} novos tokens`);
+        }
       }
       
-      // 4. Combinar dados
+      // 5. Combinar dados
       const combinedData = {
         postgres: postgresData,
         blockchain: blockchainData,
@@ -129,7 +144,7 @@ class UserCacheService {
         cacheVersion: '1.0'
       };
 
-      // 5. Salvar no Redis
+      // 6. Salvar no Redis
       await this.saveToCache(userId, combinedData);
       
       // console.log(`✅ Cache atualizado para usuário: ${postgresData.email || userId}`);
