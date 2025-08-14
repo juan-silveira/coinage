@@ -12,8 +12,18 @@ import Button from "@/components/ui/Button";
 import ConfirmationModal from "@/components/ui/ConfirmationModal";
 import NotificationItem from "@/components/partials/app/notifications/NotificationItem";
 import NotificationDetails from "@/components/partials/app/notifications/NotificationDetails";
+import { useNotificationEvents } from "@/contexts/NotificationContext";
 const NotificationPage = () => {
   const { isAuthenticated } = useAuthStore();
+  const { 
+    notifyMarkAsRead,
+    notifyMarkAsUnread,
+    notifyDeleted,
+    notifyRestored,
+    notifyMultipleMarkedAsRead,
+    notifyAllMarkedAsRead,
+    notifyAllMarkedAsUnread
+  } = useNotificationEvents();
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(false);
   const [selectedNotifications, setSelectedNotifications] = useState(new Set());
@@ -64,10 +74,13 @@ const NotificationPage = () => {
       if (selectedNotification && selectedNotification.id === notificationId) {
         setSelectedNotification(prev => ({ ...prev, isRead: true, readDate: new Date().toISOString() }));
       }
+
+      // Notificar o sistema sobre a mudança
+      notifyMarkAsRead(notificationId);
     } catch (error) {
       console.error('Erro ao marcar notificação como lida:', error);
     }
-  }, [isAuthenticated, selectedNotification]);
+  }, [isAuthenticated, selectedNotification, notifyMarkAsRead]);
 
   // Marcar notificação como não lida
   const markAsUnread = async (notificationId) => {
@@ -85,6 +98,9 @@ const NotificationPage = () => {
       if (selectedNotification && selectedNotification.id === notificationId) {
         setSelectedNotification(prev => ({ ...prev, isRead: false, readDate: null }));
       }
+
+      // Notificar o sistema sobre a mudança
+      notifyMarkAsUnread(notificationId);
     } catch (error) {
       console.error('Erro ao marcar notificação como não lida:', error);
     }
@@ -120,6 +136,10 @@ const NotificationPage = () => {
     try {
       await api.delete(`/api/notifications/${notificationId}`);
       
+      // Verificar se a notificação estava não lida antes de excluir
+      const notification = notifications.find(n => n.id === notificationId);
+      const wasUnread = notification && !notification.isRead;
+
       // Atualizar estado local (soft delete)
       setNotifications(prev => prev.map(n => 
         n.id === notificationId ? { ...n, isActive: false } : n
@@ -129,6 +149,9 @@ const NotificationPage = () => {
       if (selectedNotification && selectedNotification.id === notificationId) {
         setSelectedNotification(null);
       }
+
+      // Notificar o sistema sobre a exclusão
+      notifyDeleted(notificationId, wasUnread);
 
       // Mostrar toast de sucesso
       toast.success(
@@ -167,12 +190,19 @@ const NotificationPage = () => {
     if (!isAuthenticated) return;
     
     try {
+      // Verificar se a notificação estava não lida antes de restaurar
+      const notification = notifications.find(n => n.id === notificationId);
+      const wasUnread = notification && !notification.isRead;
+
       await api.put(`/api/notifications/${notificationId}/restore`);
       
       // Atualizar estado local
       setNotifications(prev => prev.map(n => 
         n.id === notificationId ? { ...n, isActive: true } : n
       ));
+
+      // Notificar o sistema sobre a restauração
+      notifyRestored(notificationId, wasUnread);
 
       toast.success('Notificação restaurada com sucesso!', {
         position: "top-right",
@@ -243,6 +273,9 @@ const NotificationPage = () => {
       
       setSelectedNotifications(new Set());
       setSelectAll(false);
+
+      // Notificar o sistema sobre as mudanças
+      notifyMultipleMarkedAsRead(Array.from(selectedNotifications));
     } catch (error) {
       console.error('Erro ao marcar múltiplas notificações como lidas:', error);
     }
@@ -255,6 +288,9 @@ const NotificationPage = () => {
       
       // Atualizar estado local
       setNotifications(prev => prev.map(n => ({ ...n, isRead: true, readDate: new Date().toISOString() })));
+
+      // Notificar o sistema sobre a mudança
+      notifyAllMarkedAsRead();
     } catch (error) {
       console.error('Erro ao marcar todas as notificações como lidas:', error);
     }
@@ -267,6 +303,9 @@ const NotificationPage = () => {
       
       // Atualizar estado local
       setNotifications(prev => prev.map(n => ({ ...n, isRead: false, readDate: null })));
+
+      // Notificar o sistema sobre a mudança
+      notifyAllMarkedAsUnread();
     } catch (error) {
       console.error('Erro ao marcar todas as notificações como não lidas:', error);
     }
@@ -386,9 +425,19 @@ const NotificationPage = () => {
   // Restaurar múltiplas notificações excluídas
   const restoreMultipleNotifications = async (notificationIds) => {
     try {
+      // Verificar quais estavam não lidas antes de restaurar
+      const unreadIds = notificationIds.filter(id => {
+        const notification = notifications.find(n => n.id === id);
+        return notification && !notification.isRead;
+      });
+
       // Restaurar cada notificação
       for (const id of notificationIds) {
         await api.put(`/api/notifications/${id}/restore`);
+        
+        // Notificar individualmente cada restauração
+        const wasUnread = unreadIds.includes(id);
+        notifyRestored(id, wasUnread);
       }
       
       // Atualizar estado local
@@ -412,9 +461,19 @@ const NotificationPage = () => {
   // Restaurar todas as notificações excluídas
   const restoreAllNotifications = async (notificationIds) => {
     try {
+      // Verificar quais estavam não lidas antes de restaurar
+      const unreadIds = notificationIds.filter(id => {
+        const notification = notifications.find(n => n.id === id);
+        return notification && !notification.isRead;
+      });
+
       // Restaurar cada notificação
       for (const id of notificationIds) {
         await api.put(`/api/notifications/${id}/restore`);
+        
+        // Notificar individualmente cada restauração
+        const wasUnread = unreadIds.includes(id);
+        notifyRestored(id, wasUnread);
       }
       
       // Atualizar estado local

@@ -6,6 +6,7 @@ import { Menu } from "@headlessui/react";
 import useAuthStore from "@/store/authStore";
 import useProactiveTokenRefresh from "@/hooks/useProactiveTokenRefresh";
 import api from "@/services/api";
+import { useNotificationEvents } from "@/contexts/NotificationContext";
 
 const notifyLabel = (unreadCount) => {
   return (
@@ -23,6 +24,7 @@ const notifyLabel = (unreadCount) => {
 const Notification = () => {
   const { isAuthenticated } = useAuthStore();
   const { ensureValidToken } = useProactiveTokenRefresh();
+  const { notifyMarkAsRead } = useNotificationEvents();
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -100,11 +102,16 @@ const Notification = () => {
       setNotifications(prev => prev.filter(n => n.id !== notificationId));
       setUnreadCount(prev => Math.max(0, prev - 1));
       
+      // Notificar outros componentes sobre a mudança
+      notifyMarkAsRead(notificationId);
+      
     } catch (error) {
       console.warn('⚠️ [Notification] Erro ao marcar como lida:', error.message);
       // Em caso de erro, ainda remove da lista local para melhor UX
       setNotifications(prev => prev.filter(n => n.id !== notificationId));
       setUnreadCount(prev => Math.max(0, prev - 1));
+      // Ainda assim notifica para manter sincronia
+      notifyMarkAsRead(notificationId);
     }
   };
 
@@ -145,34 +152,67 @@ const Notification = () => {
     }
   }, [isAuthenticated]); // Removidas as dependências das funções
 
-  // Atualizar a cada 15 segundos - contagem e lista silenciosamente
+  // Event listeners para atualizações em tempo real
   useEffect(() => {
     if (!isAuthenticated) return;
     
-    const interval = setInterval(async () => {
-      try {
-        // Garantir que o token seja válido antes das requisições
-        await ensureValidToken();
-        
-        // Atualizar contagem
-        await fetchUnreadCount();
-        
-        // Atualizar lista silenciosamente (sem loading)
-        const response = await api.get('/api/notifications/unread');
-        if (response.data.success) {
-          const notificationsData = response.data.data || [];
-          setNotifications(notificationsData);
-        }
-      } catch (error) {
-        // Erro silencioso - não interromper o intervalo
-        console.warn('⚠️ [Notification] Erro na atualização automática:', error.message);
-      }
-    }, 15000); // 15 segundos para ser mais responsivo
-    
-    return () => clearInterval(interval);
-  }, [isAuthenticated, ensureValidToken, fetchUnreadCount]);
+    const handleUnreadCountChanged = () => {
+      fetchUnreadCount();
+    };
 
-  // Listener para eventos de refresh
+    const handleUnreadListChanged = () => {
+      fetchUnreadNotifications();
+    };
+
+    const handleNotificationMarkedAsRead = (event) => {
+      const { notificationId } = event.detail;
+      // Remove da lista local se presente
+      setNotifications(prev => prev.filter(n => n.id !== notificationId));
+      setUnreadCount(prev => Math.max(0, prev - 1));
+    };
+
+    const handleNotificationMarkedAsUnread = (event) => {
+      const { notificationId } = event.detail;
+      // Recarrega a lista para incluir a nova notificação não lida
+      fetchUnreadNotifications();
+      setUnreadCount(prev => prev + 1);
+    };
+
+    const handleAllMarkedAsRead = () => {
+      setNotifications([]);
+      setUnreadCount(0);
+    };
+
+    const handleNotificationRestored = (event) => {
+      const { notificationId, wasUnread } = event.detail;
+      // Se a notificação restaurada estava não lida, incrementa o contador e recarrega a lista
+      if (wasUnread) {
+        setUnreadCount(prev => prev + 1);
+        fetchUnreadNotifications();
+      }
+    };
+
+    // Registrar event listeners
+    window.addEventListener('notificationUnreadCountChanged', handleUnreadCountChanged);
+    window.addEventListener('notificationUnreadListChanged', handleUnreadListChanged);
+    window.addEventListener('notificationMarkedAsRead', handleNotificationMarkedAsRead);
+    window.addEventListener('notificationMarkedAsUnread', handleNotificationMarkedAsUnread);
+    window.addEventListener('notificationRestored', handleNotificationRestored);
+    window.addEventListener('notificationAllMarkedAsRead', handleAllMarkedAsRead);
+    window.addEventListener('notificationAllMarkedAsUnread', handleUnreadListChanged);
+    
+    return () => {
+      window.removeEventListener('notificationUnreadCountChanged', handleUnreadCountChanged);
+      window.removeEventListener('notificationUnreadListChanged', handleUnreadListChanged);
+      window.removeEventListener('notificationMarkedAsRead', handleNotificationMarkedAsRead);
+      window.removeEventListener('notificationMarkedAsUnread', handleNotificationMarkedAsUnread);
+      window.removeEventListener('notificationRestored', handleNotificationRestored);
+      window.removeEventListener('notificationAllMarkedAsRead', handleAllMarkedAsRead);
+      window.removeEventListener('notificationAllMarkedAsUnread', handleUnreadListChanged);
+    };
+  }, [isAuthenticated, fetchUnreadCount, fetchUnreadNotifications]);
+
+  // Fallback: Listener para eventos de refresh (compatibilidade com sistema antigo)
   useEffect(() => {
     const handleRefresh = async () => {
       try {
@@ -181,13 +221,7 @@ const Notification = () => {
         
         // Atualização completa quando há evento de refresh
         await fetchUnreadCount();
-        
-        // Atualizar lista também
-        const response = await api.get('/api/notifications/unread');
-        if (response.data.success) {
-          const notificationsData = response.data.data || [];
-          setNotifications(notificationsData);
-        }
+        await fetchUnreadNotifications();
       } catch (error) {
         console.warn('⚠️ [Notification] Erro no refresh por evento:', error.message);
       }
@@ -195,7 +229,22 @@ const Notification = () => {
 
     window.addEventListener('notificationRefresh', handleRefresh);
     return () => window.removeEventListener('notificationRefresh', handleRefresh);
-  }, [ensureValidToken, fetchUnreadCount]); // Com dependências corretas
+  }, [ensureValidToken, fetchUnreadCount, fetchUnreadNotifications]);
+
+  // Fallback polling (reduzido): atualização a cada 60 segundos como backup
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    
+    const interval = setInterval(async () => {
+      try {
+        await fetchUnreadCount();
+      } catch (error) {
+        console.warn('⚠️ [Notification] Erro no polling de backup:', error.message);
+      }
+    }, 60000); // 60 segundos como backup
+    
+    return () => clearInterval(interval);
+  }, [isAuthenticated, fetchUnreadCount]);
 
   return (
     <Dropdown classMenuItems="md:w-[300px] top-[58px] z-[99999]" label={notifyLabel(unreadCount)}>

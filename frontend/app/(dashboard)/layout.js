@@ -29,6 +29,7 @@ import { toast } from "react-toastify";
 import useTokenRenewal from "@/hooks/useTokenRenewal";
 import useErrorBoundary from "@/hooks/useErrorBoundary";
 import useProactiveTokenRefresh from "@/hooks/useProactiveTokenRefresh";
+import { NotificationProvider } from "@/contexts/NotificationContext";
 
 export default function RootLayout({ children }) {
   // Verificar toast de login bem-sucedido
@@ -81,14 +82,15 @@ export default function RootLayout({ children }) {
 
   return (
     <AuthGuard>
-      <div
-        dir={isRtl ? "rtl" : "ltr"}
-        className={`app-warp    ${isDark ? "dark" : "light"} ${
-          skin === "bordered" ? "skin--bordered" : "skin--default"
-        }
-        ${navbarType === "floating" ? "has-floating" : ""}
-        `}
-      >
+      <NotificationProvider>
+        <div
+          dir={isRtl ? "rtl" : "ltr"}
+          className={`app-warp    ${isDark ? "dark" : "light"} ${
+            skin === "bordered" ? "skin--bordered" : "skin--default"
+          }
+          ${navbarType === "floating" ? "has-floating" : ""}
+          `}
+        >
         <ToastContainer
           position="top-right"
           autoClose={1500}
@@ -169,7 +171,8 @@ export default function RootLayout({ children }) {
       {width > breakpoints.md && (
         <Footer className={width > breakpoints.xl ? switchHeaderClass() : ""} />
       )}
-      </div>
+        </div>
+      </NotificationProvider>
     </AuthGuard>
   );
 }
