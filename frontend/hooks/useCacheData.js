@@ -229,15 +229,15 @@ const useCacheData = () => {
 
     // Evitar reentrância dupla com debounce
     if (isLoadingRef.current) {
-      console.log('⏳ [CacheData] Requisição em andamento, ignorando nova chamada');
+      // console.log('⏳ [CacheData] Requisição em andamento, ignorando nova chamada');
       return;
     }
     if (cacheLoading) {
-      console.log('⏳ [CacheData] Cache em carregamento, ignorando nova chamada');
+      // console.log('⏳ [CacheData] Cache em carregamento, ignorando nova chamada');
       return;
     }
     if (hasLoadedRef.current && reason !== 'silent') {
-      console.log('⏳ [CacheData] Dados já carregados, ignorando nova chamada');
+      // console.log('⏳ [CacheData] Dados já carregados, ignorando nova chamada');
       return;
     }
 
@@ -263,7 +263,7 @@ const useCacheData = () => {
     }
 
     try {
-      console.log(`🔄 [CacheData] Iniciando carregamento (reason: ${reason})`);
+      // console.log(`🔄 [CacheData] Iniciando carregamento (reason: ${reason})`);
       
       const userResponse = await userService.getUserByEmail(user.email);
       

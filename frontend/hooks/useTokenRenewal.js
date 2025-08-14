@@ -30,7 +30,7 @@ const useTokenRenewal = () => {
     isRenewing.current = true;
 
     try {
-      console.log('🔄 [TokenRenewal] Renovando token...');
+      // console.log('🔄 [TokenRenewal] Renovando token...');
       const response = await authService.refreshToken(refreshToken);
       
       if (response.success) {
@@ -40,10 +40,10 @@ const useTokenRenewal = () => {
         // Resetar timer de criação do token
         tokenCreatedAt.current = Date.now();
         
-        console.log('✅ [TokenRenewal] Token renovado com sucesso');
+        // console.log('✅ [TokenRenewal] Token renovado com sucesso');
         return true;
       } else {
-        console.warn('⚠️ [TokenRenewal] Falha na renovação');
+        // console.warn('⚠️ [TokenRenewal] Falha na renovação');
         return false;
       }
     } catch (error) {

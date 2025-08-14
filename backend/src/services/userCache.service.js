@@ -31,7 +31,7 @@ class UserCacheService {
    */
   async startUserSession(userId, userEmail) {
     try {
-      console.log(`🚀 Iniciando sessão de cache para usuário: ${userEmail} (${userId})`);
+      // console.log(`🚀 Iniciando sessão de cache para usuário: ${userEmail} (${userId})`);
       
       // Parar sessão anterior se existir
       this.stopUserSession(userId);
@@ -49,7 +49,7 @@ class UserCacheService {
       // Configurar refresh automático a cada 5 minutos
       const intervalId = setInterval(async () => {
         if (this.activeSessions.has(userId)) {
-          console.log(`🔄 Atualizando cache automático para usuário: ${userEmail}`);
+          // console.log(`🔄 Atualizando cache automático para usuário: ${userEmail}`);
           await this.loadUserCacheData(userId);
           
           // Atualizar último refresh
@@ -63,7 +63,7 @@ class UserCacheService {
 
       this.refreshIntervals.set(userId, intervalId);
       
-      console.log(`✅ Sessão de cache iniciada para usuário: ${userEmail}`);
+      // console.log(`✅ Sessão de cache iniciada para usuário: ${userEmail}`);
       return true;
     } catch (error) {
       console.error(`❌ Erro ao iniciar sessão de cache para usuário ${userId}:`, error);
@@ -102,19 +102,19 @@ class UserCacheService {
    */
   async loadUserCacheData(userId) {
     try {
-      console.log(`📦 [UserCacheService] loadUserCacheData iniciado para usuário: ${userId}`);
+      // console.log(`📦 [UserCacheService] loadUserCacheData iniciado para usuário: ${userId}`);
       
       if (!this.prisma) await this.initialize();
 
       // 1. Carregar dados do PostgreSQL
-      console.log(`📊 [UserCacheService] Carregando dados PostgreSQL...`);
+      // console.log(`📊 [UserCacheService] Carregando dados PostgreSQL...`);
       const postgresData = await this.loadPostgresData(userId);
       console.log(`✅ [UserCacheService] Dados PostgreSQL carregados. PublicKey: ${postgresData.user.publicKey}`);
       
       // 2. Carregar dados da Blockchain
-      console.log(`🔗 [UserCacheService] Iniciando carregamento blockchain...`);
+      // console.log(`🔗 [UserCacheService] Iniciando carregamento blockchain...`);
       const blockchainData = await this.loadBlockchainData(postgresData.user.publicKey);
-      console.log(`✅ [UserCacheService] Dados blockchain carregados:`, blockchainData);
+      // console.log(`✅ [UserCacheService] Dados blockchain carregados:`, blockchainData);
       
       // 3. Detectar mudanças nos saldos e criar notificações
       if (blockchainData.balancesTable) {
@@ -132,7 +132,7 @@ class UserCacheService {
       // 5. Salvar no Redis
       await this.saveToCache(userId, combinedData);
       
-      console.log(`✅ Cache atualizado para usuário: ${postgresData.email || userId}`);
+      // console.log(`✅ Cache atualizado para usuário: ${postgresData.email || userId}`);
       return combinedData;
     } catch (error) {
       console.error(`❌ Erro ao carregar dados do cache para usuário ${userId}:`, error);
