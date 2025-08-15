@@ -55,6 +55,8 @@ const DashboardContent = ({ children }) => {
   // Hook de sincronização de balance em tempo real
   const { isActive, startSync } = useBalanceSync();
   
+  // Removido o hook de título do layout principal para permitir que páginas específicas controlem seus títulos
+  
   // Iniciar sincronização de balance automaticamente
   useEffect(() => {
     startSync();

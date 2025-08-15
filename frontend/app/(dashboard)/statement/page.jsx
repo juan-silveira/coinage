@@ -7,8 +7,12 @@ import Button from "@/components/ui/Button";
 import useCacheData from "@/hooks/useCacheData";
 import useTransactions from "@/hooks/useTransactions";
 import useTransactionFilters from "@/hooks/useTransactionFilters";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 const StatementPage = () => {
+  // Hook para gerenciar título da aba com contagem de notificações
+  useDocumentTitle('Extrato', 'Coinage', true);
+  
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(20);
   const [tokenFilter, setTokenFilter] = useState(null);

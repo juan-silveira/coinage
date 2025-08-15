@@ -15,6 +15,7 @@ import AccountPayable from "@/components/partials/widget/chart/account-payable";
 import useAuthStore from "@/store/authStore";
 import useCacheData from "@/hooks/useCacheData";
 import useEarnings from "@/hooks/useEarnings";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 const CardSlider = dynamic(
   () => import("@/components/partials/widget/CardSlider"),
@@ -55,6 +56,9 @@ const BankingPage = () => {
   const [activeIndex, setActiveIndex] = useState(0);
   const { user } = useAuthStore();
   const { balances, loading } = useCacheData();
+  
+  // Hook para gerenciar título da aba com contagem de notificações
+  useDocumentTitle('Dashboard', 'Coinage', true);
   
   // Hook compartilhado para earnings
   const earningsData = useEarnings({

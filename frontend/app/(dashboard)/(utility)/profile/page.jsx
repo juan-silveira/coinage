@@ -8,8 +8,12 @@ import useAuthStore from "@/store/authStore";
 import useCachedBalances from "@/hooks/useCachedBalances";
 import useCacheData from "@/hooks/useCacheData";
 import useCurrentClient from "@/hooks/useCurrentClient";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 const profile = () => {
+  // Hook para gerenciar título da aba com contagem de notificações
+  useDocumentTitle('Perfil do Usuário', 'Coinage', true);
+  
   const { user } = useAuthStore();
   const { cachedUser, formatCPF, formatPhone } = useCacheData();
   const { balances, loading, getBalance, getCorrectAzeSymbol } =

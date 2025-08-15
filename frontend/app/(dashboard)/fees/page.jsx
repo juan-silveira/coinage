@@ -2,8 +2,11 @@
 
 import React, { useState } from "react";
 import Icon from "@/components/ui/Icon";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 const FeesPage = () => {
+  // Hook para gerenciar título da aba com contagem de notificações
+  useDocumentTitle('Tarifas e Prazos', 'Coinage', true);
   const [activeIndex, setActiveIndex] = useState(0);
 
   const toggleAccordion = (index) => {
