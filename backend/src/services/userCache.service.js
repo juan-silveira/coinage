@@ -593,6 +593,74 @@ class UserCacheService {
       };
     }
   }
+
+  /**
+   * Inicia cache automático para usuário (método que estava faltando)
+   */
+  async startAutoCache(userEmail) {
+    try {
+      // Buscar userId pelo email
+      if (!this.prisma) await this.initialize();
+      
+      const user = await this.prisma.user.findUnique({
+        where: { email: userEmail },
+        select: { id: true }
+      });
+
+      if (!user) {
+        console.warn(`⚠️ Usuário não encontrado para cache automático: ${userEmail}`);
+        return false;
+      }
+
+      // Iniciar sessão de cache
+      const started = await this.startUserSession(user.id, userEmail);
+      
+      if (started) {
+        console.log(`✅ Cache automático iniciado para: ${userEmail}`);
+      } else {
+        console.warn(`⚠️ Falha ao iniciar cache automático para: ${userEmail}`);
+      }
+
+      return started;
+    } catch (error) {
+      console.error(`❌ Erro ao iniciar cache automático para ${userEmail}:`, error);
+      return false;
+    }
+  }
+
+  /**
+   * Para cache automático para usuário (método que estava faltando)
+   */
+  async stopAutoCache(userEmail) {
+    try {
+      // Buscar userId pelo email
+      if (!this.prisma) await this.initialize();
+      
+      const user = await this.prisma.user.findUnique({
+        where: { email: userEmail },
+        select: { id: true }
+      });
+
+      if (!user) {
+        console.warn(`⚠️ Usuário não encontrado para parar cache automático: ${userEmail}`);
+        return false;
+      }
+
+      // Parar sessão de cache
+      const stopped = this.stopUserSession(user.id);
+      
+      if (stopped) {
+        console.log(`✅ Cache automático parado para: ${userEmail}`);
+      } else {
+        console.warn(`⚠️ Falha ao parar cache automático para: ${userEmail}`);
+      }
+
+      return stopped;
+    } catch (error) {
+      console.error(`❌ Erro ao parar cache automático para ${userEmail}:`, error);
+      return false;
+    }
+  }
 }
 
 // Singleton instance

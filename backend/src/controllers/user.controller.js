@@ -6,6 +6,7 @@ const getPrisma = () => prismaConfig.getPrisma();
 
 // Importar serviços
 const userService = require('../services/user.service');
+const { validatePassword } = require('../utils/passwordValidation');
 
 /**
  * Criar usuário
@@ -20,6 +21,16 @@ const createUser = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'Nome, email, CPF e senha são obrigatórios'
+      });
+    }
+
+    // Validação de senha forte
+    const passwordValidation = validatePassword(userData.password);
+    if (!passwordValidation.isValid) {
+      return res.status(400).json({
+        success: false,
+        message: 'Senha não atende aos critérios de segurança',
+        errors: passwordValidation.errors
       });
     }
 

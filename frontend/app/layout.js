@@ -15,25 +15,28 @@ export const metadata = {
 }
 
 import ThemeProvider from "./theme-provider"
+import { AlertProvider } from "@/contexts/AlertContext";
 export default function RootLayout({ children }) {
   return (
     <>
       <html lang="pt-BR">
         <body className="font-inter  custom-tippy dashcode-app">
           <ThemeProvider>
-            {children}
-            <ToastContainer
-              position="top-right"
-              autoClose={1500}
-              hideProgressBar={false}
-              newestOnTop={false}
-              closeOnClick
-              rtl={false}
-              pauseOnFocusLoss
-              draggable
-              pauseOnHover
-              theme="light"
-            />
+            <AlertProvider>
+              {children}
+              <ToastContainer
+                position="top-right"
+                autoClose={1500}
+                hideProgressBar={false}
+                newestOnTop={false}
+                closeOnClick
+                rtl={false}
+                pauseOnFocusLoss
+                draggable
+                pauseOnHover
+                theme="light"
+              />
+            </AlertProvider>
           </ThemeProvider>
         </body>
       </html>

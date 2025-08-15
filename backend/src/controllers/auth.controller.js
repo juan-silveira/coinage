@@ -11,6 +11,7 @@ const userCacheService = require('../services/userCache.service');
 const userService = require('../services/user.service');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
+const { validatePassword } = require('../utils/passwordValidation');
 
 /**
  * Autenticar usuário (método auxiliar)
@@ -175,17 +176,20 @@ const changePassword = async (req, res) => {
       });
     }
 
-    if (newPassword.length < 6) {
+    // Validação de senha forte
+    const passwordValidation = validatePassword(newPassword);
+    if (!passwordValidation.isValid) {
       return res.status(400).json({
         success: false,
-        message: 'Nova senha deve ter pelo menos 6 caracteres'
+        message: 'Nova senha não atende aos critérios de segurança',
+        errors: passwordValidation.errors
       });
     }
 
     // Buscar usuário atual
-    const user = await userService.getUserById(req.user.id);
+    const user = await userService.getUserById(req.user.id, true);
     
-    if (!user.success) {
+    if (!user) {
       return res.status(404).json({
         success: false,
         message: 'Usuário não encontrado'
@@ -193,7 +197,7 @@ const changePassword = async (req, res) => {
     }
 
     // Verificar senha atual
-    const isValidPassword = await userService.verifyPassword(currentPassword, user.data.password, user.data.email);
+    const isValidPassword = await userService.verifyPassword(currentPassword, user.password, user.email);
     
     if (!isValidPassword) {
       return res.status(400).json({
@@ -202,12 +206,9 @@ const changePassword = async (req, res) => {
       });
     }
 
-    // Gerar hash da nova senha
-    const hashedPassword = await userService.hashPassword(newPassword);
-    
-    // Atualizar senha no banco
+    // Atualizar senha no banco (o userService.updateUser já faz o hash)
     const updateResult = await userService.updateUser(req.user.id, {
-      password: hashedPassword,
+      password: newPassword,
       isFirstAccess: false
     });
 

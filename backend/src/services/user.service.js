@@ -117,25 +117,7 @@ class UserService {
       if (!this.prisma) await this.init();
 
       const user = await this.prisma.user.findUnique({
-        where: { id },
-        include: {
-          userClients: {
-            include: {
-              client: true
-            }
-          },
-          apiKeys: {
-            where: { isActive: true },
-            select: {
-              id: true,
-              name: true,
-              isActive: true,
-              expiresAt: true,
-              lastUsedAt: true,
-              createdAt: true
-            }
-          }
-        }
+        where: { id }
       });
 
       if (!user) return null;
@@ -334,8 +316,7 @@ class UserService {
 
       // Buscar usuário atual para comparação
       const currentUser = await this.prisma.user.findUnique({
-        where: { id },
-        include: { client: true }
+        where: { id }
       });
 
       if (!currentUser) {
@@ -365,10 +346,7 @@ class UserService {
       // Atualizar usuário
       const updatedUser = await this.prisma.user.update({
         where: { id },
-        data: dataToUpdate,
-        include: {
-          client: true
-        }
+        data: dataToUpdate
       });
 
       // Preparar dados para webhook
@@ -377,25 +355,26 @@ class UserService {
         new: this.sanitizeUser(updatedUser)
       };
 
-      // Disparar webhook de usuário atualizado
-      const webhookService = require('./webhook.service');
-      const userEventData = {
-        id: updatedUser.id,
-        name: updatedUser.name,
-        email: updatedUser.email,
-        cpf: updatedUser.cpf,
-        publicKey: updatedUser.publicKey,
-        roles: updatedUser.roles,
-        isActive: updatedUser.isActive,
-        clientId: updatedUser.clientId,
-        updatedAt: updatedUser.updatedAt
+      // Webhook temporariamente desabilitado
+      // TODO: Implementar webhook quando necessário
+
+      return {
+        success: true,
+        message: 'Usuário atualizado com sucesso',
+        data: {
+          id: updatedUser.id,
+          name: updatedUser.name,
+          email: updatedUser.email,
+          cpf: updatedUser.cpf,
+          phone: updatedUser.phone,
+          birthDate: updatedUser.birthDate,
+          publicKey: updatedUser.publicKey,
+          isFirstAccess: updatedUser.isFirstAccess,
+          userPlan: updatedUser.userPlan,
+          isActive: updatedUser.isActive,
+          updatedAt: updatedUser.updatedAt
+        }
       };
-
-      webhookService.triggerWebhooks('user.updated', { user: userEventData, changes }, currentUser.clientId)
-        .then(result => console.log(`📡 Webhook user.updated disparado:`, result))
-        .catch(error => console.error(`❌ Erro ao disparar webhook user.updated:`, error));
-
-      return this.sanitizeUser(updatedUser);
     } catch (error) {
       console.error('❌ Erro ao atualizar usuário:', error);
       throw error;
@@ -417,9 +396,6 @@ class UserService {
           isActive: false,
           sessionToken: null,
           sessionExpiresAt: null
-        },
-        include: {
-          client: true
         }
       });
 
@@ -575,6 +551,7 @@ class UserService {
       if (!user) return null;
 
       const isValid = await this.verifyPassword(password, user.password, user.email);
+      
       if (!isValid) return null;
 
       return this.sanitizeUser(user);
@@ -597,20 +574,8 @@ class UserService {
 
       return {
         success: true,
-        message: 'Usuário atualizado com sucesso',
-        data: {
-          id: result.id,
-          name: result.name,
-          email: result.email,
-          cpf: result.cpf,
-          phone: result.phone,
-          birthDate: result.birthDate,
-          publicKey: result.publicKey,
-          isFirstAccess: result.isFirstAccess,
-          userPlan: result.userPlan,
-          isActive: result.isActive,
-          updatedAt: result.updatedAt
-        }
+        message: 'UserService funcionando corretamente',
+        timestamp: new Date().toISOString()
       };
     } catch (error) {
       return {

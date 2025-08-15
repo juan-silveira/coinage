@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter, useParams } from "next/navigation";
 import SimpleInput from "@/components/ui/SimpleInput";
-import useGlobalAlert from "@/hooks/useGlobalAlert";
+import { useAlertContext } from "@/contexts/AlertContext";
 import useAuthStore from "@/store/authStore";
 import { authService } from "@/services/api";
 import useDarkMode from "@/hooks/useDarkMode";
@@ -24,7 +24,7 @@ const WhitelabelLoginPage = () => {
   const clientAlias = params.client_alias;
   const { login, isAuthenticated, isLoading, setLoading } = useAuthStore();
   const [isDark] = useDarkMode();
-  const { showSuccess, showError } = useGlobalAlert();
+  const { showSuccess, showError } = useAlertContext();
   
   const [branding, setBranding] = useState(defaultBranding);
   const [brandingLoading, setBrandingLoading] = useState(true);

@@ -5,7 +5,7 @@ const AlertContainer = ({ alerts, onRemove }) => {
   if (!alerts || alerts.length === 0) return null;
 
   return (
-    <div className="fixed top-4 right-4 z-[9999] space-y-2 max-w-md">
+    <div className="fixed top-4 right-4 z-[999999] space-y-2 max-w-md">
       {alerts.map((alert, index) => (
         <div
           key={alert.id}
