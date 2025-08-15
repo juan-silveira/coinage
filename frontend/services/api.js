@@ -7,11 +7,12 @@ const API_BASE_URL = 'http://localhost:8800';
 // Instância do axios
 const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 30000, // 30 segundos para dar mais tempo ao Redis
+  timeout: 30000, // 30 segundos para evitar timeout prematuro
   headers: {
     'Content-Type': 'application/json',
   },
 });
+
 
 // Interceptor para adicionar token de autenticação
 api.interceptors.request.use(
@@ -33,22 +34,77 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
+    // Log do erro para debug
+    console.log('🔍 [API] Erro interceptado:', {
+      url: originalRequest?.url,
+      method: originalRequest?.method,
+      status: error.response?.status,
+      message: error.message
+    });
+
     // Se o erro for 401 e não for uma tentativa de refresh
     if (error.response?.status === 401 && !originalRequest._retry) {
+      console.log('🔍 [API] Detectado erro 401, tentando refresh...', {
+        url: originalRequest?.url,
+        hasRetry: originalRequest._retry
+      });
+      
       originalRequest._retry = true;
 
       const { refreshToken, logout, isAuthenticated } = useAuthStore.getState();
       
+      console.log('🔍 [API] Estado de autenticação:', {
+        isAuthenticated,
+        hasRefreshToken: !!refreshToken
+      });
+      
+      // IMPORTANTE: Não fazer logout automático em endpoints de sincronização
+      const isSyncRequest = originalRequest?.url?.includes('/balance-sync/') || 
+                           originalRequest?.url?.includes('/notifications/') ||
+                           originalRequest?.url?.includes('azorescan.com');
+      
+      if (isSyncRequest) {
+        console.log('⚠️ [API] Erro 401 em requisição de sync - NÃO fazendo logout automático');
+        
+        // Para notificações, tentar refresh token silenciosamente
+        if (isAuthenticated && refreshToken && originalRequest?.url?.includes('/notifications/')) {
+          try {
+            console.log('🔄 [API] Tentando renovar token para notificações...');
+            const response = await axios.post(`${API_BASE_URL}/api/auth/refresh`, {
+              refreshToken
+            });
+
+            const { accessToken: newAccessToken, refreshToken: newRefreshToken } = response.data.data;
+            
+            console.log('✅ [API] Token renovado para notificações');
+            // Atualizar tokens no store
+            useAuthStore.getState().setTokens(newAccessToken, newRefreshToken);
+            
+            // Retry da requisição original
+            originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+            return api(originalRequest);
+          } catch (refreshError) {
+            console.warn('⚠️ [API] Falha no refresh para notificações - continuando sem notificações');
+            // Não fazer logout, apenas rejeitar a requisição
+            return Promise.reject(error);
+          }
+        }
+        
+        return Promise.reject(error);
+      }
+      
       // Só tentar refresh se o usuário estiver autenticado
       if (isAuthenticated && refreshToken) {
         try {
+          console.log('🔄 [API] Tentando renovar token...');
           // Tentar renovar o token
           const response = await axios.post(`${API_BASE_URL}/api/auth/refresh`, {
             refreshToken
           });
 
-          const { accessToken: newAccessToken, refreshToken: newRefreshToken } = response.data;
+          const { accessToken: newAccessToken, refreshToken: newRefreshToken } = response.data.data;
           
+          console.log('✅ [API] Token renovado com sucesso');
           // Atualizar tokens no store
           useAuthStore.getState().setTokens(newAccessToken, newRefreshToken);
           
@@ -56,20 +112,42 @@ api.interceptors.response.use(
           originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
           return api(originalRequest);
         } catch (refreshError) {
-          // Só fazer logout em casos específicos, não em erros de rede
-          const shouldLogout = refreshError.response?.status === 401 || refreshError.response?.status === 403;
+          console.error('❌ [API] Erro ao renovar token:', {
+            error: refreshError.message,
+            status: refreshError.response?.status,
+            data: refreshError.response?.data
+          });
           
-          if (shouldLogout) {
-            logout();
-            window.location.href = '/login';
+          // NÃO fazer logout automático por falhas de refresh token
+          // Deixar o usuário continuar logado e tentar novamente depois
+          console.warn('⚠️ [API] Falha no refresh token - usuário continua logado');
+          
+          // Só fazer logout se for explicitamente um token inválido do servidor
+          const isTokenInvalid = refreshError.response?.status === 401 && 
+                               (refreshError.response?.data?.message?.toLowerCase().includes('invalid token') ||
+                                refreshError.response?.data?.message?.toLowerCase().includes('token expired'));
+          
+          if (isTokenInvalid) {
+            console.error('🚪 [API] LOGOUT - Token refresh inválido');
+            logout('invalid_refresh_token');
+            setTimeout(() => window.location.href = '/login', 1000);
           }
           
           return Promise.reject(refreshError);
         }
-      } else if (isAuthenticated) {
-        // Usuário autenticado mas sem refresh token, fazer logout
-        logout();
-        window.location.href = '/login';
+      } else if (isAuthenticated && !isSyncRequest && !refreshToken) {
+        // Só fazer logout se NÃO tiver refresh token E não for requisição de sync
+        console.error('🚪 [API] LOGOUT - Sem refresh token');
+        logout('no_refresh_token');
+        setTimeout(() => window.location.href = '/login', 1000);
+      } else {
+        // Para outros casos, apenas logar o erro
+        console.warn('⚠️ [API] Erro 401 - Continua logado:', {
+          isAuthenticated,
+          hasRefreshToken: !!refreshToken,
+          isSyncRequest,
+          url: originalRequest?.url
+        });
       }
       // Se não estiver autenticado, não fazer nada (provavelmente é erro de login)
     }
@@ -207,17 +285,63 @@ export const userService = {
 
 // Serviços de transações
 export const transactionService = {
-  // Listar transações
+  // Listar transações do usuário
   getTransactions: async (params = {}) => {
     const response = await api.get('/api/transactions', { params });
     return response.data;
   },
 
-  // Obter estatísticas
-  getStats: async () => {
-    const response = await api.get('/api/transactions/stats');
+  // Obter transação por hash
+  getTransactionByHash: async (txHash) => {
+    const response = await api.get(`/api/transactions/${txHash}`);
     return response.data;
   },
+
+  // Obter estatísticas gerais
+  getStats: async (params = {}) => {
+    const response = await api.get('/api/transactions/stats/overview', { params });
+    return response.data;
+  },
+
+  // Obter estatísticas por status
+  getStatusStats: async (params = {}) => {
+    const response = await api.get('/api/transactions/stats/status', { params });
+    return response.data;
+  },
+
+  // Obter estatísticas por tipo
+  getTypeStats: async (params = {}) => {
+    const response = await api.get('/api/transactions/stats/type', { params });
+    return response.data;
+  },
+
+  // Enfileirar transação
+  enqueueTransaction: async (transactionData) => {
+    const response = await api.post('/api/transactions/enqueue', transactionData);
+    return response.data;
+  },
+
+  // Obter status de transação enfileirada
+  getQueuedTransactionStatus: async (jobId) => {
+    const response = await api.get(`/api/transactions/queue/${jobId}`);
+    return response.data;
+  },
+
+  // Obter status de múltiplas transações enfileiradas
+  getMultipleQueuedTransactionStatus: async (jobIds) => {
+    const response = await api.post('/api/transactions/queue/batch', { jobIds });
+    return response.data;
+  },
+  // Obter opções para filtros (busca todas as transações sem filtros para popular as opções)
+  getFilterOptions: async () => {
+    const response = await api.get('/api/transactions', { 
+      params: { 
+        page: 1, 
+        limit: 1000 // Buscar uma quantidade grande para obter todas as opções
+      } 
+    });
+    return response.data;
+  }
 };
 
 // Serviços de tokens
@@ -237,6 +361,68 @@ export const tokenService = {
     });
     return response.data;
   },
+};
+
+// Serviços de earnings (proventos)
+export const earningsService = {
+  // Obter proventos do usuário
+  getUserEarnings: async (params = {}) => {
+    const response = await api.get('/api/earnings', { params });
+    return response.data;
+  },
+
+  // Obter dados para gráfico
+  getEarningsForChart: async (params = {}) => {
+    const response = await api.get('/api/earnings/chart', { params });
+    return response.data;
+  },
+
+  // Obter resumo dos proventos
+  getEarningsSummary: async (network = 'testnet') => {
+    const response = await api.get('/api/earnings/summary', { params: { network } });
+    return response.data;
+  },
+
+  // Obter proventos por período
+  getEarningsByPeriod: async (startDate, endDate, network = 'testnet') => {
+    const response = await api.get('/api/earnings/period', { 
+      params: { startDate, endDate, network } 
+    });
+    return response.data;
+  },
+
+  // Criar novo provento (admin)
+  createEarning: async (earningData) => {
+    const response = await api.post('/api/earnings', earningData);
+    return response.data;
+  },
+
+  // Atualizar provento (admin)
+  updateEarning: async (id, updateData) => {
+    const response = await api.put(`/api/earnings/${id}`, updateData);
+    return response.data;
+  },
+
+  // Desativar provento (admin)
+  deactivateEarning: async (id) => {
+    const response = await api.delete(`/api/earnings/${id}`);
+    return response.data;
+  },
+};
+
+// Serviços de whitelabel
+export const whitelabelService = {
+  // Obter cliente atual do usuário
+  getCurrentClient: async () => {
+    const response = await api.get('/api/whitelabel/user/current-client');
+    return response.data;
+  },
+
+  // Listar clientes do usuário
+  getUserClients: async (params = {}) => {
+    const response = await api.get('/api/whitelabel/user/clients', { params });
+    return response.data;
+  }
 };
 
 export default api;

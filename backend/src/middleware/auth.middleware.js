@@ -367,7 +367,7 @@ const addUserInfo = (req, res, next) => {
       'X-User-ID': req.user.id,
       'X-User-Name': req.user.name,
       'X-User-Email': req.user.email,
-      'X-User-Roles': Array.isArray(req.user.roles) ? req.user.roles.join(',') : req.user.roles
+      'X-User-Roles': Array.isArray(req.user.roles) ? req.user.roles.join(', ') : 'N/A'
     };
 
     if (isApiKeyAuth) {
@@ -399,7 +399,7 @@ const logAuthenticatedRequest = (req, res, next) => {
     const userId = req.user.id || 'N/A';
     const clientName = req.client?.name || 'N/A';
     const clientId = req.client?.id || 'N/A';
-    const roles = Array.isArray(req.user.roles) ? req.user.roles.join(', ') : (req.user.globalRole || 'N/A');
+    const roles = Array.isArray(req.user.roles) ? req.user.roles.join(', ') : 'N/A';
     
     console.log(`[AUTH] ${req.method} ${req.path} - User: ${userName} (${userId}) - Client: ${clientName} (${clientId}) - Roles: ${roles}`);
   }

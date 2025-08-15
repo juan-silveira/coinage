@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter, useParams } from "next/navigation";
 import SimpleInput from "@/components/ui/SimpleInput";
-import { toast } from "react-toastify";
+import useGlobalAlert from "@/hooks/useGlobalAlert";
 import useAuthStore from "@/store/authStore";
 import { authService } from "@/services/api";
 import useDarkMode from "@/hooks/useDarkMode";
@@ -24,6 +24,7 @@ const WhitelabelRegisterPage = () => {
   const clientAlias = params.client_alias;
   const { isAuthenticated, isLoading, setLoading } = useAuthStore();
   const [isDark] = useDarkMode();
+  const { showSuccess, showError } = useGlobalAlert();
   
   const [branding, setBranding] = useState(defaultBranding);
   const [brandingLoading, setBrandingLoading] = useState(true);
@@ -132,7 +133,7 @@ const WhitelabelRegisterPage = () => {
         client_alias: clientAlias
       });
       
-      toast.success("Conta criada com sucesso! Faça login para continuar.");
+      showSuccess("Conta criada com sucesso! Faça login para continuar.");
       
       // Redirecionar para login do mesmo cliente
       router.push(`/login/${clientAlias}`);
@@ -150,7 +151,7 @@ const WhitelabelRegisterPage = () => {
         errorMessage = "Erro de conexão com o servidor";
       }
       
-      toast.error(errorMessage);
+      showError(errorMessage);
     }
   };
 

@@ -8,7 +8,7 @@ import Checkbox from "@/components/ui/Checkbox";
 import Link from "next/link";
 import { useSelector, useDispatch } from "react-redux";
 import { handleLogin } from "./store";
-import { toast } from "react-toastify";
+import useGlobalAlert from "@/hooks/useGlobalAlert";
 const schema = yup
   .object({
     email: yup.string().email("Invalid email").required("Email is Required"),
@@ -18,6 +18,7 @@ const schema = yup
 const LoginForm = () => {
   const dispatch = useDispatch();
   const { users } = useSelector((state) => state.auth);
+  const { showError } = useGlobalAlert();
   const {
     register,
     formState: { errors },
@@ -38,16 +39,7 @@ const LoginForm = () => {
         router.push("/analytics");
       }, 1500);
     } else {
-      toast.error("Invalid credentials", {
-        position: "top-right",
-        autoClose: 1500,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true,
-        progress: undefined,
-        theme: "light",
-      });
+      showError("Invalid credentials");
     }
   };
 

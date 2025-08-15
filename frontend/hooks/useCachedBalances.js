@@ -1,8 +1,17 @@
 import { useCallback, useEffect } from 'react';
 import useAuthStore from '@/store/authStore';
 import { userService } from '@/services/api';
+import UserPlanService from '@/services/userPlanService';
 
-const CACHE_DURATION_MS = 60 * 1000; // 60 segundos
+// Função para obter o intervalo baseado no plano do usuário
+const getCacheDurationMs = (userPlan = 'BASIC') => {
+  switch (userPlan) {
+    case 'PREMIUM': return 1 * 60 * 1000; // 1 minuto para usuários premium
+    case 'PRO': return 2 * 60 * 1000;     // 2 minutos para usuários pro
+    case 'BASIC':
+    default: return 5 * 60 * 1000;        // 5 minutos para usuários básicos
+  }
+};
 
 export const useCachedBalances = () => {
   const { 
@@ -19,8 +28,13 @@ export const useCachedBalances = () => {
   // Verificar se o cache é válido
   const isCacheValid = useCallback(() => {
     if (!cachedBalances || !balancesLastUpdate) return false;
-    return (Date.now() - balancesLastUpdate) < CACHE_DURATION_MS;
-  }, [cachedBalances, balancesLastUpdate]);
+    
+    // Usar o intervalo baseado no plano do usuário
+    const userPlan = user?.userPlan || 'BASIC';
+    const cacheDuration = getCacheDurationMs(userPlan);
+    
+    return (Date.now() - balancesLastUpdate) < cacheDuration;
+  }, [cachedBalances, balancesLastUpdate, user?.userPlan]);
 
   // Carregar balances da API
   const loadBalances = useCallback(async (force = false) => {
@@ -50,25 +64,33 @@ export const useCachedBalances = () => {
     }
   }, [isAuthenticated, user?.publicKey, isCacheValid, cachedBalances, balancesLoading, setCachedBalances, setBalancesLoading]);
 
-  // Carregar dados iniciais
+  // Carregar dados iniciais (sem incluir loadBalances na dependência)
   useEffect(() => {
     if (isAuthenticated && user?.publicKey) {
       loadBalances();
     } else {
       clearCachedBalances();
     }
-  }, [isAuthenticated, user?.publicKey, loadBalances, clearCachedBalances]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, user?.publicKey]);
 
-  // Auto-refresh a cada 60 segundos
+  // Auto-refresh baseado no plano do usuário
   useEffect(() => {
     if (!isAuthenticated || !user?.publicKey) return;
 
+    // Obter o intervalo baseado no plano do usuário
+    const userPlan = user?.userPlan || 'BASIC';
+    const cacheDuration = getCacheDurationMs(userPlan);
+    
+    // console.log(`🔄 [CachedBalances] Configurando auto-refresh: ${cacheDuration/60000} minutos (plano: ${userPlan})`);
+
     const interval = setInterval(() => {
       loadBalances(); // Vai verificar se precisa atualizar baseado no cache
-    }, CACHE_DURATION_MS);
+    }, cacheDuration);
 
     return () => clearInterval(interval);
-  }, [isAuthenticated, user?.publicKey, loadBalances]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, user?.publicKey, user?.userPlan]);
 
   // Funções de conveniência
   const getBalance = useCallback((symbol) => {

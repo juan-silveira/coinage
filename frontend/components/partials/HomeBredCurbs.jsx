@@ -10,7 +10,11 @@ const HomeBredCurbs = ({ title }) => {
   });
 
   // Usar o hook useCachedBalances para reagir automaticamente às mudanças
-  const { getBalance, loading: isLoading, getCorrectAzeSymbol } = useCachedBalances();
+  const {
+    getBalance,
+    loading: isLoading,
+    getCorrectAzeSymbol,
+  } = useCachedBalances();
 
   const handleValueChange = (newValue) => {
     setValue(newValue);
@@ -18,7 +22,22 @@ const HomeBredCurbs = ({ title }) => {
 
   // Formatar os saldos usando o hook useCachedBalances
   const formatForDisplay = (value) => {
-    return value.replace('.', ','); // Converter ponto para vírgula (padrão brasileiro)
+    // Garante que o valor de entrada seja tratado como string
+    const stringValue = String(value);
+
+    // 1. Separa a parte inteira da parte decimal
+    const parts = stringValue.split(".");
+    const integerPart = parts[0];
+    const decimalPart = parts[1] || ""; // Usa string vazia se não houver decimais
+
+    // 2. Formata a parte inteira com os separadores de milhar do padrão brasileiro ('pt-BR')
+    const formattedIntegerPart = Number(integerPart).toLocaleString("pt-BR");
+
+    // 3. Retorna a parte inteira formatada, unida à parte decimal com uma vírgula
+    // Se não houver parte decimal, retorna apenas a parte inteira formatada
+    return decimalPart
+      ? `${formattedIntegerPart},${decimalPart}`
+      : formattedIntegerPart;
   };
 
   return (
@@ -27,31 +46,49 @@ const HomeBredCurbs = ({ title }) => {
         {title}
       </h4>
       <div className="flex items-center space-x-4">
-        <Card>
+        <Card bodyClass="px-4 py-2">
           <div className="flex items-center space-x-2">
-            <Icon className="text-2xl text-primary" icon="heroicons:banknotes" />
+            {/* <Icon className="text-2xl text-primary" icon="heroicons:banknotes" /> */}
+            <img
+              src={`/assets/images/currencies/${getCorrectAzeSymbol()}.png`}
+              alt="Aze"
+              className="w-6 h-6"
+            />
             <div>
               <div className="text-xs">Saldo {getCorrectAzeSymbol()}</div>
               <div className="balance font-bold">
                 {isLoading ? (
                   <div className="animate-pulse bg-slate-200 dark:bg-slate-600 h-4 w-16 rounded"></div>
                 ) : (
-                  `${formatForDisplay(getBalance(getCorrectAzeSymbol()))} ${getCorrectAzeSymbol()}`
+                  <>
+                    {formatForDisplay(getBalance(getCorrectAzeSymbol()))}
+                    {/* {" "}
+                  <span className="text-xs">{getCorrectAzeSymbol()}</span> */}
+                  </>
                 )}
               </div>
             </div>
           </div>
         </Card>
-        <Card>
+        <Card bodyClass="px-4 py-2">
           <div className="flex items-center space-x-2">
-            <Icon className="text-2xl text-primary" icon="heroicons:currency-dollar" />
+            {/* <Icon className="text-2xl text-primary" icon="heroicons:currency-dollar" /> */}
+            <img
+              src="/assets/images/currencies/cBRL.png"
+              alt="cBRL"
+              className="w-6 h-6"
+            />
             <div>
               <div className="text-xs">Saldo cBRL</div>
               <div className="balance font-bold">
                 {isLoading ? (
                   <div className="animate-pulse bg-slate-200 dark:bg-slate-600 h-4 w-16 rounded"></div>
                 ) : (
-                  `${formatForDisplay(getBalance('cBRL'))} cBRL`
+                  <>
+                    {formatForDisplay(getBalance("cBRL"))}
+                    {/* {" "}
+                    <span className="text-xs">cBRL</span> */}
+                  </>
                 )}
               </div>
             </div>

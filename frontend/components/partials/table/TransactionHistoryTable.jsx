@@ -1,259 +1,67 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import Icon from "@/components/ui/Icon";
 import Card from "@/components/ui/Card";
 import useCacheData from "@/hooks/useCacheData";
+import useTransactions from "@/hooks/useTransactions";
 
 const TransactionHistoryTable = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(5);
   const { balances } = useCacheData();
+  
+  // Memoizar parâmetros para evitar recriação do objeto
+  const transactionParams = useMemo(() => ({
+    page: currentPage,
+    limit: itemsPerPage
+  }), [currentPage, itemsPerPage]);
+  
+  // Buscar transações reais do banco de dados
+  const { 
+    transactions: realTransactions, 
+    loading: transactionsLoading, 
+    error: transactionsError,
+    pagination: transactionsPagination,
+    updatePagination 
+  } = useTransactions(transactionParams);
 
   // Função para obter logo do token
   const getTokenLogo = (symbol) => {
     return `/assets/images/currencies/${symbol}.png`;
   };
 
-  // Mock data com 20 transações para 4 páginas
-  const mockTransactions = [
-    // Transfer (2 transactions sequenciais com hashes diferentes)
-    {
-      id: 1,
-      tokenSymbol: "AZE-t",
-      tokenName: "Azore",
-      txHash: "0xa1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6",
-      type: "transfer",
-      subType: "debit",
-      amount: -150.75,
-      date: "2025-01-15"
-    },
-    {
-      id: 2,
-      tokenSymbol: "STT", 
-      tokenName: "Stake Token",
-      txHash: "0xb3c4d5e6f7g8h9i0j1k2l3m4n5o6p7q8r9s0t1u2v3w4x5y6z7a8",
-      type: "transfer",
-      subType: "credit",
-      amount: +1500000.25,
-      date: "2025-01-15"
-    },
-    {
-      id: 3,
-      tokenSymbol: "cBRL",
-      tokenName: "Coinage Real Brasil", 
-      txHash: "0xb2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6a1",
-      type: "deposit",
-      subType: "credit",
-      amount: +250.0,
-      date: "2025-01-14"
-    },
-    {
-      id: 4,
-      tokenSymbol: "CNT",
-      tokenName: "Coinage Trade",
-      tokenLogo: "/assets/images/all-img/cnt-logo.png", 
-      txHash: "0xc3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6a1b2",
-      type: "withdraw",
-      subType: "debit",
-      amount: -75.50,
-      date: "2025-01-13"
-    },
-    {
-      id: 5,
-      tokenSymbol: "MJD",
-      tokenName: "Meu Jurídico Digital",
-      txHash: "0xd4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6a1b2c3",
-      type: "stake", 
-      subType: "debit",
-      amount: -500.0,
-      date: "2025-01-12"
-    },
-    // Exchange (2 transactions sequenciais com hashes diferentes)
-    {
-      id: 6,
-      tokenSymbol: "AZE-t",
-      tokenName: "Azore",
-      txHash: "0xe5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6a1b2c3d4",
-      type: "exchange",
-      subType: "debit", 
-      amount: -200.0,
-      date: "2025-01-11"
-    },
-    {
-      id: 7,
-      tokenSymbol: "PCN",
-      tokenName: "Pratique Coin",
-      txHash: "0xf6g8h9i0j1k2l3m4n5o6p7q8r9s0t1u2v3w4x5y6z7a8b9c0d1e2",
-      type: "exchange",
-      subType: "credit",
-      amount: +400.0,
-      date: "2025-01-11"
-    },
-    {
-      id: 8,
-      tokenSymbol: "STT",
-      tokenName: "Stake Token", 
-      txHash: "0xf6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6a1b2c3d4e5",
-      type: "unstake",
-      subType: "credit",
-      amount: +750000.0,
-      date: "2025-01-10"
-    },
-    {
-      id: 9,
-      tokenSymbol: "CNT",
-      tokenName: "Coinage Trade",
-      txHash: "0xg7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6a1b2c3d4e5f6",
-      type: "deposit",
-      subType: "credit",
-      amount: +125.25,
-      date: "2025-01-09"
-    },
-    {
-      id: 10,
-      tokenSymbol: "MJD", 
-      tokenName: "Meu Jurídico Digital",
-      txHash: "0xh8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6a1b2c3d4e5f6g7",
-      type: "withdraw",
-      subType: "debit",
-      amount: -300.0,
-      date: "2025-01-08"
-    },
-    // Transfer (2 transactions com hashes diferentes)
-    {
-      id: 11,
-      tokenSymbol: "PCN",
-      tokenName: "Pratique Coin",
-      tokenLogo: "/assets/images/all-img/pcn-logo.png", 
-      txHash: "0xi9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6a1b2c3d4e5f6g7h8",
-      type: "transfer",
-      subType: "debit",
-      amount: -50.0,
-      date: "2025-01-07"
-    },
-    {
-      id: 12,
-      tokenSymbol: "AZE-t",
-      tokenName: "Azore",
-      txHash: "0xj0k2l3m4n5o6p7q8r9s0t1u2v3w4x5y6z7a8b9c0d1e2f3g4h5i6",
-      type: "transfer", 
-      subType: "credit",
-      amount: +100.0,
-      date: "2025-01-07"
-    },
-    {
-      id: 13,
-      tokenSymbol: "STT",
-      tokenName: "Stake Token",
-      txHash: "0xj0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6a1b2c3d4e5f6g7h8i9",
-      type: "stake",
-      subType: "debit",
-      amount: -2000000.0,
-      date: "2025-01-06"
-    },
-    {
-      id: 14,
-      tokenSymbol: "CNT",
-      tokenName: "Coinage Trade",
-      txHash: "0xk1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6a1b2c3d4e5f6g7h8i9j0",
-      type: "deposit",
-      subType: "credit", 
-      amount: +87.75,
-      date: "2025-01-05"
-    },
-    {
-      id: 15,
-      tokenSymbol: "MJD",
-      tokenName: "Meu Jurídico Digital",
-      txHash: "0xl2m3n4o5p6q7r8s9t0u1v2w3x4y5z6a1b2c3d4e5f6g7h8i9j0k1",
-      type: "unstake",
-      subType: "credit",
-      amount: +650.0,
-      date: "2025-01-04"
-    },
-    // Exchange (2 transactions com hashes diferentes)
-    {
-      id: 16,
-      tokenSymbol: "STT",
-      tokenName: "Stake Token",
-      tokenLogo: "/assets/images/all-img/stt-logo.png", 
-      txHash: "0xm3n4o5p6q7r8s9t0u1v2w3x4y5z6a1b2c3d4e5f6g7h8i9j0k1l2",
-      type: "exchange",
-      subType: "debit",
-      amount: -1500000.0,
-      date: "2025-01-03"
-    },
-    {
-      id: 17,
-      tokenSymbol: "CNT",
-      tokenName: "Coinage Trade",
-      txHash: "0xn4o6p7q8r9s0t1u2v3w4x5y6z7a8b9c0d1e2f3g4h5i6j7k8l9m0",
-      type: "exchange",
-      subType: "credit",
-      amount: +1125.0,
-      date: "2025-01-03"
-    },
-    {
-      id: 18,
-      tokenSymbol: "AZE-t",
-      tokenName: "Azore",
-      txHash: "0xn4o5p6q7r8s9t0u1v2w3x4y5z6a1b2c3d4e5f6g7h8i9j0k1l2m3",
-      type: "withdraw",
-      subType: "debit",
-      amount: -75.0,
-      date: "2025-01-02"
-    },
-    {
-      id: 19,
-      tokenSymbol: "PCN",
-      tokenName: "Pratique Coin",
-      txHash: "0xo5p6q7r8s9t0u1v2w3x4y5z6a1b2c3d4e5f6g7h8i9j0k1l2m3n4",
-      type: "deposit", 
-      subType: "credit",
-      amount: +180.50,
-      date: "2025-01-01"
-    },
-    {
-      id: 20,
-      tokenSymbol: "MJD",
-      tokenName: "Meu Jurídico Digital", 
-      txHash: "0xp6q7r8s9t0u1v2w3x4y5z6a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5",
-      type: "stake",
-      subType: "debit",
-      amount: -420.0,
-      date: "2024-12-31"
-    }
-  ];
+  // Usar transações reais do banco de dados
+  const transactions = realTransactions || [];
 
-  // Paginação
-  const totalPages = Math.ceil(mockTransactions.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const currentTransactions = mockTransactions.slice(startIndex, startIndex + itemsPerPage);
+  // Paginação usando dados reais
+  const totalPages = transactionsPagination.totalPages || 0;
+  const currentTransactions = transactions;
 
   const goToPage = (page) => {
     setCurrentPage(page);
+    updatePagination({ page, limit: itemsPerPage });
   };
 
   const goToPreviousPage = () => {
-    setCurrentPage(prev => Math.max(1, prev - 1));
+    const newPage = Math.max(1, currentPage - 1);
+    setCurrentPage(newPage);
+    updatePagination({ page: newPage, limit: itemsPerPage });
   };
 
   const goToNextPage = () => {
-    setCurrentPage(prev => Math.min(totalPages, prev + 1));
+    const newPage = Math.min(totalPages, currentPage + 1);
+    setCurrentPage(newPage);
+    updatePagination({ page: newPage, limit: itemsPerPage });
   };
 
   const goToFirstPage = () => {
     setCurrentPage(1);
+    updatePagination({ page: 1, limit: itemsPerPage });
   };
 
   const goToLastPage = () => {
     setCurrentPage(totalPages);
-  };
-
-  // Função para alterar itens por página
-  const handleItemsPerPageChange = (newItemsPerPage) => {
-    setItemsPerPage(newItemsPerPage);
-    setCurrentPage(1); // Reset para primeira página
+    updatePagination({ page: totalPages, limit: itemsPerPage });
   };
 
   // Função para obter URL da blockchain baseada na rede
@@ -276,6 +84,20 @@ const TransactionHistoryTable = () => {
     return subType === 'credit' ? 'text-green-500' : 'text-red-500';
   };
 
+  // Mapeamento dos tipos de transação de inglês para português
+  const transactionTypeTranslation = {
+    transfer: "Transferência",
+    deposit: "Depósito", 
+    withdraw: "Saque",
+    stake: "Investimento",
+    unstake: "Resgate",
+    exchange: "Troca",
+    stake_reward: "Dividendo",
+    contract_deploy: "Deploy de Contrato",
+    contract_call: "Chamada de Contrato",
+    contract_read: "Leitura de Contrato"
+  };
+
   // Função para obter ícone do tipo de transação
   const getTransactionIcon = (type) => {
     const iconMap = {
@@ -284,7 +106,8 @@ const TransactionHistoryTable = () => {
       deposit: "heroicons:arrow-down-circle",
       withdraw: "heroicons:arrow-up-circle",
       stake: "heroicons:lock-closed",
-      unstake: "heroicons:lock-open"
+      unstake: "heroicons:lock-open",
+      stake_reward: "heroicons:gift"
     };
     return iconMap[type] || "heroicons:document";
   };
@@ -293,52 +116,64 @@ const TransactionHistoryTable = () => {
     <Card 
       title="Histórico de Transações" 
       subtitle="Confira abaixo o histórico de transações"
-      headerslot={
-        <div className="flex items-center space-x-2">
-          <span className="text-sm text-slate-500 dark:text-slate-400">Mostrar:</span>
-          <select
-            value={itemsPerPage}
-            onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
-            className="px-2 py-1 text-sm border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-slate-900 dark:text-white"
-          >
-            <option value={5}>5</option>
-            <option value={10}>10</option>
-            <option value={20}>20</option>
-          </select>
-          <span className="text-sm text-slate-500 dark:text-slate-400">por página</span>
-        </div>
-      }
     >
       <div className="space-y-4">
+        {/* Loading/Error States */}
+        {transactionsLoading && (
+          <div className="flex justify-center items-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500"></div>
+            <span className="ml-2 text-slate-600 dark:text-slate-400">Carregando transações...</span>
+          </div>
+        )}
+
+        {transactionsError && !transactionsLoading && (
+          <div className="flex flex-col items-center py-8">
+            <Icon icon="heroicons-outline:exclamation-triangle" className="w-12 h-12 mb-2 text-red-500" />
+            <span className="font-medium text-red-600 dark:text-red-400">Erro ao carregar transações</span>
+            <span className="text-sm text-slate-500 dark:text-slate-400">{transactionsError}</span>
+          </div>
+        )}
+
         {/* Tabela */}
-        <div className="overflow-x-auto">
-        <table className="min-w-full">
-          <thead className="bg-slate-50 dark:bg-slate-800">
-            <tr>
-              <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                Token
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                TxHash
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                Tipo
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                Valor
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                Data
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white dark:bg-slate-900 divide-y divide-slate-200 dark:divide-slate-700">
-            {currentTransactions.length > 0 ? (
+        {!transactionsLoading && !transactionsError && (
+          <div className="overflow-x-auto">
+            <table className="min-w-full">
+              <thead className="bg-slate-50 dark:bg-slate-800">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                    Cliente
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                    Token
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                    TxHash
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                    Tipo
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                    Valor
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                    Data
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white dark:bg-slate-900 divide-y divide-slate-200 dark:divide-slate-700">
+                {currentTransactions.length > 0 ? (
               currentTransactions.map((transaction) => (
                 <tr
                   key={transaction.id}
                   className="hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors duration-150"
                 >
+                  {/* Cliente */}
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <div className="text-sm font-medium text-slate-900 dark:text-white">
+                      {transaction.client?.name || 'N/A'}
+                    </div>
+                  </td>
+                  
                   {/* Token - Logo, Symbol, Name */}
                   <td className="px-4 py-3 whitespace-nowrap">
                     <div className="flex items-center space-x-3">
@@ -391,8 +226,8 @@ const TransactionHistoryTable = () => {
                         icon={getTransactionIcon(transaction.type)} 
                         className="w-4 h-4 text-slate-500"
                       />
-                      <span className="text-sm capitalize text-slate-700 dark:text-slate-300">
-                        {transaction.type}
+                      <span className="text-sm text-slate-700 dark:text-slate-300">
+                        {transactionTypeTranslation[transaction.type] || transaction.type}
                       </span>
                     </div>
                   </td>
@@ -412,7 +247,7 @@ const TransactionHistoryTable = () => {
               ))
             ) : (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-slate-500 dark:text-slate-400">
+                <td colSpan={6} className="px-4 py-8 text-center text-slate-500 dark:text-slate-400">
                   <div className="flex flex-col items-center">
                     <Icon icon="heroicons-outline:document-text" className="w-12 h-12 mb-2 opacity-50" />
                     <span className="font-medium">Sem resultados</span>
@@ -421,16 +256,17 @@ const TransactionHistoryTable = () => {
                 </td>
               </tr>
             )}
-          </tbody>
-        </table>
-      </div>
+              </tbody>
+            </table>
+          </div>
+        )}
 
       {/* Pagination */}
-      {mockTransactions.length > itemsPerPage && (
-        <div className="px-4 py-3 bg-slate-50 dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 rounded-lg">
+      {!transactionsLoading && !transactionsError && (transactionsPagination.total || 0) > itemsPerPage && (
+        <div className="px-4 py-3 bg-slate-50 dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-3 md:space-y-0">
             <div className="text-sm text-slate-500 dark:text-slate-400 text-center md:text-left">
-              Exibindo {startIndex + 1} ao {Math.min(startIndex + itemsPerPage, mockTransactions.length)} de {mockTransactions.length} registros
+              Exibindo {((currentPage - 1) * itemsPerPage) + 1} ao {Math.min(currentPage * itemsPerPage, transactionsPagination.total || 0)} de {transactionsPagination.total || 0} registros
             </div>
             <div className="flex items-center justify-center space-x-1">
               <button

@@ -186,6 +186,55 @@ router.get('/user/clients', authenticateToken, whitelabelController.getUserClien
 
 /**
  * @swagger
+ * /api/whitelabel/user/current-client:
+ *   get:
+ *     summary: Obtém o cliente atual do usuário autenticado
+ *     description: Retorna o cliente com último acesso mais recente
+ *     tags: [Whitelabel]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Cliente atual obtido com sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     currentClient:
+ *                       type: object
+ *                       properties:
+ *                         id:
+ *                           type: string
+ *                           format: uuid
+ *                         name:
+ *                           type: string
+ *                         alias:
+ *                           type: string
+ *                         isActive:
+ *                           type: boolean
+ *                         userRole:
+ *                           type: string
+ *                         linkedAt:
+ *                           type: string
+ *                           format: date-time
+ *                         lastAccessAt:
+ *                           type: string
+ *                           format: date-time
+ *       401:
+ *         description: Token inválido
+ *       404:
+ *         description: Nenhum cliente ativo encontrado
+ */
+router.get('/user/current-client', authenticateToken, whitelabelController.getCurrentClient);
+
+/**
+ * @swagger
  * /api/whitelabel/client/{clientId}/users:
  *   get:
  *     summary: Lista usuários vinculados a um cliente

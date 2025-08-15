@@ -25,22 +25,45 @@ import useNavbarType from "@/hooks/useNavbarType";
 import { motion, AnimatePresence } from "framer-motion";
 import AuthGuard from "@/components/AuthGuard";
 import useAuthStore from "@/store/authStore";
-import { toast } from "react-toastify";
 import useTokenRenewal from "@/hooks/useTokenRenewal";
 import useErrorBoundary from "@/hooks/useErrorBoundary";
+import useProactiveTokenRefresh from "@/hooks/useProactiveTokenRefresh";
+import { NotificationProvider } from "@/contexts/NotificationContext";
+import { AlertProvider, useAlertContext } from "@/contexts/AlertContext";
+import useRealTimeNotifications from "@/hooks/useRealTimeNotifications";
+import useBalanceSync from "@/hooks/useBalanceSync";
 
-export default function RootLayout({ children }) {
-  // Verificar toast de login bem-sucedido
+// Componente interno que usa os hooks de notificação
+const DashboardContent = ({ children }) => {
+  const { showSuccess } = useAlertContext();
+  
+  // Verificar alert de login bem-sucedido
   useEffect(() => {
     const showLoginSuccess = sessionStorage.getItem('showLoginSuccess');
     const loginUserName = sessionStorage.getItem('loginUserName');
     
     if (showLoginSuccess && loginUserName) {
-      toast.success(`Bem-vindo, ${loginUserName}!`);
+      showSuccess(`Bem-vindo, ${loginUserName}!`, 'Login realizado');
       sessionStorage.removeItem('showLoginSuccess');
       sessionStorage.removeItem('loginUserName');
     }
-  }, []);
+  }, [showSuccess]);
+  
+  // Hook de notificações em tempo real (agora dentro do provider)
+  useRealTimeNotifications();
+  
+  // Hook de sincronização de balance em tempo real
+  const { isActive, startSync } = useBalanceSync();
+  
+  // Iniciar sincronização de balance automaticamente
+  useEffect(() => {
+    startSync();
+  }, [startSync]);
+  
+  return children;
+};
+
+export default function RootLayout({ children }) {
   const { width, breakpoints } = useWidth();
   const [collapsed] = useSidebar();
   const [isRtl] = useRtl();
@@ -54,8 +77,12 @@ export default function RootLayout({ children }) {
   // Hook de renovação automática de token
   useTokenRenewal();
   
+  // Hook de refresh proativo de token
+  useProactiveTokenRefresh();
+  
   // Hook de proteção contra crashes
   useErrorBoundary();
+  
   const location = usePathname();
   // header switch class
   const switchHeaderClass = () => {
@@ -77,14 +104,16 @@ export default function RootLayout({ children }) {
 
   return (
     <AuthGuard>
-      <div
-        dir={isRtl ? "rtl" : "ltr"}
-        className={`app-warp    ${isDark ? "dark" : "light"} ${
-          skin === "bordered" ? "skin--bordered" : "skin--default"
-        }
-        ${navbarType === "floating" ? "has-floating" : ""}
-        `}
-      >
+      <AlertProvider>
+        <NotificationProvider>
+          <div
+          dir={isRtl ? "rtl" : "ltr"}
+          className={`app-warp    ${isDark ? "dark" : "light"} ${
+            skin === "bordered" ? "skin--bordered" : "skin--default"
+          }
+          ${navbarType === "floating" ? "has-floating" : ""}
+          `}
+        >
         <ToastContainer
           position="top-right"
           autoClose={1500}
@@ -154,8 +183,10 @@ export default function RootLayout({ children }) {
               }}
             >
               <Suspense fallback={<Loading />}>
-                <Breadcrumbs />
-                {children}
+                <DashboardContent>
+                  <Breadcrumbs />
+                  {children}
+                </DashboardContent>
               </Suspense>
             </motion.div>
           </div>
@@ -165,7 +196,9 @@ export default function RootLayout({ children }) {
       {width > breakpoints.md && (
         <Footer className={width > breakpoints.xl ? switchHeaderClass() : ""} />
       )}
-      </div>
+        </div>
+        </NotificationProvider>
+      </AlertProvider>
     </AuthGuard>
   );
 }

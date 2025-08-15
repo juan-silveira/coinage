@@ -131,7 +131,7 @@ const logout = async (req, res) => {
       const token = authHeader.substring(7);
       
       try {
-        await jwtService.addToBlacklist(token);
+        await jwtService.blacklistToken(token);
       } catch (blacklistError) {
         console.warn('⚠️ Falha ao adicionar token à blacklist:', blacklistError.message);
       }
@@ -469,7 +469,16 @@ const refreshToken = async (req, res) => {
     const clientIP = req.ip || req.connection.remoteAddress;
     const userAgent = req.get('User-Agent');
 
+    console.log('\ud83d\udd0d [Refresh] Recebida requisição de refresh token:', {
+      hasRefreshToken: !!refreshToken,
+      tokenLength: refreshToken?.length || 0,
+      tokenStart: refreshToken?.substring(0, 20) + '...',
+      clientIP,
+      userAgent: userAgent?.substring(0, 50)
+    });
+
     if (!refreshToken) {
+      console.error('\u274c [Refresh] Refresh token não fornecido');
       return res.status(400).json({
         success: false,
         message: 'Refresh token é obrigatório'
@@ -487,21 +496,46 @@ const refreshToken = async (req, res) => {
     }
 
     // Verificar e decodificar o refresh token
-    const decoded = jwtService.verifyRefreshToken(refreshToken);
+    let decoded;
+    try {
+      decoded = jwtService.verifyRefreshToken(refreshToken);
+      console.log('\ud83d\udd0d [Refresh] Token decodificado com sucesso:', { userId: decoded.id, exp: decoded.exp });
+    } catch (verifyError) {
+      console.error('\u274c [Refresh] Erro ao verificar refresh token:', verifyError.message);
+      return res.status(401).json({
+        success: false,
+        message: 'Refresh token inv\u00e1lido ou expirado'
+      });
+    }
     
     // Buscar usuário
     const user = await userService.getUserById(decoded.id);
+    console.log('\ud83d\udd0d [Refresh] Usu\u00e1rio encontrado:', { found: !!user, active: user?.isActive });
     
-    if (!user.success || !user.data.isActive) {
+    if (!user || !user.isActive) {
       return res.status(401).json({
         success: false,
         message: 'Usuário não encontrado ou inativo'
       });
     }
 
+    // Adicionar refresh token antigo à blacklist
+    try {
+      const blacklistSuccess = await jwtService.blacklistToken(refreshToken);
+      if (blacklistSuccess) {
+        console.log('\ud83d\udcdd [Refresh] Token antigo adicionado à blacklist com sucesso');
+      } else {
+        console.warn('\u26a0\ufe0f [Refresh] Falha ao adicionar token antigo à blacklist');
+      }
+    } catch (blacklistError) {
+      console.warn('\u26a0\ufe0f [Refresh] Erro ao adicionar token antigo à blacklist:', blacklistError.message);
+    }
+
     // Gerar novos tokens
-    const newAccessToken = jwtService.generateAccessToken(user.data);
-    const newRefreshToken = jwtService.generateRefreshToken(user.data);
+    const newAccessToken = jwtService.generateAccessToken(user);
+    const newRefreshToken = jwtService.generateRefreshToken(user);
+    
+    console.log('\u2705 [Refresh] Novos tokens gerados com sucesso para usuário:', user.email);
 
     res.json({
       success: true,
@@ -514,7 +548,20 @@ const refreshToken = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('❌ Erro no refresh token:', error);
+    console.error('❌ [Refresh] Erro no refresh token:', {
+      error: error.message,
+      stack: error.stack?.split('\n').slice(0, 3),
+      refreshToken: refreshToken?.substring(0, 20) + '...'
+    });
+    
+    // Retornar erro 401 para refresh token inválidos ao invés de 500
+    if (error.message.includes('invalid') || error.message.includes('expired') || error.message.includes('jwt')) {
+      return res.status(401).json({
+        success: false,
+        message: 'Refresh token inválido ou expirado'
+      });
+    }
+    
     res.status(500).json({
       success: false,
       message: 'Erro interno do servidor'

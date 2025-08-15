@@ -1,7 +1,6 @@
 "use client";
 import React, { useState, useEffect, useCallback } from "react";
-import { toast, ToastContainer } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
+import { useAlertContext } from "@/contexts/AlertContext";
 
 import Icon from "@/components/ui/Icon";
 import Card from "@/components/ui/Card";
@@ -12,8 +11,19 @@ import Button from "@/components/ui/Button";
 import ConfirmationModal from "@/components/ui/ConfirmationModal";
 import NotificationItem from "@/components/partials/app/notifications/NotificationItem";
 import NotificationDetails from "@/components/partials/app/notifications/NotificationDetails";
+import { useNotificationEvents } from "@/contexts/NotificationContext";
 const NotificationPage = () => {
   const { isAuthenticated } = useAuthStore();
+  const { showSuccess, showError } = useAlertContext();
+  const { 
+    notifyMarkAsRead,
+    notifyMarkAsUnread,
+    notifyDeleted,
+    notifyRestored,
+    notifyMultipleMarkedAsRead,
+    notifyAllMarkedAsRead,
+    notifyAllMarkedAsUnread
+  } = useNotificationEvents();
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(false);
   const [selectedNotifications, setSelectedNotifications] = useState(new Set());
@@ -64,10 +74,13 @@ const NotificationPage = () => {
       if (selectedNotification && selectedNotification.id === notificationId) {
         setSelectedNotification(prev => ({ ...prev, isRead: true, readDate: new Date().toISOString() }));
       }
+
+      // Notificar o sistema sobre a mudança
+      notifyMarkAsRead(notificationId);
     } catch (error) {
       console.error('Erro ao marcar notificação como lida:', error);
     }
-  }, [isAuthenticated, selectedNotification]);
+  }, [isAuthenticated, selectedNotification, notifyMarkAsRead]);
 
   // Marcar notificação como não lida
   const markAsUnread = async (notificationId) => {
@@ -85,6 +98,9 @@ const NotificationPage = () => {
       if (selectedNotification && selectedNotification.id === notificationId) {
         setSelectedNotification(prev => ({ ...prev, isRead: false, readDate: null }));
       }
+
+      // Notificar o sistema sobre a mudança
+      notifyMarkAsUnread(notificationId);
     } catch (error) {
       console.error('Erro ao marcar notificação como não lida:', error);
     }
@@ -120,6 +136,10 @@ const NotificationPage = () => {
     try {
       await api.delete(`/api/notifications/${notificationId}`);
       
+      // Verificar se a notificação estava não lida antes de excluir
+      const notification = notifications.find(n => n.id === notificationId);
+      const wasUnread = notification && !notification.isRead;
+
       // Atualizar estado local (soft delete)
       setNotifications(prev => prev.map(n => 
         n.id === notificationId ? { ...n, isActive: false } : n
@@ -130,33 +150,11 @@ const NotificationPage = () => {
         setSelectedNotification(null);
       }
 
-      // Mostrar toast de sucesso
-      toast.success(
-        <div>
-          <span>Conversa movida para a Lixeira. </span>
-          <button 
-            onClick={() => {
-              try {
-                restoreNotification(notificationId);
-              } catch (error) {
-                console.error('Erro ao restaurar:', error);
-                toast.error('Erro ao restaurar notificação');
-              }
-            }}
-            className="text-blue-600 underline hover:text-blue-800"
-          >
-            Desfazer
-          </button>
-        </div>,
-        {
-          position: "top-right",
-          autoClose: 5000,
-          hideProgressBar: false,
-          closeOnClick: true,
-          pauseOnHover: true,
-          draggable: true,
-        }
-      );
+      // Notificar o sistema sobre a exclusão
+      notifyDeleted(notificationId, wasUnread);
+
+      // Mostrar alerta de sucesso
+      showSuccess('Conversa movida para a Lixeira', 'Exclusão realizada');
     } catch (error) {
       console.error('Erro ao excluir notificação:', error);
     }
@@ -167,6 +165,10 @@ const NotificationPage = () => {
     if (!isAuthenticated) return;
     
     try {
+      // Verificar se a notificação estava não lida antes de restaurar
+      const notification = notifications.find(n => n.id === notificationId);
+      const wasUnread = notification && !notification.isRead;
+
       await api.put(`/api/notifications/${notificationId}/restore`);
       
       // Atualizar estado local
@@ -174,20 +176,13 @@ const NotificationPage = () => {
         n.id === notificationId ? { ...n, isActive: true } : n
       ));
 
-      toast.success('Notificação restaurada com sucesso!', {
-        position: "top-right",
-        autoClose: 3000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true,
-      });
+      // Notificar o sistema sobre a restauração
+      notifyRestored(notificationId, wasUnread);
+
+      showSuccess('Notificação restaurada com sucesso!', 'Restauração realizada');
     } catch (error) {
       console.error('Erro ao restaurar notificação:', error);
-      toast.error('Erro ao restaurar notificação', {
-        position: "top-right",
-        autoClose: 3000,
-      });
+      showError('Erro ao restaurar notificação');
     }
   };
 
@@ -243,6 +238,9 @@ const NotificationPage = () => {
       
       setSelectedNotifications(new Set());
       setSelectAll(false);
+
+      // Notificar o sistema sobre as mudanças
+      notifyMultipleMarkedAsRead(Array.from(selectedNotifications));
     } catch (error) {
       console.error('Erro ao marcar múltiplas notificações como lidas:', error);
     }
@@ -255,6 +253,9 @@ const NotificationPage = () => {
       
       // Atualizar estado local
       setNotifications(prev => prev.map(n => ({ ...n, isRead: true, readDate: new Date().toISOString() })));
+
+      // Notificar o sistema sobre a mudança
+      notifyAllMarkedAsRead();
     } catch (error) {
       console.error('Erro ao marcar todas as notificações como lidas:', error);
     }
@@ -267,6 +268,9 @@ const NotificationPage = () => {
       
       // Atualizar estado local
       setNotifications(prev => prev.map(n => ({ ...n, isRead: false, readDate: null })));
+
+      // Notificar o sistema sobre a mudança
+      notifyAllMarkedAsUnread();
     } catch (error) {
       console.error('Erro ao marcar todas as notificações como não lidas:', error);
     }
@@ -277,14 +281,27 @@ const NotificationPage = () => {
     if (selectedNotifications.size === 0) return;
     
     try {
+      // Verificar quais notificações estavam não lidas antes de excluir
+      const notificationsToDelete = Array.from(selectedNotifications);
+      const unreadNotifications = notificationsToDelete.filter(id => {
+        const notification = notifications.find(n => n.id === id);
+        return notification && !notification.isRead;
+      });
+
       await api.delete('/api/notifications/delete-multiple', {
-        data: { notificationIds: Array.from(selectedNotifications) }
+        data: { notificationIds: notificationsToDelete }
       });
       
       // Atualizar estado local (soft delete)
       setNotifications(prev => prev.map(n => 
         selectedNotifications.has(n.id) ? { ...n, isActive: false } : n
       ));
+      
+      // Notificar o sistema sobre cada exclusão para atualizar o header
+      notificationsToDelete.forEach(notificationId => {
+        const wasUnread = unreadNotifications.includes(notificationId);
+        notifyDeleted(notificationId, wasUnread);
+      });
       
       // Fechar modal se alguma notificação excluída estava aberta
       if (selectedNotification && selectedNotifications.has(selectedNotification.id)) {
@@ -298,32 +315,11 @@ const NotificationPage = () => {
       // Fechar modal de confirmação
       setShowDeleteMultipleModal(false);
       
-      // Mostrar toast de sucesso
-      toast.success(
-        <div>
-          <span>Notificações movidas para a Lixeira. </span>
-          <button 
-            onClick={() => restoreMultipleNotifications(Array.from(selectedNotifications))}
-            className="text-blue-600 underline hover:text-blue-800"
-          >
-            Desfazer
-          </button>
-        </div>,
-        {
-          position: "top-right",
-          autoClose: 5000,
-          hideProgressBar: false,
-          closeOnClick: true,
-          pauseOnHover: true,
-          draggable: true,
-        }
-      );
+      // Mostrar alerta de sucesso
+      showSuccess('Notificações movidas para a Lixeira', 'Exclusão realizada');
     } catch (error) {
       console.error('Erro ao excluir múltiplas notificações:', error);
-      toast.error('Erro ao excluir notificações', {
-        position: "top-right",
-        autoClose: 3000,
-      });
+      showError('Erro ao excluir notificações');
     }
   };
 
@@ -333,6 +329,12 @@ const NotificationPage = () => {
       // Excluir todas as notificações filtradas
       const notificationIds = filteredNotifications.map(n => n.id);
       
+      // Verificar quais notificações estavam não lidas antes de excluir
+      const unreadNotifications = notificationIds.filter(id => {
+        const notification = notifications.find(n => n.id === id);
+        return notification && !notification.isRead;
+      });
+      
       await api.delete('/api/notifications/delete-multiple', {
         data: { notificationIds }
       });
@@ -341,6 +343,12 @@ const NotificationPage = () => {
       setNotifications(prev => prev.map(n => 
         notificationIds.includes(n.id) ? { ...n, isActive: false } : n
       ));
+      
+      // Notificar o sistema sobre cada exclusão para atualizar o header
+      notificationIds.forEach(notificationId => {
+        const wasUnread = unreadNotifications.includes(notificationId);
+        notifyDeleted(notificationId, wasUnread);
+      });
       
       // Fechar modal se alguma notificação excluída estava aberta
       if (selectedNotification && notificationIds.includes(selectedNotification.id)) {
@@ -354,41 +362,30 @@ const NotificationPage = () => {
       // Fechar modal de confirmação
       setShowDeleteAllModal(false);
       
-      // Mostrar toast de sucesso
-      toast.success(
-        <div>
-          <span>Todas as notificações foram movidas para a Lixeira. </span>
-          <button 
-            onClick={() => restoreAllNotifications(notificationIds)}
-            className="text-blue-600 underline hover:text-blue-800"
-          >
-            Desfazer
-          </button>
-        </div>,
-        {
-          position: "top-right",
-          autoClose: 5000,
-          hideProgressBar: false,
-          closeOnClick: true,
-          pauseOnHover: true,
-          draggable: true,
-        }
-      );
+      // Mostrar alerta de sucesso
+      showSuccess('Todas as notificações foram movidas para a Lixeira', 'Exclusão realizada');
     } catch (error) {
       console.error('Erro ao excluir todas as notificações:', error);
-      toast.error('Erro ao excluir notificações', {
-        position: "top-right",
-        autoClose: 3000,
-      });
+      showError('Erro ao excluir notificações');
     }
   };
 
   // Restaurar múltiplas notificações excluídas
   const restoreMultipleNotifications = async (notificationIds) => {
     try {
+      // Verificar quais estavam não lidas antes de restaurar
+      const unreadIds = notificationIds.filter(id => {
+        const notification = notifications.find(n => n.id === id);
+        return notification && !notification.isRead;
+      });
+
       // Restaurar cada notificação
       for (const id of notificationIds) {
         await api.put(`/api/notifications/${id}/restore`);
+        
+        // Notificar individualmente cada restauração
+        const wasUnread = unreadIds.includes(id);
+        notifyRestored(id, wasUnread);
       }
       
       // Atualizar estado local
@@ -396,25 +393,29 @@ const NotificationPage = () => {
         notificationIds.includes(n.id) ? { ...n, isActive: true } : n
       ));
       
-      toast.success('Notificações restauradas com sucesso!', {
-        position: "top-right",
-        autoClose: 3000,
-      });
+      showSuccess('Notificações restauradas com sucesso!', 'Restauração realizada');
     } catch (error) {
       console.error('Erro ao restaurar notificações:', error);
-      toast.error('Erro ao restaurar notificações', {
-        position: "top-right",
-        autoClose: 3000,
-      });
+      showError('Erro ao restaurar notificações');
     }
   };
 
   // Restaurar todas as notificações excluídas
   const restoreAllNotifications = async (notificationIds) => {
     try {
+      // Verificar quais estavam não lidas antes de restaurar
+      const unreadIds = notificationIds.filter(id => {
+        const notification = notifications.find(n => n.id === id);
+        return notification && !notification.isRead;
+      });
+
       // Restaurar cada notificação
       for (const id of notificationIds) {
         await api.put(`/api/notifications/${id}/restore`);
+        
+        // Notificar individualmente cada restauração
+        const wasUnread = unreadIds.includes(id);
+        notifyRestored(id, wasUnread);
       }
       
       // Atualizar estado local
@@ -422,16 +423,10 @@ const NotificationPage = () => {
         notificationIds.includes(n.id) ? { ...n, isActive: true } : n
       ));
       
-      toast.success('Todas as notificações foram restauradas!', {
-        position: "top-right",
-        autoClose: 3000,
-      });
+      showSuccess('Todas as notificações foram restauradas!', 'Restauração realizada');
     } catch (error) {
       console.error('Erro ao restaurar notificações:', error);
-      toast.error('Erro ao restaurar notificações', {
-        position: "top-right",
-        autoClose: 3000,
-      });
+      showError('Erro ao restaurar notificações');
     }
   };
 
@@ -471,7 +466,7 @@ const NotificationPage = () => {
     if (isAuthenticated) {
       fetchNotifications();
     } else {
-      console.log('❌ Usuário não autenticado');
+      // console.log('❌ Usuário não autenticado');
     }
   }, [isAuthenticated]);
 
@@ -775,7 +770,6 @@ const NotificationPage = () => {
         icon="danger"
       />
       
-      <ToastContainer />
     </>
   );
 };

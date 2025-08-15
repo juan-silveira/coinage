@@ -40,29 +40,31 @@ const userCacheMiddleware = async (req, res, next) => {
       });
       
       if (user) {
-        // Extrair roles baseado nas relações userClients
-        const roles = user.userClients?.map(uc => uc.clientRole) || [];
-        const globalRole = user.globalRole;
-        if (globalRole && !roles.includes(globalRole)) {
-          roles.push(globalRole);
-        }
-
-        const userDataForCache = {
+        // Obter roles do usuário em todos os clientes
+        const roles = user.userClients?.map(uc => uc.role) || [];
+        
+        // Buscar role do cliente atual se disponível
+        const currentClientRole = user.userClients?.find(uc => uc.status === 'active')?.role;
+        
+        // Criar cache do usuário
+        const userCache = {
           id: user.id,
           name: user.name,
           email: user.email,
-          phone: user.phone,
           cpf: user.cpf,
+          phone: user.phone,
           birthDate: user.birthDate,
           publicKey: user.publicKey,
-          globalRole: user.globalRole,
-          roles: roles,
-          isFirstAccess: user.isFirstAccess,
           isActive: user.isActive,
-          lastUpdated: new Date().toISOString()
+          userPlan: user.userPlan,
+          roles: roles,
+          currentClientRole: currentClientRole,
+          lastActivityAt: user.lastActivityAt,
+          createdAt: user.createdAt,
+          updatedAt: user.updatedAt
         };
 
-        await redisService.cacheUserData(user.id, userDataForCache, 3600);
+        await redisService.cacheUserData(user.id, userCache, 3600);
       }
     } catch (prismaError) {
       console.error('❌ Error fetching user from Prisma in cache middleware:', prismaError);

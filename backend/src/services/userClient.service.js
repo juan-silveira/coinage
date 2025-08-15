@@ -165,6 +165,83 @@ class UserClientService {
   }
 
   /**
+   * Cria vinculação de usuário ao cliente
+   * @param {string} userId - ID do usuário
+   * @param {string} clientId - ID do cliente
+   * @param {Object} options - Opções de vinculação
+   * @returns {Promise<Object>} Resultado da vinculação
+   */
+  async createUserClientLink(userId, clientId, options = {}) {
+    try {
+      if (!this.prisma) await this.init();
+
+      const {
+        status = 'pending',
+        role = 'USER',
+        permissions = {},
+        requestedBy = null,
+        metadata = {}
+      } = options;
+
+      // Verificar se já existe vinculação
+      const existingLink = await this.getUserClientLink(userId, clientId);
+      if (existingLink) {
+        throw new Error('Usuário já está vinculado a este cliente');
+      }
+
+      const userClient = await this.prisma.userClient.create({
+        data: {
+          userId,
+          clientId,
+          status,
+          role,
+          permissions,
+          requestedBy,
+          metadata
+        }
+      });
+
+      return userClient;
+    } catch (error) {
+      console.error('❌ Erro ao criar vinculação user-client:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Atualiza status da vinculação user-client
+   * @param {string} userId - ID do usuário
+   * @param {string} clientId - ID do cliente
+   * @param {string} newStatus - Novo status
+   * @param {string} updatedBy - ID do usuário que fez a atualização
+   * @returns {Promise<Object>} UserClient atualizado
+   */
+  async updateUserClientStatus(userId, clientId, newStatus, updatedBy) {
+    try {
+      if (!this.prisma) await this.init();
+
+      const userClient = await this.prisma.userClient.update({
+        where: {
+          userId_clientId: {
+            userId,
+            clientId
+          }
+        },
+        data: {
+          status: newStatus,
+          approvedBy: updatedBy,
+          approvedAt: newStatus === 'active' ? new Date() : null
+        }
+      });
+
+      return userClient;
+    } catch (error) {
+      console.error('❌ Erro ao atualizar status da vinculação:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Lista clientes vinculados a um usuário
    * @param {string} userId - ID do usuário
    * @param {Object} options - Opções de listagem
@@ -176,6 +253,7 @@ class UserClientService {
 
       const {
         status = 'active',
+        role,
         includeInactive = false
       } = options;
 
@@ -183,6 +261,10 @@ class UserClientService {
       
       if (!includeInactive) {
         where.status = status;
+      }
+
+      if (role) {
+        where.role = role;
       }
 
       const userClients = await this.prisma.userClient.findMany({
@@ -235,7 +317,7 @@ class UserClientService {
       const where = { clientId, status };
       
       if (role) {
-        where.clientRole = role;
+        where.role = role;
       }
 
       const [userClients, total] = await Promise.all([
@@ -310,22 +392,16 @@ class UserClientService {
   }
 
   /**
-   * Atualiza role de usuário em um cliente
+   * Atualiza role do usuário em um cliente
    * @param {string} userId - ID do usuário
    * @param {string} clientId - ID do cliente
    * @param {string} newRole - Nova role
-   * @param {string} updatedBy - ID do atualizador
-   * @returns {Promise<Object>} Vinculação atualizada
+   * @param {string} updatedBy - ID do usuário que fez a atualização
+   * @returns {Promise<Object>} UserClient atualizado
    */
   async updateUserClientRole(userId, clientId, newRole, updatedBy) {
     try {
       if (!this.prisma) await this.init();
-
-      // Verificar se a role é válida
-      const validRoles = ['USER', 'ADMIN', 'SUPER_ADMIN', 'APP_ADMIN'];
-      if (!validRoles.includes(newRole)) {
-        throw new Error(`Role inválida: ${newRole}`);
-      }
 
       const userClient = await this.prisma.userClient.update({
         where: {
@@ -335,23 +411,14 @@ class UserClientService {
           }
         },
         data: {
-          clientRole: newRole,
-          // Se está promovendo para ADMIN ou SUPER_ADMIN, pode ver chaves privadas de acordo com a role
-          canViewPrivateKeys: ['SUPER_ADMIN'].includes(newRole)
-        },
-        include: {
-          user: {
-            select: { id: true, name: true, email: true }
-          },
-          client: {
-            select: { id: true, name: true }
-          }
+          role: newRole,
+          updatedAt: new Date()
         }
       });
 
       return userClient;
     } catch (error) {
-      console.error('❌ Erro ao atualizar role:', error);
+      console.error('❌ Erro ao atualizar role do usuário:', error);
       throw error;
     }
   }
@@ -433,7 +500,7 @@ class UserClientService {
       }
 
       // Verificar por role
-      const role = userClient.clientRole;
+      const role = userClient.role;
       const permissions = {
         'SUPER_ADMIN': ['*'], // Todas as permissões
         'APP_ADMIN': ['read_users', 'create_users', 'update_users', 'read_transactions', 'create_transactions'],
@@ -447,6 +514,64 @@ class UserClientService {
     } catch (error) {
       console.error('❌ Erro ao verificar permissões:', error);
       return false;
+    }
+  }
+
+  /**
+   * Obtém o cliente atual do usuário (baseado no último acesso)
+   * @param {string} userId - ID do usuário
+   * @returns {Promise<Object|null>} Cliente atual ou null
+   */
+  async getCurrentClient(userId) {
+    try {
+      if (!this.prisma) await this.init();
+
+      // Buscar o cliente com último acesso mais recente
+      const currentUserClient = await this.prisma.userClient.findFirst({
+        where: {
+          userId,
+          status: 'active',
+          client: {
+            isActive: true
+          }
+        },
+        include: {
+          client: {
+            select: {
+              id: true,
+              name: true,
+              alias: true,
+              isActive: true,
+              createdAt: true,
+              updatedAt: true
+            }
+          }
+        },
+        orderBy: [
+          { lastAccessAt: 'desc' },
+          { linkedAt: 'desc' }
+        ]
+      });
+
+      if (!currentUserClient) {
+        return null;
+      }
+
+      return {
+        id: currentUserClient.client.id,
+        name: currentUserClient.client.name,
+        alias: currentUserClient.client.alias,
+        isActive: currentUserClient.client.isActive,
+        createdAt: currentUserClient.client.createdAt,
+        updatedAt: currentUserClient.client.updatedAt,
+        userRole: currentUserClient.role,
+        linkedAt: currentUserClient.linkedAt,
+        lastAccessAt: currentUserClient.lastAccessAt
+      };
+
+    } catch (error) {
+      console.error('❌ Erro ao obter cliente atual:', error);
+      throw error;
     }
   }
 }

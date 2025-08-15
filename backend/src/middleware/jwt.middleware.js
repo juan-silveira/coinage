@@ -34,7 +34,31 @@ const authenticateToken = async (req, res, next) => {
     // Verificar e decodificar o token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
-    req.user = decoded;
+    // Buscar usuário completo no banco com dados do cliente
+    const user = await getPrisma().user.findUnique({
+      where: { id: decoded.id },
+      include: {
+        userClients: {
+          include: {
+            client: true
+          }
+        }
+      }
+    });
+
+    if (!user || !user.isActive) {
+      return res.status(401).json({
+        success: false,
+        message: 'Usuário não encontrado ou inativo'
+      });
+    }
+
+    // Adicionar dados do cliente se existir
+    if (user.userClients && user.userClients.length > 0) {
+      req.client = user.userClients[0].client;
+    }
+    
+    req.user = user;
     next();
     
   } catch (error) {

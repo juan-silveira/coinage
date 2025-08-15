@@ -1,5 +1,5 @@
 "use client";
-import React from "react";
+import React, { useState } from "react";
 import dynamic from "next/dynamic";
 import useCachedBalances from "@/hooks/useCachedBalances";
 import { getTokenPrice, formatCurrency as formatCurrencyHelper } from "@/constants/tokenPrices";
@@ -8,6 +8,7 @@ const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
 const PortfolioDonutChart = () => {
   const { balances, loading, getCorrectAzeSymbol } = useCachedBalances();
+  const [hoveredIndex, setHoveredIndex] = useState(-1);
 
   // Usar formatação centralizada
   const formatCurrency = formatCurrencyHelper;
@@ -74,16 +75,20 @@ const PortfolioDonutChart = () => {
     let totalValue = 0;
     const availableBalance = getBalance('cBRL'); // cBRL disponível
 
+    // Array para armazenar dados de cada categoria (sempre incluir todas)
+    const categoryData = [];
+    const chartIndexMap = {}; // Mapear categoria para índice no gráfico
+    let chartIndex = 0;
+    
     // Adicionar saldo disponível (cBRL) primeiro
     if (availableBalance > 0) {
       series.push(availableBalance);
       labels.push('Saldo Disponível');
       colors.push(colorMap['Saldo Disponível']);
       totalValue += availableBalance;
+      chartIndexMap['Saldo Disponível'] = chartIndex;
+      chartIndex++;
     }
-
-    // Array para armazenar dados de cada categoria (sempre incluir todas)
-    const categoryData = [];
     
     // Calcular cada categoria
     Object.entries(tokenCategories).forEach(([categoryKey, tokens]) => {
@@ -100,7 +105,8 @@ const PortfolioDonutChart = () => {
       categoryData.push({
         key: categoryKey,
         name: categoryName,
-        value: categoryTotal
+        value: categoryTotal,
+        chartIndex: categoryTotal > 0 ? chartIndex : -1 // Índice no gráfico ou -1 se não está no gráfico
       });
 
       // Adicionar ao gráfico apenas se tiver valor > 0
@@ -109,6 +115,8 @@ const PortfolioDonutChart = () => {
         labels.push(categoryName);
         colors.push(colorMap[categoryName]);
         totalValue += categoryTotal;
+        chartIndexMap[categoryName] = chartIndex;
+        chartIndex++;
       }
     });
 
@@ -130,13 +138,14 @@ const PortfolioDonutChart = () => {
       totalValue,
       isEmpty: false,
       allCategories: categoryData, // Incluir dados de todas as categorias
-      availableBalance
+      availableBalance,
+      chartIndexMap // Mapeamento de categoria para índice no gráfico
     };
   };
 
   const chartData = getChartData();
 
-  // Configuração do gráfico donut
+  // Configuração do gráfico donut (recriada quando hoveredIndex muda)
   const chartOptions = {
     chart: {
       type: 'donut',
@@ -148,7 +157,7 @@ const PortfolioDonutChart = () => {
     plotOptions: {
       pie: {
         donut: {
-          size: '70%',
+          size: '85%', // Gráfico mais fino
           labels: {
             show: true,
             name: {
@@ -174,7 +183,11 @@ const PortfolioDonutChart = () => {
         expandOnClick: false
       }
     },
-    colors: chartData.colors,
+    colors: chartData.colors.map((color, index) => {
+      if (hoveredIndex === -1) return color; // Sem hover - cores normais
+      if (hoveredIndex === index) return color; // Elemento com hover - cor normal
+      return color + '40'; // Outros elementos - cor com opacidade reduzida
+    }),
     labels: chartData.labels,
     legend: {
       show: false
@@ -193,11 +206,24 @@ const PortfolioDonutChart = () => {
         }
       }
     },
+    states: {
+      hover: {
+        filter: {
+          type: 'none' // Desabilitar hover padrão do ApexCharts
+        }
+      },
+      active: {
+        filter: {
+          type: 'none'
+        }
+      }
+    },
     responsive: [{
       breakpoint: 480,
       options: {
         chart: {
-          height: 180
+          height: 140,
+          width: 140
         }
       }
     }]
@@ -214,21 +240,23 @@ const PortfolioDonutChart = () => {
 
   return (
     <div className="space-y-3">
-      {/* Layout responsivo: Desktop - lado a lado, Mobile - vertical */}
-      <div className="flex lg:flex-row flex-col lg:items-center lg:space-x-6 lg:space-y-0 space-y-3">
-        {/* Gráfico Donut */}
-        <div className="flex justify-center lg:flex-none">
-          <Chart
-            options={chartOptions}
-            series={chartData.series}
-            type="donut"
-            height={180}
-            width={180}
-          />
+      {/* Layout sempre lado a lado: Gráfico (esquerda) + Legenda (direita) */}
+      <div className="flex flex-row items-stretch space-x-4">
+        {/* Gráfico Donut - centralizado verticalmente */}
+        <div className="flex justify-center items-center flex-none self-center">
+          <div className="w-40 h-40 sm:w-36 sm:h-36 flex items-center justify-center">
+            <Chart
+              options={chartOptions}
+              series={chartData.series}
+              type="donut"
+              height={160}
+              width={160}
+            />
+          </div>
         </div>
 
-        {/* Legenda - Sempre mostrar todas as categorias */}
-        <div className="space-y-2 lg:flex-1">
+        {/* Legenda - centralizada verticalmente */}
+        <div className="space-y-2 flex-1 min-w-0 flex flex-col justify-center self-center">
         {chartData.isEmpty ? (
           <div className="text-center text-slate-500 dark:text-slate-400 py-4">
             <p className="text-sm font-medium">Nenhum ativo encontrado</p>
@@ -238,32 +266,47 @@ const PortfolioDonutChart = () => {
           <>
             {/* Saldo Disponível */}
             {chartData.availableBalance !== undefined && (
-              <div className="flex items-center justify-between text-sm">
+              <div 
+                className={`flex items-center text-xs cursor-pointer p-1 rounded transition-colors duration-200 ${
+                  hoveredIndex === (chartData.chartIndexMap?.['Saldo Disponível'] ?? -1) ? 'bg-slate-100 dark:bg-slate-700' : 'hover:bg-slate-50 dark:hover:bg-slate-800'
+                }`}
+                onMouseEnter={() => setHoveredIndex(chartData.chartIndexMap?.['Saldo Disponível'] ?? -1)}
+                onMouseLeave={() => setHoveredIndex(-1)}
+              >
                 <div className="flex items-center space-x-2">
-                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#3B82F6' }}></div>
+                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: '#3B82F6' }}></div>
                   <span className="text-slate-600 dark:text-slate-400">Saldo Disponível</span>
                 </div>
-                <span className="font-medium text-slate-900 dark:text-white balance">
-                  {formatCurrency(chartData.availableBalance)}
-                </span>
               </div>
             )}
             
             {/* Todas as categorias */}
-            {chartData.allCategories && chartData.allCategories.map((category, index) => (
-              <div key={category.key} className="flex items-center justify-between text-sm">
-                <div className="flex items-center space-x-2">
-                  <div 
-                    className="w-3 h-3 rounded-full" 
-                    style={{ backgroundColor: ['#10B981', '#8B5CF6', '#F59E0B', '#EF4444'][index] }}
-                  ></div>
-                  <span className="text-slate-600 dark:text-slate-400">{category.name}</span>
+            {chartData.allCategories && chartData.allCategories.map((category, index) => {
+              const chartIndexForCategory = category.chartIndex;
+              const colors = ['#10B981', '#8B5CF6', '#F59E0B', '#EF4444'];
+              const isInChart = chartIndexForCategory !== -1;
+              
+              return (
+                <div 
+                  key={category.key} 
+                  className={`flex items-center text-xs cursor-pointer p-1 rounded transition-colors duration-200 ${
+                    hoveredIndex === chartIndexForCategory ? 'bg-slate-100 dark:bg-slate-700' : 'hover:bg-slate-50 dark:hover:bg-slate-800'
+                  } ${
+                    !isInChart ? 'opacity-60' : ''
+                  }`}
+                  onMouseEnter={() => isInChart && setHoveredIndex(chartIndexForCategory)}
+                  onMouseLeave={() => setHoveredIndex(-1)}
+                >
+                  <div className="flex items-center space-x-2">
+                    <div 
+                      className="w-2 h-2 rounded-full" 
+                      style={{ backgroundColor: colors[index] }}
+                    ></div>
+                    <span className="text-slate-600 dark:text-slate-400">{category.name}</span>
+                  </div>
                 </div>
-                <span className="font-medium text-slate-900 dark:text-white balance">
-                  {formatCurrency(category.value)}
-                </span>
-              </div>
-            ))}
+              );
+            })}
           </>
         )}
         </div>

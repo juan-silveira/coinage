@@ -30,7 +30,7 @@ class AzoreScanService {
       
       const response = await axios.get(baseUrl, {
         params,
-        timeout: 10000
+        timeout: 30000 // 30 segundos para evitar timeout prematuro
       });
 
       if (response.data.status === '1' && response.data.message === 'OK') {

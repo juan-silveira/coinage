@@ -20,7 +20,9 @@ class BalanceSyncService {
    */
   async getRedisCache(userId, address) {
     try {
-      const response = await api.get(`/api/balance-sync/cache/${userId}/${address}`);
+      const response = await api.get('/api/balance-sync/cache', {
+        params: { userId, address }
+      });
       
       if (response.data.success) {
         return response.data.data;
@@ -67,7 +69,9 @@ class BalanceSyncService {
    */
   async getChangeHistory(userId, address, limit = 50) {
     try {
-      const response = await api.get(`/api/balance-sync/history/${userId}/${address}?limit=${limit}`);
+      const response = await api.get('/api/balance-sync/history', {
+        params: { userId, address, limit }
+      });
       
       if (response.data.success) {
         return response.data.data;
@@ -87,7 +91,9 @@ class BalanceSyncService {
    */
   async clearRedisCache(userId, address) {
     try {
-      const response = await api.delete(`/api/balance-sync/cache/${userId}/${address}`);
+      const response = await api.delete('/api/balance-sync/cache/clear', {
+        params: { userId, address }
+      });
       
       if (response.data.success) {
         return true;

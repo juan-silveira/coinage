@@ -397,6 +397,273 @@ class TransactionService {
   }
 
   /**
+   * Busca transações por usuário (versão corrigida)
+   */
+  async getTransactionsByUser(userId, options = {}) {
+    try {
+      console.log('🔍 [TransactionService] Buscando TODAS as transações para userId:', userId);
+      
+      if (!this.prisma) {
+        console.log('🔍 [TransactionService] Inicializando Prisma...');
+        await this.initialize();
+      }
+      
+      if (!userId) {
+        console.error('❌ [TransactionService] UserID é obrigatório');
+        return {
+          rows: [],
+          count: 0
+        };
+      }
+
+      const { 
+        page = 1, 
+        limit = 50, 
+        status, 
+        network, 
+        transactionType, 
+        tokenSymbol, 
+        startDate, 
+        endDate 
+      } = options;
+
+      // Construir filtros
+      const where = { 
+        userId: userId  // SEMPRE filtrar por userId, independente do cliente
+      };
+      
+      // Adicionar filtros opcionais
+      if (status) where.status = status;
+      if (network) where.network = network; 
+      
+      // Filtro de tipo de transação complexo - considerar tanto transactionType quanto operation nos metadados
+      console.log('🔍 [TransactionService] Verificando filtro transactionType:', transactionType, 'tipo:', typeof transactionType);
+      if (transactionType) {
+        // Mapear tipos do frontend para tipos/operations do backend
+        const typeMapping = {
+          'deposit': {
+            OR: [
+              { transactionType: 'deposit' },
+              { transactionType: 'contract_call', metadata: { path: ['operation'], equals: 'deposit' } },
+              { transactionType: 'contract_call', metadata: { path: ['operation'], equals: 'mint' } }
+            ]
+          },
+          'withdraw': {
+            OR: [
+              { transactionType: 'withdraw' },
+              { transactionType: 'contract_call', metadata: { path: ['operation'], equals: 'withdraw' } },
+              { transactionType: 'contract_call', metadata: { path: ['operation'], equals: 'burn' } }
+            ]
+          },
+          'exchange': {
+            OR: [
+              { transactionType: 'exchange' },
+              { transactionType: 'contract_call', metadata: { path: ['operation'], equals: 'exchange' } },
+              { transactionType: 'transfer', metadata: { path: ['operation'], equals: 'exchange' } }
+            ]
+          },
+          'transfer': {
+            AND: [
+              { 
+                OR: [
+                  { transactionType: 'transfer' },
+                  { transactionType: 'contract_call', metadata: { path: ['operation'], equals: 'transfer' } }
+                ]
+              },
+              {
+                NOT: {
+                  metadata: { path: ['operation'], equals: 'exchange' }
+                }
+              }
+            ]
+          },
+          'stake': {
+            OR: [
+              { transactionType: 'stake' },
+              { transactionType: 'contract_call', metadata: { path: ['operation'], equals: 'stake' } }
+            ]
+          },
+          'unstake': {
+            OR: [
+              { transactionType: 'unstake' },
+              { transactionType: 'contract_call', metadata: { path: ['operation'], equals: 'unstake' } }
+            ]
+          }
+        };
+        
+        console.log('🔍 [TransactionService] transactionType solicitado:', transactionType);
+        console.log('🔍 [TransactionService] typeMapping disponível:', Object.keys(typeMapping));
+        
+        if (typeMapping[transactionType]) {
+          console.log('🔍 [TransactionService] Aplicando mapeamento complexo para:', transactionType);
+          where.AND = where.AND || [];
+          where.AND.push(typeMapping[transactionType]);
+        } else {
+          console.log('🔍 [TransactionService] Usando fallback para tipo não mapeado:', transactionType);
+          where.transactionType = transactionType;
+        }
+      }
+      
+      if (tokenSymbol && tokenSymbol !== '') {
+        where.AND = where.AND || [];
+        where.AND.push({
+          metadata: {
+            path: ['tokenSymbol'],
+            equals: tokenSymbol
+          }
+        });
+      }
+      
+      if (startDate && endDate) {
+        where.createdAt = {
+          gte: new Date(startDate),
+          lte: new Date(endDate)
+        };
+      }
+      
+      console.log('🔍 [TransactionService] Filtros aplicados:', JSON.stringify(where, null, 2));
+
+      // Executar query no Prisma com tratamento específico de BigInt
+      console.log('🔍 [TransactionService] Executando queries Prisma...');
+      
+      let transactions, count;
+      try {
+        [transactions, count] = await Promise.all([
+          this.prisma.transaction.findMany({
+            where,
+            include: {
+              client: {
+                select: {
+                  id: true,
+                  name: true,
+                  alias: true
+                }
+              }
+            },
+            orderBy: { createdAt: 'desc' },
+            skip: (page - 1) * limit,
+            take: limit
+          }),
+          this.prisma.transaction.count({ where })
+        ]);
+        
+        console.log('🔍 [TransactionService] Queries executadas com sucesso');
+      } catch (prismaError) {
+        console.error('❌ [TransactionService] Erro na query Prisma:', {
+          error: prismaError.message,
+          stack: prismaError.stack
+        });
+        throw prismaError;
+      }
+      
+      console.log(`🔍 [TransactionService] Query executada: ${transactions.length} transações encontradas de ${count} total`);
+
+      console.log(`✅ [TransactionService] Encontradas ${count} transações para userId ${userId}`);
+      
+      // Comprehensive BigInt to string conversion function
+      const convertBigIntToString = (obj) => {
+        if (obj === null || obj === undefined) return obj;
+        if (typeof obj === 'bigint') return obj.toString();
+        
+        // Preserve Date objects by converting to ISO string
+        if (obj instanceof Date) {
+          return obj.toISOString();
+        }
+        
+        if (Array.isArray(obj)) return obj.map(convertBigIntToString);
+        if (typeof obj === 'object' && obj.constructor === Object) {
+          const converted = {};
+          for (const [key, value] of Object.entries(obj)) {
+            converted[key] = convertBigIntToString(value);
+          }
+          return converted;
+        }
+        if (typeof obj === 'object') {
+          // Handle Prisma models and other objects, but preserve Date objects
+          const converted = {};
+          for (const key in obj) {
+            if (obj.hasOwnProperty(key)) {
+              converted[key] = convertBigIntToString(obj[key]);
+            }
+          }
+          return converted;
+        }
+        return obj;
+      };
+
+      // Convert all transactions with comprehensive BigInt handling
+      const formattedTransactions = transactions.map(tx => {
+        const converted = convertBigIntToString(tx);
+        return {
+          ...converted,
+          getFormattedResponse: function() { return this; }
+        };
+      });
+
+      return {
+        rows: formattedTransactions,
+        count
+      };
+    } catch (error) {
+      console.error('❌ [TransactionService] Erro ao buscar transações:', {
+        userId,
+        error: error.message,
+        stack: error.stack
+      });
+      
+      // Retornar resultado vazio ao invés de lançar erro
+      return {
+        rows: [],
+        count: 0
+      };
+    }
+  }
+
+  /**
+   * Debug - busca transações com logs detalhados
+   */
+  async debugGetTransactionsByUser(userId, options = {}) {
+    try {
+      if (!this.prisma) {
+        await this.initialize();
+      }
+
+      console.log('🐛 DEBUG - Parâmetros recebidos:', options);
+      
+      const { page = 1, limit = 50, tokenSymbol } = options;
+      
+      const where = { userId };
+      
+      if (tokenSymbol) {
+        where.metadata = {
+          path: ['tokenSymbol'],
+          equals: tokenSymbol
+        };
+        console.log('🐛 DEBUG - Aplicando filtro tokenSymbol:', tokenSymbol);
+      }
+      
+      console.log('🐛 DEBUG - Where final:', JSON.stringify(where, null, 2));
+      
+      const [transactions, count] = await Promise.all([
+        this.prisma.transaction.findMany({
+          where,
+          orderBy: { createdAt: 'desc' },
+          skip: (page - 1) * limit,
+          take: limit
+        }),
+        this.prisma.transaction.count({ where })
+      ]);
+      
+      console.log('🐛 DEBUG - Resultados: count =', count, ', rows =', transactions.length);
+      
+      return { rows: transactions, count };
+    } catch (error) {
+      console.error('Erro no debug:', error.message);
+      throw error;
+    }
+  }
+
+  /**
    * Busca transação por hash
    */
   async getTransactionByHash(txHash) {

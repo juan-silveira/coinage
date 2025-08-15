@@ -91,7 +91,7 @@ const authenticateUser = async (req, res) => {
       ...user,
       // Adicionar informações do contexto do cliente
       currentClientId: clientId,
-      currentClientRole: result.data.userClient.clientRole
+      currentClientRole: result.data.userClient.role
     });
 
     res.json({
@@ -388,6 +388,39 @@ const getClientStats = async (req, res) => {
   }
 };
 
+/**
+ * Obtém o cliente atual do usuário (baseado no último acesso)
+ */
+const getCurrentClient = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    // Buscar o cliente com último acesso mais recente
+    const currentClient = await userClientService.getCurrentClient(userId);
+
+    if (!currentClient) {
+      return res.status(404).json({
+        success: false,
+        message: 'Nenhum cliente ativo encontrado para este usuário'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        currentClient
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Erro ao obter cliente atual:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro interno do servidor'
+    });
+  }
+};
+
 module.exports = {
   initiateLogin,
   confirmLinking,
@@ -398,5 +431,6 @@ module.exports = {
   getClientUsers,
   updateUserRole,
   unlinkUser,
-  getClientStats
+  getClientStats,
+  getCurrentClient
 };

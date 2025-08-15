@@ -3,7 +3,18 @@ import { userService } from '@/services/api';
 import useAuthStore from '@/store/authStore';
 import api from '@/services/api';
 
-const REFRESH_INTERVAL_MS = 1 * 60 * 1000; // 1 minuto para máxima responsividade
+// Tempo de atualização configurável (padrão: 5 minutos)
+// Futuramente pode ser personalizado por usuário (ex: premium = 1 minuto)
+const DEFAULT_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
+
+const getRefreshInterval = (userPlan = 'BASIC') => {
+  switch (userPlan) {
+    case 'PREMIUM': return 1 * 60 * 1000; // 1 minuto para usuários premium
+    case 'PRO': return 2 * 60 * 1000;     // 2 minutos para usuários pro
+    case 'BASIC':
+    default: return DEFAULT_REFRESH_INTERVAL_MS; // 5 minutos para usuários básicos
+  }
+};
 
 // Função para disparar evento de notificações
 const triggerNotificationRefresh = () => {
@@ -36,6 +47,7 @@ const useCacheData = () => {
   const hasLoadedRef = useRef(false);
   const currentUserEmailRef = useRef(null);
   const refreshTimerRef = useRef(null);
+  const isLoadingRef = useRef(false);
 
   // Função para criar notificação de mudança de balance
   const createBalanceNotification = useCallback(async (changes) => {
@@ -131,7 +143,14 @@ const useCacheData = () => {
       triggerNotificationRefresh();
       
     } catch (error) {
-      // Erro silencioso para notificações
+      // Log apenas em caso de erro crítico (não 401)
+      if (error.response?.status !== 401) {
+        console.error('❌ [CacheData] Erro ao criar notificação de balance:', {
+          error: error.message,
+          status: error.response?.status,
+          changes: changes?.length || 0
+        });
+      }
     }
   }, [user?.id]);
 
@@ -208,10 +227,35 @@ const useCacheData = () => {
       return;
     }
 
-    // Evitar reentrância (mas permitir reload silencioso)
-    if (cacheLoading) return;
-    if (hasLoadedRef.current && reason !== 'silent') return;
+    // Evitar reentrância dupla com debounce
+    if (isLoadingRef.current) {
+      // console.log('⏳ [CacheData] Requisição em andamento, ignorando nova chamada');
+      return;
+    }
+    if (cacheLoading) {
+      // console.log('⏳ [CacheData] Cache em carregamento, ignorando nova chamada');
+      return;
+    }
+    if (hasLoadedRef.current && reason !== 'silent') {
+      // console.log('⏳ [CacheData] Dados já carregados, ignorando nova chamada');
+      return;
+    }
 
+    // Debounce para evitar múltiplas chamadas em sequência
+    if (loadCacheData.debounceTimer) {
+      clearTimeout(loadCacheData.debounceTimer);
+    }
+    
+    loadCacheData.debounceTimer = setTimeout(async () => {
+      await executeLoadCacheData(reason);
+    }, 100);
+
+    return;
+  }, [user?.email, cacheLoaded, cacheLoading, setCacheLoaded, setCacheLoading, detectBalanceChanges, createBalanceNotification]);
+
+  // Função separada para executar o carregamento real
+  const executeLoadCacheData = useCallback(async (reason = 'auto') => {
+    isLoadingRef.current = true;
     setCacheLoading(true);
     // Só mostrar loading se não for silent
     if (reason !== 'silent') {
@@ -219,10 +263,20 @@ const useCacheData = () => {
     }
 
     try {
+      // console.log(`🔄 [CacheData] Iniciando carregamento (reason: ${reason})`);
+      
       const userResponse = await userService.getUserByEmail(user.email);
       
       if (userResponse.success && userResponse.data?.user) {
         const userData = userResponse.data.user;
+        
+        // Log para debug do userPlan
+        // console.log('🔍 [CacheData] Debug - userData carregado:', {
+        //   id: userData.id,
+        //   email: userData.email,
+        //   userPlan: userData.userPlan,
+        //   hasUserPlan: 'userPlan' in userData
+        // });
         
         // Sempre verificar mudanças nos dados do usuário
         if (reason === 'silent' && cachedUser && userData.id === cachedUser.id) {
@@ -281,7 +335,23 @@ const useCacheData = () => {
         setBalances({ network: 'testnet', balancesTable: {}, tokenBalances: [], totalTokens: 0, categories: null });
       }
     } catch (error) {
-      // Erro ao carregar dados
+      // Se for erro 401 em modo silent, não mostrar erro
+      if (error.response?.status === 401 && reason === 'silent') {
+        // Não fazer nada, deixar o sistema lidar com o refresh token
+        return;
+      }
+      
+      // Log apenas erros que não sejam 401 em silent
+      if (!(error.response?.status === 401 && reason === 'silent')) {
+        console.error('❌ [CacheData] Erro ao carregar dados do cache:', {
+          error: error.message,
+          status: error.response?.status,
+          url: error.config?.url,
+          userEmail: user?.email,
+          reason: reason
+        });
+      }
+      
       setBalances({ network: 'testnet', balancesTable: {}, tokenBalances: [], totalTokens: 0, categories: null });
     } finally {
       // Parar loading com timeout para dar tempo de mostrar a mudança
@@ -294,31 +364,76 @@ const useCacheData = () => {
         setLoading(false);
       }
       setCacheLoading(false);
+      isLoadingRef.current = false;
       hasLoadedRef.current = true;
     }
-  }, [user?.email, cacheLoaded, cacheLoading, setCacheLoaded, setCacheLoading, detectBalanceChanges, createBalanceNotification]);
+  }, [user?.email, cachedUser, balances, detectBalanceChanges, createBalanceNotification]);
 
-  // Atualização automática a cada 1 minuto (máxima responsividade)
+  // useEffect principal - carregar dados iniciais
   useEffect(() => {
-    // Configurar verificação automática
+    if (user?.email) {
+      loadCacheData('initial');
+    } else {
+      // Limpar dados se não há usuário
+      setBalances({ network: 'testnet', balancesTable: {}, tokenBalances: [], totalTokens: 0, categories: null });
+      setCachedUser(null);
+      setLoading(false);
+    }
+  }, [user?.email]); // Remover loadCacheData das dependências
+
+  // Atualização automática com intervalo configurável por usuário
+  // IMPORTANTE: Este useEffect deve vir DEPOIS do principal para garantir que cachedUser seja carregado primeiro
+  useEffect(() => {
+    // Só configurar auto-sync se tivermos dados do usuário
+    if (!cachedUser?.userPlan) {
+      // console.log('⏳ [CacheData] Aguardando dados do usuário para configurar auto-sync...');
+      return;
+    }
+
+    // Configurar verificação automática baseada no plano do usuário
     if (refreshTimerRef.current) {
       clearInterval(refreshTimerRef.current);
     }
+    
+    // Pegar o plano do usuário dos dados do cache
+    const userPlan = cachedUser.userPlan;
+    const refreshInterval = getRefreshInterval(userPlan);
+    
+    // Log detalhado para debug
+    // console.log('🔍 [CacheData] Debug - Dados do usuário:', {
+    //   cachedUser: {
+    //     id: cachedUser.id,
+    //     email: cachedUser.email,
+    //     userPlan: cachedUser.userPlan
+    //   },
+    //   userPlan: userPlan,
+    //   refreshInterval: refreshInterval,
+    //   refreshIntervalMinutes: refreshInterval / 60000
+    // });
+    
+    // console.log(`🔄 [CacheData] Configurando auto-sync: ${refreshInterval/60000} minutos (plano: ${userPlan})`);
     
     refreshTimerRef.current = setInterval(() => {
       try {
         loadCacheData('silent');
       } catch (error) {
-        // Erro no auto-sync ignorado
+        // Log apenas erros que não sejam 401 em auto-sync
+        if (!(error.response?.status === 401)) {
+          console.error('❌ [CacheData] Erro no auto-sync:', {
+            error: error.message,
+            status: error.response?.status,
+            timestamp: new Date().toISOString()
+          });
+        }
       }
-    }, REFRESH_INTERVAL_MS);
+    }, refreshInterval);
     
     return () => {
       if (refreshTimerRef.current) {
         clearInterval(refreshTimerRef.current);
       }
     };
-  }, [loadCacheData]);
+  }, [cachedUser?.userPlan]); // Remover loadCacheData das dependências
 
   const formatBalance = useCallback((balance) => {
     if (!balance || balance === '0' || balance === 0) return '0.000000';
@@ -377,18 +492,6 @@ const useCacheData = () => {
     if (maskBalances) root.classList.add('mask-balances');
     else root.classList.remove('mask-balances');
   }, [maskBalances]);
-
-  // useEffect principal
-  useEffect(() => {
-    if (user?.email) {
-      loadCacheData('initial');
-    } else {
-      // Limpar dados se não há usuário
-      setBalances({ network: 'testnet', balancesTable: {}, tokenBalances: [], totalTokens: 0, categories: null });
-      setCachedUser(null);
-      setLoading(false);
-    }
-  }, [user?.email, loadCacheData]);
 
   return {
     cachedUser,

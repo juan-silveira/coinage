@@ -6,7 +6,7 @@ import useCachedBalances from "@/hooks/useCachedBalances";
 import { getTokenPrice, formatCurrency as formatCurrencyHelper } from "@/constants/tokenPrices";
 
 const DigitalAssetsCard = () => {
-  const [activeIndex, setActiveIndex] = useState(0);
+  const [activeIndex, setActiveIndex] = useState(null);
   const { balances, loading, getBalance, getCorrectAzeSymbol } = useCachedBalances();
 
   const toggleAccordion = (index) => {
@@ -242,6 +242,42 @@ const DigitalAssetsCard = () => {
             </div>
           ))}
         </div>
+        
+        {/* Espaçador para manter altura similar ao TransactionHistoryTable quando fechado */}
+        {activeIndex === null && (
+          <div className="responsive-spacer flex items-center justify-center">
+            <style jsx>{`
+              .responsive-spacer {
+                min-height: 0px;
+              }
+              @media (min-width: 1024px) {
+                .responsive-spacer {
+                  min-height: 78px;
+                }
+              }
+              @media (min-width: 1196px) {
+                .responsive-spacer {
+                  min-height: 64px;
+                }
+              }
+              @media (min-width: 1280px) {
+                .responsive-spacer {
+                  min-height: 78px;
+                }
+              }
+              @media (min-width: 1444px) {
+                .responsive-spacer {
+                  min-height: 64px;
+                }
+              }
+              @media (min-width: 1834px) {
+                .responsive-spacer {
+                  min-height: 49px;
+                }
+              }
+            `}</style>
+          </div>
+        )}
       </div>
     </Card>
   );

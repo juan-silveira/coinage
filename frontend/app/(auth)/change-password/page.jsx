@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import SimpleInput from "@/components/ui/SimpleInput";
-import { toast } from "react-toastify";
+import useGlobalAlert from "@/hooks/useGlobalAlert";
 import useAuthStore from "@/store/authStore";
 import { authService } from "@/services/api";
 import useDarkMode from "@/hooks/useDarkMode";
@@ -18,6 +18,7 @@ const ChangePasswordPage = () => {
     clearRequiresPasswordChange 
   } = useAuthStore();
   const [isDark] = useDarkMode();
+  const { showSuccess, showError } = useGlobalAlert();
   
   const [formData, setFormData] = useState({
     oldPassword: "",
@@ -123,7 +124,7 @@ const ChangePasswordPage = () => {
       // Limpar flag de troca de senha
       clearRequiresPasswordChange();
       
-      toast.success("Senha alterada com sucesso!");
+      showSuccess("Senha alterada com sucesso!");
       
       // Redirecionar para o dashboard
       router.push('/');
@@ -139,7 +140,7 @@ const ChangePasswordPage = () => {
         errorMessage = "Erro de conexão com o servidor";
       }
       
-      toast.error(errorMessage);
+      showError(errorMessage);
     } finally {
       setLoading(false);
     }

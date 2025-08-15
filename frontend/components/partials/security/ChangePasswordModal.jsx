@@ -2,8 +2,11 @@
 
 import { useState } from "react";
 import Icon from "@/components/ui/Icon";
+import Modal from "@/components/ui/Modal";
+import useDarkmode from "@/hooks/useDarkMode";
 
 const ChangePasswordModal = ({ isOpen, onClose }) => {
+  const [isDark] = useDarkmode();
   const [formData, setFormData] = useState({
     currentPassword: "",
     newPassword: "",
@@ -36,29 +39,29 @@ const ChangePasswordModal = ({ isOpen, onClose }) => {
     onClose();
   };
 
-  if (!isOpen) return null;
+  // Classes baseadas no tema atual
+  const themeClasses = {
+    label: isDark ? "text-slate-300" : "text-slate-700",
+    input: isDark 
+      ? "border-slate-600 bg-slate-700 text-white placeholder-slate-400 focus:ring-primary-500 focus:border-primary-500" 
+      : "border-slate-300 bg-white text-slate-900 placeholder-slate-500 focus:ring-primary-500 focus:border-primary-500",
+    iconButton: isDark 
+      ? "text-slate-400 hover:text-slate-200" 
+      : "text-slate-400 hover:text-slate-600"
+  };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl max-w-md w-full mx-4">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-slate-200 dark:border-slate-700">
-          <h2 className="text-xl font-semibold text-slate-900 dark:text-white">
-            Alterar Senha
-          </h2>
-          <button
-            onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
-          >
-            <Icon icon="heroicons-outline:x" className="w-6 h-6" />
-          </button>
-        </div>
-
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+    <Modal
+      activeModal={isOpen}
+      onClose={onClose}
+      title="Alterar Senha"
+      className="max-w-md"
+      centered
+    >
+      <form onSubmit={handleSubmit} className="space-y-6">
           {/* Current Password */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+            <label className={`block text-sm font-medium mb-2 ${themeClasses.label}`}>
               Confirme a Senha Atual
             </label>
             <div className="relative">
@@ -67,13 +70,13 @@ const ChangePasswordModal = ({ isOpen, onClose }) => {
                 placeholder="Digite a Senha Atual"
                 value={formData.currentPassword}
                 onChange={(e) => handleInputChange("currentPassword", e.target.value)}
-                className="w-full px-4 py-3 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-slate-700 dark:text-white"
+                className={`w-full px-4 py-3 border rounded-lg transition-colors duration-200 ${themeClasses.input}`}
                 required
               />
               <button
                 type="button"
                 onClick={() => togglePasswordVisibility("current")}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                className={`absolute right-3 top-1/2 transform -translate-y-1/2 ${themeClasses.iconButton}`}
               >
                 <Icon 
                   icon={showPasswords.current ? "heroicons-outline:eye-off" : "heroicons-outline:eye"} 
@@ -85,7 +88,7 @@ const ChangePasswordModal = ({ isOpen, onClose }) => {
 
           {/* New Password */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+            <label className={`block text-sm font-medium mb-2 ${themeClasses.label}`}>
               Nova Senha
             </label>
             <div className="relative">
@@ -94,13 +97,13 @@ const ChangePasswordModal = ({ isOpen, onClose }) => {
                 placeholder="Digite a Nova Senha"
                 value={formData.newPassword}
                 onChange={(e) => handleInputChange("newPassword", e.target.value)}
-                className="w-full px-4 py-3 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-slate-700 dark:text-white"
+                className={`w-full px-4 py-3 border rounded-lg transition-colors duration-200 ${themeClasses.input}`}
                 required
               />
               <button
                 type="button"
                 onClick={() => togglePasswordVisibility("new")}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                className={`absolute right-3 top-1/2 transform -translate-y-1/2 ${themeClasses.iconButton}`}
               >
                 <Icon 
                   icon={showPasswords.new ? "heroicons-outline:eye-off" : "heroicons-outline:eye"} 
@@ -112,7 +115,7 @@ const ChangePasswordModal = ({ isOpen, onClose }) => {
 
           {/* Confirm New Password */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+            <label className={`block text-sm font-medium mb-2 ${themeClasses.label}`}>
               Confirme a Nova Senha
             </label>
             <div className="relative">
@@ -121,13 +124,13 @@ const ChangePasswordModal = ({ isOpen, onClose }) => {
                 placeholder="Confirme a Nova Senha"
                 value={formData.confirmPassword}
                 onChange={(e) => handleInputChange("confirmPassword", e.target.value)}
-                className="w-full px-4 py-3 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-slate-700 dark:text-white"
+                className={`w-full px-4 py-3 border rounded-lg transition-colors duration-200 ${themeClasses.input}`}
                 required
               />
               <button
                 type="button"
                 onClick={() => togglePasswordVisibility("confirm")}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                className={`absolute right-3 top-1/2 transform -translate-y-1/2 ${themeClasses.iconButton}`}
               >
                 <Icon 
                   icon={showPasswords.confirm ? "heroicons-outline:eye-off" : "heroicons-outline:eye"} 
@@ -144,10 +147,12 @@ const ChangePasswordModal = ({ isOpen, onClose }) => {
           >
             Atualizar Senha
           </button>
-        </form>
-      </div>
-    </div>
+      </form>
+    </Modal>
   );
 };
 
 export default ChangePasswordModal;
+
+
+

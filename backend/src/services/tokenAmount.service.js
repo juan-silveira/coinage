@@ -1,9 +1,9 @@
 const NotificationService = require('./notification.service');
+const redisService = require('./redis.service');
 
 class TokenAmountService {
   constructor() {
     this.notificationService = new NotificationService();
-    this.previousBalances = new Map(); // userId -> previous balances
     this.changeThreshold = 0.01; // 1% de mudança para considerar significativa
   }
 
@@ -43,24 +43,84 @@ class TokenAmountService {
   }
 
   /**
+   * Obter balances anteriores do Redis
+   */
+  async getPreviousBalances(userId) {
+    try {
+      if (!redisService.isConnected || !redisService.client) {
+        console.warn('⚠️ Redis não conectado, retornando balances vazios');
+        return {};
+      }
+
+      const key = `previous_balances:${userId}`;
+      const data = await redisService.client.get(key);
+      
+      if (!data) {
+        return {};
+      }
+
+      const balances = JSON.parse(data);
+      return balances.balancesTable || {};
+    } catch (error) {
+      console.error('❌ Erro ao buscar balances anteriores do Redis:', error);
+      return {};
+    }
+  }
+
+  /**
+   * Salvar balances anteriores no Redis
+   */
+  async savePreviousBalances(userId, balances) {
+    try {
+      if (!redisService.isConnected || !redisService.client) {
+        console.warn('⚠️ Redis não conectado, ignorando salvamento de balances anteriores');
+        return false;
+      }
+
+      const key = `previous_balances:${userId}`;
+      const data = {
+        userId,
+        balancesTable: balances,
+        savedAt: new Date().toISOString()
+      };
+
+      // TTL de 7 dias para manter histórico
+      await redisService.client.setEx(key, 7 * 24 * 60 * 60, JSON.stringify(data));
+      return true;
+    } catch (error) {
+      console.error('❌ Erro ao salvar balances anteriores no Redis:', error);
+      return false;
+    }
+  }
+
+  /**
    * Detectar mudanças nos saldos de um usuário específico
    */
-  async detectBalanceChanges(userId, newBalances, publicKey) {
+  async detectBalanceChanges(userId, newBalances, publicKey, isFirstLoad = false) {
     try {
-      const previousBalances = this.previousBalances.get(userId) || {};
+      const previousBalances = await this.getPreviousBalances(userId);
       
       if (!newBalances.balancesTable) {
-        return;
+        return { changes: [], isFirstLoad: true };
       }
 
       const changes = [];
+      const newTokens = [];
       
       // Verificar cada token
       for (const [tokenSymbol, newAmount] of Object.entries(newBalances.balancesTable)) {
         const previousAmount = parseFloat(previousBalances[tokenSymbol] || 0);
         const currentAmount = parseFloat(newAmount);
         
-        if (previousAmount > 0 && currentAmount !== previousAmount) {
+        // Se é primeira vez que vemos este token
+        if (previousAmount === 0 && currentAmount > 0 && !isFirstLoad) {
+          newTokens.push({
+            token: tokenSymbol,
+            amount: currentAmount
+          });
+        }
+        // Se houve mudança em token existente
+        else if (previousAmount > 0 && currentAmount !== previousAmount) {
           const changePercent = ((currentAmount - previousAmount) / previousAmount * 100);
           
           if (Math.abs(changePercent) >= this.changeThreshold) {
@@ -75,20 +135,53 @@ class TokenAmountService {
         }
       }
       
+      // Criar notificações para novos tokens
+      for (const newToken of newTokens) {
+        await this.createNewTokenNotification(userId, newToken);
+      }
+      
       // Criar notificações para mudanças significativas
       for (const change of changes) {
         await this.createBalanceChangeNotification(userId, change);
       }
       
-      // Atualizar saldos anteriores
-      this.previousBalances.set(userId, { ...newBalances.balancesTable });
+      // Atualizar saldos anteriores no Redis
+      await this.savePreviousBalances(userId, newBalances.balancesTable);
       
-      if (changes.length > 0) {
-        console.log(`📊 Usuário ${userId}: ${changes.length} mudanças detectadas nos saldos`);
+      if (changes.length > 0 || newTokens.length > 0) {
+        console.log(`📊 Usuário ${userId}: ${changes.length} mudanças e ${newTokens.length} novos tokens detectados`);
       }
+      
+      return { changes, newTokens, isFirstLoad: Object.keys(previousBalances).length === 0 };
       
     } catch (error) {
       console.error('❌ Erro ao detectar mudanças nos saldos:', error);
+      return { changes: [], newTokens: [], isFirstLoad: true };
+    }
+  }
+
+  /**
+   * Criar notificação de novo token
+   */
+  async createNewTokenNotification(userId, newToken) {
+    try {
+      const notification = await this.notificationService.createNotification({
+        userId: userId,
+        sender: 'coinage',
+        title: `🪙 Novo token detectado: ${newToken.token}`,
+        message: `Um novo token **${newToken.token}** foi detectado em sua carteira com saldo de **${newToken.amount}**. Bem-vindo ao ecossistema!`
+      });
+      
+      console.log(`🔔 Notificação de novo token criada para usuário ${userId}: ${newToken.token}`);
+      
+      // Emitir evento para notificações em tempo real
+      this.emitNotificationEvent(userId, 'new_token', notification);
+      
+      return notification;
+      
+    } catch (error) {
+      console.error('❌ Erro ao criar notificação de novo token:', error);
+      throw error;
     }
   }
 
@@ -107,11 +200,42 @@ class TokenAmountService {
       );
       
       console.log(`🔔 Notificação criada para usuário ${userId}: ${change.token} ${change.changeType}`);
+      
+      // Emitir evento para notificações em tempo real
+      this.emitNotificationEvent(userId, 'balance_change', notification);
+      
       return notification;
       
     } catch (error) {
       console.error('❌ Erro ao criar notificação de mudança de saldo:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Emitir evento para notificações em tempo real
+   */
+  emitNotificationEvent(userId, eventType, notification) {
+    try {
+      // Emitir eventos globais para que frontend possa capturar
+      if (global.io) {
+        // Socket.io para usuário específico
+        global.io.to(`user:${userId}`).emit('notification', {
+          type: eventType,
+          notification: notification,
+          timestamp: new Date().toISOString()
+        });
+      }
+      
+      // Emitir eventos do sistema para componentes que estão escutando
+      process.emit('notification:created', {
+        userId,
+        type: eventType,
+        notification
+      });
+      
+    } catch (error) {
+      console.error('❌ Erro ao emitir evento de notificação:', error);
     }
   }
 

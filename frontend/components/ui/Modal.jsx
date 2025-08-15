@@ -1,6 +1,7 @@
 import { Dialog, Transition } from "@headlessui/react";
 import React, { Fragment, useState } from "react";
 import Icon from "@/components/ui/Icon";
+import useDarkmode from "@/hooks/useDarkMode";
 
 const Modal = ({
   activeModal,
@@ -20,6 +21,7 @@ const Modal = ({
   ref,
 }) => {
   const [showModal, setShowModal] = useState(false);
+  const [isDark] = useDarkmode();
 
   const closeModal = () => {
     setShowModal(false);
@@ -30,6 +32,25 @@ const Modal = ({
   };
   const returnNull = () => {
     return null;
+  };
+
+  // Classes baseadas no tema atual
+  const modalClasses = {
+    backdrop: isDark ? "bg-slate-900/70" : "bg-slate-900/50",
+    panel: isDark 
+      ? "bg-slate-800 border border-slate-700" 
+      : "bg-white border border-slate-200",
+    header: isDark 
+      ? "bg-slate-700 border-b border-slate-600 text-white" 
+      : "bg-slate-100 border-b border-slate-200 text-slate-900",
+    headerTitle: isDark 
+      ? "text-white font-semibold" 
+      : "text-slate-900 font-semibold",
+    content: isDark ? "text-slate-300" : "text-slate-700",
+    footer: isDark 
+      ? "border-t border-slate-600 bg-slate-700" 
+      : "border-t border-slate-200 bg-slate-50",
+    closeButton: isDark ? "text-slate-400 hover:text-slate-200" : "text-slate-500 hover:text-slate-700"
   };
 
   return (
@@ -59,7 +80,7 @@ const Modal = ({
                   leaveFrom={noFade ? "" : "opacity-100"}
                   leaveTo={noFade ? "" : "opacity-0"}
                 >
-                  <div className="fixed inset-0 bg-slate-900/50 backdrop-filter backdrop-blur-sm" />
+                  <div className={`fixed inset-0 ${modalClasses.backdrop} backdrop-filter backdrop-blur-sm`} />
                 </Transition.Child>
               )}
 
@@ -79,28 +100,27 @@ const Modal = ({
                     leaveTo={noFade ? "" : "opacity-0 scale-95"}
                   >
                     <Dialog.Panel
-                      className={`w-full transform overflow-hidden rounded-md
-                 bg-white dark:bg-slate-800 text-left align-middle shadow-xl transition-alll ${className}`}
+                      className={`w-full transform overflow-hidden rounded-md shadow-xl transition-all ${modalClasses.panel} ${className}`}
                     >
                       <div
-                        className={`relative overflow-hidden py-4 px-5 text-white flex justify-between  ${themeClass}`}
+                        className={`relative overflow-hidden py-4 px-5 flex justify-between ${modalClasses.header}`}
                       >
-                        <h2 className="capitalize leading-6 tracking-wider font-medium text-base text-white">
+                        <h2 className={`capitalize leading-6 tracking-wider text-base ${modalClasses.headerTitle}`}>
                           {title}
                         </h2>
-                        <button onClick={closeModal} className="text-[22px]">
+                        <button onClick={closeModal} className={`text-[22px] ${modalClasses.closeButton}`}>
                           <Icon icon="heroicons-outline:x" />
                         </button>
                       </div>
                       <div
-                        className={`px-6 py-8 ${
+                        className={`px-6 py-8 ${modalClasses.content} ${
                           scrollContent ? "overflow-y-auto max-h-[400px]" : ""
                         }`}
                       >
                         {children}
                       </div>
                       {footerContent && (
-                        <div className="px-4 py-3 flex justify-end space-x-3 border-t border-slate-100 dark:border-slate-700">
+                        <div className={`px-4 py-3 flex justify-end space-x-3 ${modalClasses.footer}`}>
                           {footerContent}
                         </div>
                       )}
@@ -114,19 +134,19 @@ const Modal = ({
       ) : (
         <Transition appear show={activeModal} as={Fragment}>
           <Dialog as="div" className="relative z-[99999]" onClose={onClose}>
-            <Transition.Child
-              as={Fragment}
-              enter={noFade ? "" : "duration-300 ease-out"}
-              enterFrom={noFade ? "" : "opacity-0"}
-              enterTo={noFade ? "" : "opacity-100"}
-              leave={noFade ? "" : "duration-200 ease-in"}
-              leaveFrom={noFade ? "" : "opacity-100"}
-              leaveTo={noFade ? "" : "opacity-0"}
-            >
-              {!disableBackdrop && (
-                <div className="fixed inset-0 bg-slate-900/50 backdrop-filter backdrop-blur-sm" />
-              )}
-            </Transition.Child>
+            {!disableBackdrop && (
+              <Transition.Child
+                as={Fragment}
+                enter={noFade ? "" : "duration-300 ease-out"}
+                enterFrom={noFade ? "" : "opacity-0"}
+                enterTo={noFade ? "" : "opacity-100"}
+                leave={noFade ? "" : "duration-200 ease-in"}
+                leaveFrom={noFade ? "" : "opacity-100"}
+                leaveTo={noFade ? "" : "opacity-0"}
+              >
+                <div className={`fixed inset-0 ${modalClasses.backdrop} backdrop-filter backdrop-blur-sm`} />
+              </Transition.Child>
+            )}
 
             <div className="fixed inset-0 overflow-y-auto">
               <div
@@ -144,28 +164,27 @@ const Modal = ({
                   leaveTo={noFade ? "" : "opacity-0 scale-95"}
                 >
                   <Dialog.Panel
-                    className={`w-full transform overflow-hidden rounded-md
-                 bg-white dark:bg-slate-800 text-left align-middle shadow-xl transition-alll ${className}`}
+                    className={`w-full transform overflow-hidden rounded-md shadow-xl transition-all ${modalClasses.panel} ${className}`}
                   >
                     <div
-                      className={`relative overflow-hidden py-4 px-5 text-white flex justify-between  ${themeClass}`}
+                      className={`relative overflow-hidden py-4 px-5 flex justify-between ${modalClasses.header}`}
                     >
-                      <h2 className="capitalize leading-6 tracking-wider font-medium text-base text-white">
+                      <h2 className={`capitalize leading-6 tracking-wider text-base ${modalClasses.headerTitle}`}>
                         {title}
                       </h2>
-                      <button onClick={onClose} className="text-[22px]">
+                      <button onClick={onClose} className={`text-[22px] ${modalClasses.closeButton}`}>
                         <Icon icon="heroicons-outline:x" />
                       </button>
                     </div>
                     <div
-                      className={`px-6 py-8 ${
+                      className={`px-6 py-8 ${modalClasses.content} ${
                         scrollContent ? "overflow-y-auto max-h-[400px]" : ""
                       }`}
                     >
                       {children}
                     </div>
                     {footerContent && (
-                      <div className="px-4 py-3 flex justify-end space-x-3 border-t border-slate-100 dark:border-slate-700">
+                      <div className={`px-4 py-3 flex justify-end space-x-3 ${modalClasses.footer}`}>
                         {footerContent}
                       </div>
                     )}
