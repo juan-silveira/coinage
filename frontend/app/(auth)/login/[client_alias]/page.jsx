@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter, useParams } from "next/navigation";
 import SimpleInput from "@/components/ui/SimpleInput";
-import { toast } from "react-toastify";
+import useGlobalAlert from "@/hooks/useGlobalAlert";
 import useAuthStore from "@/store/authStore";
 import { authService } from "@/services/api";
 import useDarkMode from "@/hooks/useDarkMode";
@@ -24,6 +24,7 @@ const WhitelabelLoginPage = () => {
   const clientAlias = params.client_alias;
   const { login, isAuthenticated, isLoading, setLoading } = useAuthStore();
   const [isDark] = useDarkMode();
+  const { showSuccess, showError } = useGlobalAlert();
   
   const [branding, setBranding] = useState(defaultBranding);
   const [brandingLoading, setBrandingLoading] = useState(true);
@@ -79,14 +80,14 @@ const WhitelabelLoginPage = () => {
 
     const logoutSuccess = sessionStorage.getItem('showLogoutSuccess');
     if (logoutSuccess) {
-      toast.success("Logout realizado com sucesso");
+      showSuccess("Logout realizado com sucesso");
       sessionStorage.removeItem('showLogoutSuccess');
     }
 
     const urlParams = new URLSearchParams(window.location.search);
     const error = urlParams.get('error');
     if (error === 'auth') {
-      toast.error("Email ou senha incorretos");
+      showError("Email ou senha incorretos");
       window.history.replaceState({}, document.title, window.location.pathname);
     }
   }, []);
@@ -159,7 +160,7 @@ const WhitelabelLoginPage = () => {
         errorMessage = "Erro de conexão com o servidor";
       }
       
-      toast.error(errorMessage);
+      showError(errorMessage);
     }
   };
 

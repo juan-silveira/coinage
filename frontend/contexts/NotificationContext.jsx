@@ -33,7 +33,7 @@ export const NotificationProvider = ({ children }) => {
   useEffect(() => {
     const soundService = getNotificationSoundService();
     if (soundService) {
-      console.log('🔊 Serviço de som de notificação inicializado no contexto');
+      // console.log('🔊 Serviço de som de notificação inicializado no contexto');
     }
   }, []);
   

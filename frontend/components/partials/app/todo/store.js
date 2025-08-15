@@ -1,7 +1,8 @@
 import { createSlice } from "@reduxjs/toolkit";
 import { v4 as uuidv4 } from "uuid";
 
-import { toast } from "react-toastify";
+// Note: Store files should ideally not directly use toast/alert systems
+// This should be handled in components instead
 
 export const appTodoSlice = createSlice({
   name: "apptodo",
@@ -162,16 +163,7 @@ export const appTodoSlice = createSlice({
 
     addTodo: (state, action) => {
       state.todos.unshift(action.payload);
-      toast.success("Add Successfully", {
-        position: "top-right",
-        autoClose: 1500,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true,
-        progress: undefined,
-        theme: "light",
-      });
+      // Success feedback should be handled in component
     },
     setFilter: (state, action) => {
       state.filter = action.payload;
@@ -181,16 +173,7 @@ export const appTodoSlice = createSlice({
       // store it into trash todo
       state.trashTodo.unshift(action.payload);
 
-      toast.warning("Delete Successfully", {
-        position: "top-right",
-        autoClose: 1500,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true,
-        progress: undefined,
-        theme: "light",
-      });
+      // Delete feedback should be handled in component
     },
     editTodo: (state, action) => {
       state.todos.findIndex((item) => {

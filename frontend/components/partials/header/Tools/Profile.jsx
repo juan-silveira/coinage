@@ -1,11 +1,13 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import Dropdown from "@/components/ui/Dropdown";
 import Icon from "@/components/ui/Icon";
+import Swicth from "@/components/ui/Switch"; // Note: o componente tem um typo no nome
 import { Menu, Transition } from "@headlessui/react";
 import { useRouter } from "next/navigation";
 import useAuthStore from "@/store/authStore";
 import { authService } from "@/services/api";
-import { toast } from "react-toastify";
+import { getNotificationSoundService } from "@/services/notificationSoundService";
+import { useAlertContext } from "@/contexts/AlertContext";
 
 const ProfileLabel = () => {
   const { user } = useAuthStore();
@@ -36,19 +38,41 @@ const ProfileLabel = () => {
 const Profile = () => {
   const router = useRouter();
   const { logout } = useAuthStore();
+  const { showSuccess, showError } = useAlertContext();
+  const [soundEnabled, setSoundEnabled] = useState(true);
+
+  // Carregar preferência de som do localStorage
+  useEffect(() => {
+    const soundService = getNotificationSoundService();
+    if (soundService) {
+      setSoundEnabled(soundService.isEnabled());
+    }
+  }, []);
 
   const handleLogout = async () => {
     try {
-      // Remove todos os toasts ativos antes do logout
-      toast.dismiss();
       await authService.logout();
       logout();
       router.push('/login');
     } catch (error) {
       // Mesmo com erro, fazer logout local
-      toast.dismiss();
       logout();
       router.push('/login');
+    }
+  };
+
+  const handleSoundToggle = (event) => {
+    const enabled = event.target.checked;
+    const soundService = getNotificationSoundService();
+    if (soundService) {
+      if (enabled) {
+        soundService.enable();
+        showSuccess('Som de notificações ativado', 'Som ativado');
+      } else {
+        soundService.disable();
+        showSuccess('Som de notificações desativado', 'Som desativado');
+      }
+      setSoundEnabled(enabled);
     }
   };
 
@@ -75,7 +99,34 @@ const Profile = () => {
   ];
 
   return (
-    <Dropdown label={ProfileLabel()} classMenuItems="w-[180px] top-[58px]">
+    <Dropdown label={ProfileLabel()} classMenuItems="w-[220px] top-[58px]">
+      {/* Switch de Som das Notificações */}
+      <Menu.Item>
+        {({ active }) => (
+          <div
+            className={`${
+              active
+                ? "bg-slate-100 text-slate-900 dark:bg-slate-600 dark:text-slate-300 dark:bg-opacity-50"
+                : "text-slate-600 dark:text-slate-300"
+            } block px-4 py-2 border-b border-slate-100 dark:border-slate-700`}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <span className="block text-xl ltr:mr-3 rtl:ml-3">
+                  <Icon icon="heroicons-outline:volume-up" />
+                </span>
+                <span className="block text-sm">Som das notificações</span>
+              </div>
+              <Swicth
+                value={soundEnabled}
+                onChange={handleSoundToggle}
+              />
+            </div>
+          </div>
+        )}
+      </Menu.Item>
+
+      {/* Menu Items Originais */}
       {ProfileMenu.map((item, index) => (
         <Menu.Item key={index}>
           {({ active }) => (

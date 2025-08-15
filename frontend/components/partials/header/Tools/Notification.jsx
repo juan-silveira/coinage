@@ -7,7 +7,6 @@ import useAuthStore from "@/store/authStore";
 import useProactiveTokenRefresh from "@/hooks/useProactiveTokenRefresh";
 import api from "@/services/api";
 import { useNotificationEvents } from "@/contexts/NotificationContext";
-import NotificationSoundSettings from "./NotificationSoundSettings";
 
 const notifyLabel = (unreadCount) => {
   return (
@@ -25,10 +24,9 @@ const notifyLabel = (unreadCount) => {
 const Notification = () => {
   const { isAuthenticated } = useAuthStore();
   const { ensureValidToken } = useProactiveTokenRefresh();
-  const { notifyMarkAsRead } = useNotificationEvents();
+  const { notifyMarkAsRead, notifyAllMarkedAsRead } = useNotificationEvents();
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [showSoundSettings, setShowSoundSettings] = useState(false);
   const [loading, setLoading] = useState(true);
   const [lastError, setLastError] = useState(null);
 
@@ -128,16 +126,20 @@ const Notification = () => {
       await api.put('/api/notifications/mark-all-read');
       
       // Limpar estado local
-      setNotifications(prev => 
-        prev.map(n => ({ ...n, isRead: true }))
-      );
+      setNotifications([]);
       setUnreadCount(0);
+      
+      // Notificar outros componentes através do contexto
+      notifyAllMarkedAsRead();
       
     } catch (error) {
       console.warn('⚠️ [Notification] Erro ao marcar todas como lidas:', error.message);
       // Em caso de erro, ainda limpa o estado local
       setNotifications([]);
       setUnreadCount(0);
+      
+      // Ainda assim notifica para manter consistência
+      notifyAllMarkedAsRead();
     }
   };
 
@@ -173,8 +175,7 @@ const Notification = () => {
       setUnreadCount(prev => Math.max(0, prev - 1));
     };
 
-    const handleNotificationMarkedAsUnread = (event) => {
-      const { notificationId } = event.detail;
+    const handleNotificationMarkedAsUnread = () => {
       // Recarrega a lista para incluir a nova notificação não lida
       fetchUnreadNotifications();
       setUnreadCount(prev => prev + 1);
@@ -186,7 +187,7 @@ const Notification = () => {
     };
 
     const handleNotificationRestored = (event) => {
-      const { notificationId, wasUnread } = event.detail;
+      const { wasUnread } = event.detail;
       // Se a notificação restaurada estava não lida, incrementa o contador e recarrega a lista
       if (wasUnread) {
         setUnreadCount(prev => prev + 1);
@@ -201,7 +202,10 @@ const Notification = () => {
       setUnreadCount(prev => prev + 1);
       
       // Log para debug
-      console.log('🔔 Nova notificação recebida em tempo real:', notification);
+      // console.log('🔔 Nova notificação recebida em tempo real:', notification);
+      
+      // NOTA: O som já é tocado pelo componente que dispara o evento
+      // Não precisamos chamar notifyNewNotification aqui pois causaria loop
     };
 
     const handleNotificationBatchCreated = (event) => {
@@ -211,7 +215,7 @@ const Notification = () => {
       setUnreadCount(prev => prev + count);
       
       // Log para debug
-      console.log(`🔔 ${count} notificações recebidas em batch:`, notifications);
+      // console.log(`🔔 ${count} notificações recebidas em batch:`, notifications);
     };
 
     // Registrar event listeners
@@ -273,7 +277,6 @@ const Notification = () => {
   }, [isAuthenticated, fetchUnreadCount]);
 
   return (
-    <>
     <Dropdown classMenuItems="md:w-[300px] top-[58px] z-[99999]" label={notifyLabel(unreadCount)}>
       <div className="flex justify-between items-center px-4 py-4 border-b border-slate-100 dark:border-slate-600">
         <div className="text-sm text-slate-800 dark:text-slate-200 font-medium leading-6">
@@ -288,13 +291,6 @@ const Notification = () => {
               Marcar todas lidas
             </button>
           )}
-          <button
-            onClick={() => setShowSoundSettings(true)}
-            className="text-xs text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:underline"
-            title="Configurações de som"
-          >
-            🔊 Som
-          </button>
           <Link href="/notifications" className="text-xs text-slate-800 dark:text-slate-200 hover:underline">
             Ver todas
           </Link>
@@ -383,13 +379,6 @@ const Notification = () => {
         );
       })()}
     </Dropdown>
-    
-    {/* Modal de Configurações de Som */}
-    <NotificationSoundSettings 
-      isOpen={showSoundSettings}
-      onClose={() => setShowSoundSettings(false)}
-    />
-  </>
   );
 };
 

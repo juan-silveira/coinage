@@ -19,7 +19,7 @@ export const useRealTimeNotifications = () => {
     // Simular conexão de notificações em tempo real
     // Futuramente pode ser substituído por WebSocket
     const connectToNotifications = () => {
-      console.log('🔌 Conectando ao sistema de notificações em tempo real...');
+      // console.log('🔌 Conectando ao sistema de notificações em tempo real...');
       
       let lastNotificationCount = 0;
       
@@ -36,7 +36,7 @@ export const useRealTimeNotifications = () => {
             // Se houve aumento na contagem, buscar as novas notificações
             if (currentCount > lastNotificationCount && lastNotificationCount > 0) {
               const newNotificationsCount = currentCount - lastNotificationCount;
-              console.log(`🔔 ${newNotificationsCount} nova(s) notificação(ões) detectada(s) via polling`);
+              // console.log(`🔔 ${newNotificationsCount} nova(s) notificação(ões) detectada(s) via polling`);
               
               // Buscar as notificações mais recentes usando api service
               const response = await api.get(`/api/notifications/unread?limit=${newNotificationsCount}`);
@@ -77,7 +77,7 @@ export const useRealTimeNotifications = () => {
       if (pollInterval) {
         clearInterval(pollInterval);
       }
-      console.log('🔌 Desconectando do sistema de notificações em tempo real...');
+      // console.log('🔌 Desconectando do sistema de notificações em tempo real...');
     };
   }, [isAuthenticated, user]);
 

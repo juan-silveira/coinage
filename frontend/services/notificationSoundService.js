@@ -34,7 +34,7 @@ class NotificationSoundService {
         console.warn('⚠️ Erro ao carregar som de notificação:', error);
       });
       
-      console.log('🔊 Serviço de som de notificação inicializado');
+      // console.log('🔊 Serviço de som de notificação inicializado');
     } catch (error) {
       console.warn('⚠️ Não foi possível inicializar áudio:', error);
     }
@@ -82,20 +82,20 @@ class NotificationSoundService {
   playNotificationSound(notificationCount = 1) {
     // Verificar se está habilitado
     if (!this.soundEnabled) {
-      console.log('🔇 Som de notificação desabilitado');
+      // console.log('🔇 Som de notificação desabilitado');
       return false;
     }
 
     // Verificar se já está tocando
     if (this.isPlaying) {
-      console.log('🔊 Som já está tocando, ignorando...');
+      // console.log('🔊 Som já está tocando, ignorando...');
       return false;
     }
 
     // Verificar intervalo mínimo
     const now = Date.now();
     if (now - this.lastPlayTime < this.minIntervalBetweenSounds) {
-      console.log('🔊 Muito próximo do último som, ignorando...');
+      // console.log('🔊 Muito próximo do último som, ignorando...');
       return false;
     }
 
@@ -117,7 +117,7 @@ class NotificationSoundService {
           .then(() => {
             this.isPlaying = true;
             this.lastPlayTime = now;
-            console.log(`🔊 Som de notificação tocado para ${notificationCount} notificação(ões)`);
+            // console.log(`🔊 Som de notificação tocado para ${notificationCount} notificação(ões)`);
           })
           .catch(error => {
             console.warn('⚠️ Erro ao tocar som:', error);
@@ -139,7 +139,29 @@ class NotificationSoundService {
   setSoundEnabled(enabled) {
     this.soundEnabled = !!enabled;
     this.saveSettings();
-    console.log(`🔊 Som de notificação ${enabled ? 'habilitado' : 'desabilitado'}`);
+    // console.log(`🔊 Som de notificação ${enabled ? 'habilitado' : 'desabilitado'}`);
+  }
+
+  /**
+   * Verificar se som está habilitado
+   * @returns {boolean}
+   */
+  isEnabled() {
+    return this.soundEnabled;
+  }
+
+  /**
+   * Habilitar som
+   */
+  enable() {
+    this.setSoundEnabled(true);
+  }
+
+  /**
+   * Desabilitar som
+   */
+  disable() {
+    this.setSoundEnabled(false);
   }
 
   /**

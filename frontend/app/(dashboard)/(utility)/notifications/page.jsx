@@ -1,7 +1,6 @@
 "use client";
 import React, { useState, useEffect, useCallback } from "react";
-import { toast, ToastContainer } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
+import { useAlertContext } from "@/contexts/AlertContext";
 
 import Icon from "@/components/ui/Icon";
 import Card from "@/components/ui/Card";
@@ -15,6 +14,7 @@ import NotificationDetails from "@/components/partials/app/notifications/Notific
 import { useNotificationEvents } from "@/contexts/NotificationContext";
 const NotificationPage = () => {
   const { isAuthenticated } = useAuthStore();
+  const { showSuccess, showError } = useAlertContext();
   const { 
     notifyMarkAsRead,
     notifyMarkAsUnread,
@@ -153,33 +153,8 @@ const NotificationPage = () => {
       // Notificar o sistema sobre a exclusão
       notifyDeleted(notificationId, wasUnread);
 
-      // Mostrar toast de sucesso
-      toast.success(
-        <div>
-          <span>Conversa movida para a Lixeira. </span>
-          <button 
-            onClick={() => {
-              try {
-                restoreNotification(notificationId);
-              } catch (error) {
-                console.error('Erro ao restaurar:', error);
-                toast.error('Erro ao restaurar notificação');
-              }
-            }}
-            className="text-blue-600 underline hover:text-blue-800"
-          >
-            Desfazer
-          </button>
-        </div>,
-        {
-          position: "top-right",
-          autoClose: 5000,
-          hideProgressBar: false,
-          closeOnClick: true,
-          pauseOnHover: true,
-          draggable: true,
-        }
-      );
+      // Mostrar alerta de sucesso
+      showSuccess('Conversa movida para a Lixeira', 'Exclusão realizada');
     } catch (error) {
       console.error('Erro ao excluir notificação:', error);
     }
@@ -204,20 +179,10 @@ const NotificationPage = () => {
       // Notificar o sistema sobre a restauração
       notifyRestored(notificationId, wasUnread);
 
-      toast.success('Notificação restaurada com sucesso!', {
-        position: "top-right",
-        autoClose: 3000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true,
-      });
+      showSuccess('Notificação restaurada com sucesso!', 'Restauração realizada');
     } catch (error) {
       console.error('Erro ao restaurar notificação:', error);
-      toast.error('Erro ao restaurar notificação', {
-        position: "top-right",
-        autoClose: 3000,
-      });
+      showError('Erro ao restaurar notificação');
     }
   };
 
@@ -350,32 +315,11 @@ const NotificationPage = () => {
       // Fechar modal de confirmação
       setShowDeleteMultipleModal(false);
       
-      // Mostrar toast de sucesso
-      toast.success(
-        <div>
-          <span>Notificações movidas para a Lixeira. </span>
-          <button 
-            onClick={() => restoreMultipleNotifications(Array.from(selectedNotifications))}
-            className="text-blue-600 underline hover:text-blue-800"
-          >
-            Desfazer
-          </button>
-        </div>,
-        {
-          position: "top-right",
-          autoClose: 5000,
-          hideProgressBar: false,
-          closeOnClick: true,
-          pauseOnHover: true,
-          draggable: true,
-        }
-      );
+      // Mostrar alerta de sucesso
+      showSuccess('Notificações movidas para a Lixeira', 'Exclusão realizada');
     } catch (error) {
       console.error('Erro ao excluir múltiplas notificações:', error);
-      toast.error('Erro ao excluir notificações', {
-        position: "top-right",
-        autoClose: 3000,
-      });
+      showError('Erro ao excluir notificações');
     }
   };
 
@@ -418,32 +362,11 @@ const NotificationPage = () => {
       // Fechar modal de confirmação
       setShowDeleteAllModal(false);
       
-      // Mostrar toast de sucesso
-      toast.success(
-        <div>
-          <span>Todas as notificações foram movidas para a Lixeira. </span>
-          <button 
-            onClick={() => restoreAllNotifications(notificationIds)}
-            className="text-blue-600 underline hover:text-blue-800"
-          >
-            Desfazer
-          </button>
-        </div>,
-        {
-          position: "top-right",
-          autoClose: 5000,
-          hideProgressBar: false,
-          closeOnClick: true,
-          pauseOnHover: true,
-          draggable: true,
-        }
-      );
+      // Mostrar alerta de sucesso
+      showSuccess('Todas as notificações foram movidas para a Lixeira', 'Exclusão realizada');
     } catch (error) {
       console.error('Erro ao excluir todas as notificações:', error);
-      toast.error('Erro ao excluir notificações', {
-        position: "top-right",
-        autoClose: 3000,
-      });
+      showError('Erro ao excluir notificações');
     }
   };
 
@@ -470,16 +393,10 @@ const NotificationPage = () => {
         notificationIds.includes(n.id) ? { ...n, isActive: true } : n
       ));
       
-      toast.success('Notificações restauradas com sucesso!', {
-        position: "top-right",
-        autoClose: 3000,
-      });
+      showSuccess('Notificações restauradas com sucesso!', 'Restauração realizada');
     } catch (error) {
       console.error('Erro ao restaurar notificações:', error);
-      toast.error('Erro ao restaurar notificações', {
-        position: "top-right",
-        autoClose: 3000,
-      });
+      showError('Erro ao restaurar notificações');
     }
   };
 
@@ -506,16 +423,10 @@ const NotificationPage = () => {
         notificationIds.includes(n.id) ? { ...n, isActive: true } : n
       ));
       
-      toast.success('Todas as notificações foram restauradas!', {
-        position: "top-right",
-        autoClose: 3000,
-      });
+      showSuccess('Todas as notificações foram restauradas!', 'Restauração realizada');
     } catch (error) {
       console.error('Erro ao restaurar notificações:', error);
-      toast.error('Erro ao restaurar notificações', {
-        position: "top-right",
-        autoClose: 3000,
-      });
+      showError('Erro ao restaurar notificações');
     }
   };
 
@@ -859,7 +770,6 @@ const NotificationPage = () => {
         icon="danger"
       />
       
-      <ToastContainer />
     </>
   );
 };

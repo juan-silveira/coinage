@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Select';
 import { Alert } from '@/components/ui/Alert';
-import { toast } from 'react-hot-toast';
+import { useAlertContext } from '@/contexts/AlertContext';
 import UserPlanService from '@/services/userPlanService';
 import useAuthStore from '@/store/authStore';
 
@@ -19,6 +19,7 @@ const UserPlanManager = () => {
   const [error, setError] = useState(null);
 
   const { user } = useAuthStore();
+  const { showSuccess, showError } = useAlertContext();
 
   useEffect(() => {
     loadData();
@@ -52,7 +53,7 @@ const UserPlanManager = () => {
 
   const handleUpdateUserPlan = async () => {
     if (!selectedUser || !selectedPlan) {
-      toast.error('Selecione um usuário e um plano');
+      showError('Selecione um usuário e um plano');
       return;
     }
 
@@ -61,16 +62,16 @@ const UserPlanManager = () => {
       const response = await UserPlanService.updateUserPlan(selectedUser, selectedPlan);
       
       if (response.success) {
-        toast.success(response.message);
+        showSuccess(response.message, 'Plano atualizado');
         setSelectedUser('');
         setSelectedPlan('BASIC');
         loadData(); // Recarregar estatísticas
       } else {
-        toast.error(response.error || 'Erro ao atualizar plano');
+        showError(response.error || 'Erro ao atualizar plano');
       }
     } catch (error) {
       console.error('Erro ao atualizar plano:', error);
-      toast.error('Erro ao atualizar plano do usuário');
+      showError('Erro ao atualizar plano do usuário');
     } finally {
       setUpdating(false);
     }
