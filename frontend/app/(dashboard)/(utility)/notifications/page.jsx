@@ -466,7 +466,7 @@ const NotificationPage = () => {
     if (isAuthenticated) {
       fetchNotifications();
     } else {
-      console.log('❌ Usuário não autenticado');
+      // console.log('❌ Usuário não autenticado');
     }
   }, [isAuthenticated]);
 
