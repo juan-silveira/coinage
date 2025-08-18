@@ -3,11 +3,13 @@ import React, { useState } from "react";
 import Card from "@/components/ui/Card";
 import Icon from "@/components/ui/Icon";
 import useCachedBalances from "@/hooks/useCachedBalances";
+import useConfig from "@/hooks/useConfig";
 import { getTokenPrice, formatCurrency as formatCurrencyHelper } from "@/constants/tokenPrices";
 
 const DigitalAssetsCard = () => {
   const [activeIndex, setActiveIndex] = useState(null);
   const { balances, loading, getBalance, getCorrectAzeSymbol } = useCachedBalances();
+  const { defaultNetwork } = useConfig();
 
   const toggleAccordion = (index) => {
     setActiveIndex(activeIndex === index ? null : index);
@@ -16,7 +18,7 @@ const DigitalAssetsCard = () => {
 
   // Mapeamento de tokens por categoria (cBRL não entra em nenhuma categoria)
   const getTokenCategories = () => {
-    const network = balances?.network || 'testnet';
+    const network = balances?.network || defaultNetwork;
     return {
       criptomoedas: [getCorrectAzeSymbol()], // AZE ou AZE-t, sem cBRL
       startups: ['CNT'],
@@ -32,7 +34,7 @@ const DigitalAssetsCard = () => {
   // Função para obter o nome correto do token baseado na rede
   const getTokenName = (symbol) => {
     if (symbol === 'AZE' || symbol === 'AZE-t') {
-      const network = balances?.network || 'testnet';
+      const network = balances?.network || defaultNetwork;
       return network === 'testnet' ? 'Azore (testnet)' : 'Azore';
     }
     

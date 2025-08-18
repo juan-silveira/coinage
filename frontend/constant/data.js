@@ -119,7 +119,7 @@ export const menuItems = [
 
   {
     isHeadr: true,
-    title: "Configurações do Cliente",
+            title: "Configurações da Empresa",
   },
 
   {
@@ -654,7 +654,7 @@ export const bottomFilterLists = [
 export const meets = [
   {
     img: "/assets/images/svg/sk.svg",
-    title: "Meeting with client",
+    title: "Meeting with company",
     date: "01 Nov 2021",
     meet: "Zoom meeting",
   },
@@ -672,7 +672,7 @@ export const meets = [
   },
   {
     img: "/assets/images/svg/sk.svg",
-    title: "Meeting with client",
+    title: "Meeting with company",
     date: "01 Nov 2021",
     meet: "Zoom meeting",
   },

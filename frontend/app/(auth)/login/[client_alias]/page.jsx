@@ -21,7 +21,7 @@ const defaultBranding = {
 const WhitelabelLoginPage = () => {
   const router = useRouter();
   const params = useParams();
-  const clientAlias = params.client_alias;
+  const companyAlias = params.client_alias;
   const { login, isAuthenticated, isLoading, setLoading } = useAuthStore();
   const [isDark] = useDarkMode();
   const { showSuccess, showError } = useAlertContext();
@@ -39,28 +39,30 @@ const WhitelabelLoginPage = () => {
   useEffect(() => {
     const fetchBranding = async () => {
       try {
-        const response = await fetch(`http://localhost:8800/api/whitelabel/client-branding/${clientAlias}`);
+        const response = await fetch(`http://localhost:8800/api/whitelabel/company-branding/${companyAlias}`);
         const data = await response.json();
         
         if (data.success) {
           setBranding(data.data);
           document.title = `${data.data.brand_name} - Login`;
         } else {
-          // Se não encontrar o alias, usar branding padrão
-          document.title = 'Coinage - Login';
+          // Se não encontrar o alias, redirecionar para coinage
+          router.replace('/login/coinage');
+          return;
         }
         
       } catch (error) {
         console.error('Erro ao buscar branding:', error);
-        // Em caso de erro, usar configuração padrão
-        document.title = 'Coinage - Login';
+        // Em caso de erro, redirecionar para coinage
+        router.replace('/login/coinage');
+        return;
       } finally {
         setBrandingLoading(false);
       }
     };
 
     fetchBranding();
-  }, [clientAlias]);
+  }, [companyAlias, router]);
 
   // Verificar se já está autenticado
   useEffect(() => {
@@ -134,8 +136,8 @@ const WhitelabelLoginPage = () => {
     setLoading(true);
 
     try {
-      // Incluir client_alias na requisição de login
-      const response = await authService.login(formData.email, formData.password, clientAlias);
+      // Usar método de login whitelabel
+      const response = await authService.loginWhitelabel(formData.email, formData.password, companyAlias);
       
       const { user, accessToken, refreshToken, isFirstAccess } = response.data;
       
@@ -295,7 +297,7 @@ const WhitelabelLoginPage = () => {
                 <div className="md:max-w-[345px] mx-auto font-normal text-slate-500 dark:text-slate-400 mt-12 uppercase text-sm">
                   Não tem uma conta?{" "}
                   <Link
-                    href={`/register/${clientAlias}`}
+                    href={`/register/${companyAlias}`}
                     className="text-brand font-medium hover:underline"
                   >
                     Cadastre-se

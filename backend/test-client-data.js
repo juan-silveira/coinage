@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 
-// Teste para verificar se os dados do cliente estão chegando do Prisma
+// Teste para verificar se os dados da empresa estão chegando do Prisma
 const { PrismaClient } = require('./src/generated/prisma');
 
-async function testClientData() {
-    console.log('🔥 Testando dados do cliente...');
+async function testCompanyData() {
+    console.log('🔥 Testando dados da empresa...');
     
     const prisma = new PrismaClient();
     
@@ -12,12 +12,12 @@ async function testClientData() {
         // UserID do Ivan
         const userId = '34290450-ce0d-46fc-a370-6ffa787ea6b9';
         
-        console.log('🔍 Buscando transações com dados do cliente...');
+        console.log('🔍 Buscando transações com dados da empresa...');
         
         const transactions = await prisma.transaction.findMany({
             where: { userId },
             include: {
-                client: {
+                company: {
                     select: { id: true, name: true, alias: true }
                 }
             },
@@ -31,8 +31,8 @@ async function testClientData() {
             transactions.forEach((tx, i) => {
                 console.log(`\n📊 Transação ${i + 1}:`);
                 console.log(`  - ID: ${tx.id}`);
-                console.log(`  - ClientID: ${tx.clientId}`);
-                console.log(`  - Client Object:`, tx.client);
+                console.log(`  - CompanyID: ${tx.companyId}`);
+                console.log(`  - Company Object:`, tx.company);
                 console.log(`  - Type: ${tx.transactionType}`);
                 console.log(`  - Status: ${tx.status}`);
             });
@@ -45,4 +45,4 @@ async function testClientData() {
     }
 }
 
-testClientData();
+testCompanyData();

@@ -3,8 +3,18 @@ import { NextResponse } from 'next/server';
 export function middleware(request) {
   const { pathname } = request.nextUrl;
   
+  // Redirecionar /login para /login/coinage
+  if (pathname === '/login') {
+    return NextResponse.redirect(new URL('/login/coinage', request.url));
+  }
+  
+  // Redirecionar /register para /register/coinage
+  if (pathname === '/register') {
+    return NextResponse.redirect(new URL('/register/coinage', request.url));
+  }
+  
   // Rotas públicas que não precisam de autenticação
-  const publicRoutes = ['/login', '/change-password'];
+  const publicRoutes = ['/login', '/change-password', '/register'];
   
   // Verificar se é uma rota pública
   const isPublicRoute = publicRoutes.some(route => pathname.startsWith(route));
@@ -14,7 +24,7 @@ export function middleware(request) {
     return NextResponse.next();
   }
   
-  // Para rotas protegidas, o redirecionamento será feito no cliente
+  // Para rotas protegidas, o redirecionamento será feito na empresa
   // pois precisamos verificar o estado do Zustand
   return NextResponse.next();
 }

@@ -17,7 +17,7 @@ const requestPasswordReset = async (req, res) => {
     const ipAddress = req.ip || req.connection.remoteAddress;
     const userAgent = req.get('User-Agent');
 
-    const result = await PasswordResetService.requestClientReset(email, ipAddress, userAgent);
+    const result = await PasswordResetService.requestCompanyReset(email, ipAddress, userAgent);
 
     if (result.success) {
       res.json(result);

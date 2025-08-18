@@ -31,20 +31,20 @@ const userCacheMiddleware = async (req, res, next) => {
       const user = await getPrisma().user.findUnique({
         where: { id: req.user.id },
         include: {
-          userClients: {
+          userCompanies: {
             include: {
-              client: true
+              company: true
             }
           }
         }
       });
       
       if (user) {
-        // Obter roles do usuário em todos os clientes
-        const roles = user.userClients?.map(uc => uc.role) || [];
+        // Obter roles do usuário em todas as empresas
+        const roles = user.userCompanies?.map(uc => uc.role) || [];
         
-        // Buscar role do cliente atual se disponível
-        const currentClientRole = user.userClients?.find(uc => uc.status === 'active')?.role;
+        // Buscar role da empresa atual se disponível
+        const currentCompanyRole = user.userCompanies?.find(uc => uc.status === 'active')?.role;
         
         // Criar cache do usuário
         const userCache = {
@@ -58,7 +58,7 @@ const userCacheMiddleware = async (req, res, next) => {
           isActive: user.isActive,
           userPlan: user.userPlan,
           roles: roles,
-          currentClientRole: currentClientRole,
+          currentCompanyRole: currentCompanyRole,
           lastActivityAt: user.lastActivityAt,
           createdAt: user.createdAt,
           updatedAt: user.updatedAt

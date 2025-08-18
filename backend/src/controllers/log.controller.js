@@ -12,7 +12,7 @@ class LogController {
       const {
         page,
         limit,
-        clientId,
+        companyId,
         resourceType,
         statusCode,
         startDate,
@@ -23,7 +23,7 @@ class LogController {
       const options = {
         page: parseInt(page) || 1,
         limit: parseInt(limit) || 50,
-        clientId,
+        companyId,
         resourceType,
         statusCode: statusCode ? parseInt(statusCode) : undefined,
         startDate,
@@ -50,7 +50,7 @@ class LogController {
       const {
         page,
         limit,
-        clientId,
+        companyId,
         status,
         network,
         transactionType,
@@ -61,7 +61,7 @@ class LogController {
       const options = {
         page: parseInt(page) || 1,
         limit: parseInt(limit) || 50,
-        clientId,
+        companyId,
         status,
         network,
         transactionType,
@@ -88,7 +88,7 @@ class LogController {
       const {
         startDate,
         endDate,
-        clientId,
+        companyId,
         network,
         resourceType,
         transactionType
@@ -97,7 +97,7 @@ class LogController {
       const options = {
         startDate,
         endDate,
-        clientId,
+        companyId,
         network,
         resourceType,
         transactionType
@@ -257,7 +257,7 @@ class LogController {
       const {
         startDate,
         endDate,
-        clientId,
+        companyId,
         network,
         format
       } = req.query;
@@ -265,7 +265,7 @@ class LogController {
       const options = {
         startDate,
         endDate,
-        clientId,
+        companyId,
         network,
         format: format || 'json'
       };
@@ -282,14 +282,14 @@ class LogController {
   }
 
   /**
-   * Obtém logs do cliente autenticado
+   * Obtém logs da empresa autenticada
    */
   async getMyLogs(req, res) {
     try {
-      if (!req.client) {
+      if (!req.company) {
         return res.status(401).json({
           success: false,
-          message: 'Cliente não autenticado',
+          message: 'Empresa não autenticada',
           error: 'NOT_AUTHENTICATED'
         });
       }
@@ -306,7 +306,7 @@ class LogController {
       const options = {
         page: parseInt(page) || 1,
         limit: parseInt(limit) || 50,
-        clientId: req.client.id,
+        companyId: req.company.id,
         resourceType,
         statusCode: statusCode ? parseInt(statusCode) : undefined,
         startDate,
@@ -318,21 +318,21 @@ class LogController {
     } catch (error) {
       res.status(400).json({
         success: false,
-        message: 'Erro ao obter logs do cliente',
+        message: 'Erro ao obter logs da empresa',
         error: error.message
       });
     }
   }
 
   /**
-   * Obtém transações do cliente autenticado
+   * Obtém transações da empresa autenticada
    */
   async getMyTransactions(req, res) {
     try {
-      if (!req.client) {
+      if (!req.company) {
         return res.status(401).json({
           success: false,
-          message: 'Cliente não autenticado',
+          message: 'Empresa não autenticada',
           error: 'NOT_AUTHENTICATED'
         });
       }
@@ -350,7 +350,7 @@ class LogController {
       const options = {
         page: parseInt(page) || 1,
         limit: parseInt(limit) || 50,
-        clientId: req.client.id,
+        companyId: req.company.id,
         status,
         network,
         transactionType,
@@ -363,21 +363,21 @@ class LogController {
     } catch (error) {
       res.status(400).json({
         success: false,
-        message: 'Erro ao obter transações do cliente',
+        message: 'Erro ao obter transações da empresa',
         error: error.message
       });
     }
   }
 
   /**
-   * Obtém estatísticas do cliente autenticado
+   * Obtém estatísticas da empresa autenticada
    */
   async getMyStats(req, res) {
     try {
-      if (!req.client) {
+      if (!req.company) {
         return res.status(401).json({
           success: false,
-          message: 'Cliente não autenticado',
+          message: 'Empresa não autenticada',
           error: 'NOT_AUTHENTICATED'
         });
       }
@@ -393,7 +393,7 @@ class LogController {
       const options = {
         startDate,
         endDate,
-        clientId: req.client.id,
+        companyId: req.company.id,
         network,
         resourceType,
         transactionType
@@ -404,7 +404,7 @@ class LogController {
     } catch (error) {
       res.status(400).json({
         success: false,
-        message: 'Erro ao obter estatísticas do cliente',
+        message: 'Erro ao obter estatísticas da empresa',
         error: error.message
       });
     }

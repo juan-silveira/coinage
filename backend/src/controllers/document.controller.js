@@ -7,7 +7,7 @@ const documentService = require('../services/document.service');
  */
 const uploadDocument = async (req, res) => {
   try {
-    const { clientId } = req.user;
+    const { companyId } = req.user;
     const { category, tags, isPublic, expiresAt, description, filename, mimeType, size, content } = req.body;
     
     if (!filename || !mimeType || !size || !content) {
@@ -38,7 +38,7 @@ const uploadDocument = async (req, res) => {
     // Upload do arquivo
     const document = await documentService.uploadFile(
       file,
-      clientId,
+      companyId,
       req.user.id,
       metadata
     );
@@ -63,7 +63,7 @@ const uploadDocument = async (req, res) => {
  */
 const getDocuments = async (req, res) => {
   try {
-    const { clientId } = req.user;
+    const { companyId } = req.user;
     const { 
       page = 1, 
       limit = 10, 
@@ -82,7 +82,7 @@ const getDocuments = async (req, res) => {
       search
     };
 
-    const documents = await documentService.getDocuments(clientId, {
+    const documents = await documentService.getDocuments(companyId, {
       ...filters,
       page: parseInt(page),
       limit: parseInt(limit),
@@ -108,10 +108,10 @@ const getDocuments = async (req, res) => {
  */
 const getDocument = async (req, res) => {
   try {
-    const { clientId } = req.user;
+    const { companyId } = req.user;
     const { documentId } = req.params;
 
-    const document = await documentService.getDocument(documentId, clientId);
+    const document = await documentService.getDocument(documentId, companyId);
 
     if (!document) {
       return res.status(404).json({
@@ -138,7 +138,7 @@ const getDocument = async (req, res) => {
  */
 const updateDocument = async (req, res) => {
   try {
-    const { clientId } = req.user;
+    const { companyId } = req.user;
     const { documentId } = req.params;
     const { name, category, tags, isPublic, expiresAt, description } = req.body;
 
@@ -151,7 +151,7 @@ const updateDocument = async (req, res) => {
       description
     };
 
-    const document = await documentService.updateDocument(documentId, clientId, updateData);
+    const document = await documentService.updateDocument(documentId, companyId, updateData);
 
     if (!document) {
       return res.status(404).json({
@@ -179,10 +179,10 @@ const updateDocument = async (req, res) => {
  */
 const deleteDocument = async (req, res) => {
   try {
-    const { clientId } = req.user;
+    const { companyId } = req.user;
     const { documentId } = req.params;
 
-    const deleted = await documentService.deleteDocument(documentId, clientId);
+    const deleted = await documentService.deleteDocument(documentId, companyId);
 
     if (!deleted) {
       return res.status(404).json({
@@ -209,11 +209,11 @@ const deleteDocument = async (req, res) => {
  */
 const generateDownloadUrl = async (req, res) => {
   try {
-    const { clientId } = req.user;
+    const { companyId } = req.user;
     const { documentId } = req.params;
     const { expiresIn = 3600 } = req.query; // 1 hora por padrão
 
-    const downloadUrl = await documentService.generateDownloadUrl(documentId, clientId, parseInt(expiresIn));
+    const downloadUrl = await documentService.generateDownloadUrl(documentId, companyId, parseInt(expiresIn));
 
     if (!downloadUrl) {
       return res.status(404).json({
@@ -243,9 +243,9 @@ const generateDownloadUrl = async (req, res) => {
  */
 const getDocumentStats = async (req, res) => {
   try {
-    const { clientId } = req.user;
+    const { companyId } = req.user;
 
-    const stats = await documentService.getDocumentStats(clientId);
+    const stats = await documentService.getDocumentStats(companyId);
 
     res.json({
       success: true,

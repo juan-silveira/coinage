@@ -13,7 +13,7 @@ const getDefaultAdminConfig = () => {
     cpf: process.env.DEFAULT_ADMIN_CPF || '00000000000',
     publicKey: process.env.DEFAULT_ADMIN_PUBLIC_KEY || '0x5528C065931f523CA9F3a6e49a911896fb1D2e6f',
     privateKey: process.env.DEFAULT_ADMIN_PRIVATE_KEY || '0x2a09b1aaa664113fd7163a0a4aafbcb16f6b5a16ae9dacfe7c840be2455e3f61',
-    clientName: process.env.DEFAULT_CLIENT_NAME || 'Azore Admin Client',
+    companyName: process.env.DEFAULT_CLIENT_NAME || 'Azore Admin Company',
     roles: ['SUPER_ADMIN']
   };
 };
@@ -21,7 +21,7 @@ const getDefaultAdminConfig = () => {
 class AdminService {
   constructor() {
     this.initialized = false;
-    this.defaultClientId = null;
+    this.defaultCompanyId = null;
     this.defaultAdminId = null;
     this.prisma = null;
   }
@@ -50,17 +50,17 @@ class AdminService {
       const config = getDefaultAdminConfig();
       console.log('👤 Inicializando usuário admin padrão...');
 
-      // Verificar se já existe um cliente padrão
-      let defaultClient = await this.prisma.client.findFirst({
-        where: { name: config.clientName }
+      // Verificar se já existe um empresa padrão
+      let defaultCompany = await this.prisma.company.findFirst({
+        where: { name: config.companyName }
       });
 
-      // Criar cliente padrão se não existir
-      if (!defaultClient) {
-        console.log('🏢 Criando cliente padrão...');
-        defaultClient = await this.prisma.client.create({
+      // Criar empresa padrão se não existir
+      if (!defaultCompany) {
+        console.log('🏢 Crianda empresa padrão...');
+        defaultCompany = await this.prisma.company.create({
           data: {
-            name: config.clientName,
+            name: config.companyName,
             rateLimit: {
               requestsPerMinute: 1000,
               requestsPerHour: 10000,
@@ -68,16 +68,16 @@ class AdminService {
             }
           }
         });
-        console.log(`✅ Cliente padrão criado: ${defaultClient.name} (${defaultClient.id})`);
+        console.log(`✅ Company padrão criado: ${defaultCompany.name} (${defaultCompany.id})`);
       }
 
-      this.defaultClientId = defaultClient.id;
+      this.defaultCompanyId = defaultCompany.id;
 
       // Verificar se já existe um admin padrão
       const existingAdmin = await this.prisma.user.findFirst({
         where: {
           email: config.email,
-          clientId: defaultClient.id
+          companyId: defaultCompany.id
         }
       });
 
@@ -101,7 +101,7 @@ class AdminService {
           password: hashedPassword,
           publicKey: config.publicKey,
           privateKey: config.privateKey,
-          clientId: defaultClient.id,
+          companyId: defaultCompany.id,
           roles: config.roles,
           permissions: {
             wallets: { create: true, read: true, update: true, delete: true },
@@ -109,7 +109,7 @@ class AdminService {
             transactions: { create: true, read: true, update: true, delete: true },
             admin: {
               fullAccess: true,
-              clients: { read: true, create: true, update: true, delete: true },
+              companies: { read: true, create: true, update: true, delete: true },
               users: { read: true, create: true, update: true, delete: true }
             }
           },
@@ -120,7 +120,7 @@ class AdminService {
           passwordChangedAt: new Date()
         },
         include: {
-          client: true
+          company: true
         }
       });
 
@@ -129,7 +129,7 @@ class AdminService {
       console.log(`✅ Usuário admin criado com sucesso:`);
       console.log(`   Nome: ${adminUser.name}`);
       console.log(`   Email: ${adminUser.email}`);
-      console.log(`   Cliente: ${adminUser.client.name}`);
+      console.log(`   Company: ${adminUser.company.name}`);
       console.log(`   Roles: ${adminUser.roles.join(', ')}`);
       console.log(`   ID: ${adminUser.id}`);
 
@@ -154,8 +154,8 @@ class AdminService {
         throw new Error('Nome, email e senha são obrigatórios');
       }
 
-      if (!userData.clientId) {
-        userData.clientId = this.defaultClientId;
+      if (!userData.companyId) {
+        userData.companyId = this.defaultCompanyId;
       }
 
       // Hash da senha
@@ -182,7 +182,7 @@ class AdminService {
           password: hashedPassword,
           publicKey: publicKey,
           privateKey: privateKey,
-          clientId: userData.clientId,
+          companyId: userData.companyId,
           roles: userData.roles || ['ADMIN'],
           permissions: userData.permissions || {
             wallets: { create: true, read: true, update: true, delete: false },
@@ -190,17 +190,17 @@ class AdminService {
             transactions: { create: true, read: true, update: false, delete: false },
             admin: {
               fullAccess: false,
-              clients: { read: true, create: false, update: true, delete: false },
+              companies: { read: true, create: false, update: true, delete: false },
               users: { read: true, create: true, update: true, delete: false }
             }
           },
           canViewPrivateKeys: userData.canViewPrivateKeys || false,
-          privateKeyAccessLevel: userData.privateKeyAccessLevel || 'client_users',
+          privateKeyAccessLevel: userData.privateKeyAccessLevel || 'company_users',
           isActive: true,
           isFirstAccess: userData.isFirstAccess !== false
         },
         include: {
-          client: true
+          company: true
         }
       });
 
@@ -224,7 +224,7 @@ class AdminService {
       const {
         page = 1,
         limit = 50,
-        clientId,
+        companyId,
         search
       } = options;
 
@@ -240,8 +240,8 @@ class AdminService {
         ]
       };
 
-      if (clientId) {
-        where.clientId = clientId;
+      if (companyId) {
+        where.companyId = companyId;
       }
 
       if (search) {
@@ -260,7 +260,7 @@ class AdminService {
         this.prisma.user.findMany({
           where,
           include: {
-            client: {
+            company: {
               select: { id: true, name: true }
             }
           },
@@ -307,7 +307,7 @@ class AdminService {
         where: { id: userId },
         data: { permissions },
         include: {
-          client: true
+          company: true
         }
       });
 
@@ -340,7 +340,7 @@ class AdminService {
         where: { id: userId },
         data: { isActive },
         include: {
-          client: true
+          company: true
         }
       });
 
@@ -367,15 +367,15 @@ class AdminService {
       const [
         totalUsers,
         activeUsers,
-        totalClients,
-        activeClients,
+        totalCompanies,
+        activeCompanies,
         totalTransactions,
         totalAdmins
       ] = await Promise.all([
         this.prisma.user.count(),
         this.prisma.user.count({ where: { isActive: true } }),
-        this.prisma.client.count(),
-        this.prisma.client.count({ where: { isActive: true } }),
+        this.prisma.company.count(),
+        this.prisma.company.count({ where: { isActive: true } }),
         this.prisma.transaction.count(),
         this.prisma.user.count({
           where: {
@@ -394,10 +394,10 @@ class AdminService {
           active: activeUsers,
           inactive: totalUsers - activeUsers
         },
-        clients: {
-          total: totalClients,
-          active: activeClients,
-          inactive: totalClients - activeClients
+        companies: {
+          total: totalCompanies,
+          active: activeCompanies,
+          inactive: totalCompanies - activeCompanies
         },
         transactions: {
           total: totalTransactions
@@ -430,7 +430,7 @@ class AdminService {
         success: true,
         message: 'AdminService (Prisma) funcionando corretamente',
         initialized: this.initialized,
-        defaultClientId: this.defaultClientId,
+        defaultCompanyId: this.defaultCompanyId,
         defaultAdminId: this.defaultAdminId,
         stats,
         timestamp: new Date().toISOString()

@@ -25,13 +25,10 @@ const initialUsers = () => {
     },
   ];
 };
-// save users in local storage
 
 const initialIsAuth = () => {
-  if (typeof window !== "undefined") {
-    const item = window?.localStorage.getItem("isAuth");
-    return item ? JSON.parse(item) : false;
-  }
+  // REMOVIDO: Não salvar estado de autenticação no localStorage
+  // Dados sensíveis devem ser gerenciados pelo Zustand store
   return false;
 };
 
@@ -63,9 +60,10 @@ export const authSlice = createSlice({
           email,
           password,
         });
-        if (typeof window !== "undefined") {
-          window?.localStorage.setItem("users", JSON.stringify(state.users));
-        }
+        // REMOVIDO: Não salvar dados sensíveis no localStorage
+        // if (typeof window !== "undefined") {
+        //   window?.localStorage.setItem("users", JSON.stringify(state.users));
+        // }
         toast.success("User registered successfully", {
           position: "top-right",
           autoClose: 1500,
@@ -81,10 +79,11 @@ export const authSlice = createSlice({
 
     handleLogin: (state, action) => {
       state.isAuth = action.payload;
-      // save isAuth in local storage
-      if (typeof window !== "undefined") {
-        window?.localStorage.setItem("isAuth", JSON.stringify(state.isAuth));
-      }
+      // REMOVIDO: Não salvar estado de autenticação no localStorage
+      // Dados sensíveis devem ser gerenciados pelo Zustand store
+      // if (typeof window !== "undefined") {
+      //   window?.localStorage.setItem("isAuth", JSON.stringify(state.isAuth));
+      // }
       toast.success("User logged in successfully", {
         position: "top-right",
         autoClose: 1500,
@@ -98,10 +97,10 @@ export const authSlice = createSlice({
     },
     handleLogout: (state, action) => {
       state.isAuth = action.payload;
-      // remove isAuth from local storage
-      if (typeof window !== "undefined") {
-        window?.localStorage.removeItem("isAuth");
-      }
+      // REMOVIDO: Não remover dados do localStorage pois não são salvos
+      // if (typeof window !== "undefined") {
+      //   window?.localStorage.removeItem("isAuth");
+      // }
       toast.success("User logged out successfully", {
         position: "top-right",
       });

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { transactionService } from '@/services/api';
 import useAuthStore from '@/store/authStore';
+import useConfig from '@/hooks/useConfig';
 
 const useTransactions = (initialParams = {}) => {
   const [transactions, setTransactions] = useState([]);
@@ -14,6 +15,7 @@ const useTransactions = (initialParams = {}) => {
   });
 
   const user = useAuthStore((s) => s.user);
+  const { defaultNetwork } = useConfig();
 
   // Estabilizar initialParams com useMemo para evitar mudanças desnecessárias
   const stableInitialParams = useMemo(() => initialParams, [
@@ -192,10 +194,10 @@ const useTransactions = (initialParams = {}) => {
       gasUsed: tx.gasUsed,
       gasPrice: tx.gasPrice,
       metadata: tx.metadata,
-      network: tx.network || 'testnet',
-      // Preservar dados do cliente da API
-      client: tx.client || null,
-      clientId: tx.clientId
+      network: tx.network || defaultNetwork,
+              // Preservar dados da empresa da API
+        company: tx.company || null,
+        companyId: tx.companyId
     };
   });
 

@@ -37,12 +37,12 @@ class WebhookService {
   }
 
   /**
-   * Listar webhooks de um cliente
+   * Listar webhooks de uma empresa
    */
-  async getWebhooksByClient(clientId) {
+  async getWebhooksByCompany(companyId) {
     try {
       const webhooks = await global.models.Webhook.findAll({
-        where: { clientId },
+        where: { companyId },
         order: [['createdAt', 'DESC']]
       });
       
@@ -239,7 +239,7 @@ class WebhookService {
   /**
    * Disparar webhooks para um evento específico
    */
-  async triggerWebhooks(event, payload, clientId = null) {
+  async triggerWebhooks(event, payload, companyId = null) {
     try {
       // Buscar webhooks ativos para o evento
       const whereClause = {
@@ -249,8 +249,8 @@ class WebhookService {
         }
       };
 
-      if (clientId) {
-        whereClause.clientId = clientId;
+      if (companyId) {
+        whereClause.companyId = companyId;
       }
 
       const webhooks = await global.models.Webhook.findAll({ where: whereClause });
@@ -336,11 +336,11 @@ class WebhookService {
   /**
    * Obter estatísticas de webhooks
    */
-  async getWebhookStats(clientId = null) {
+  async getWebhookStats(companyId = null) {
     try {
       const whereClause = {};
-      if (clientId) {
-        whereClause.clientId = clientId;
+      if (companyId) {
+        whereClause.companyId = companyId;
       }
 
       const stats = await global.models.Webhook.findAll({

@@ -13,7 +13,7 @@ const { userCacheMiddleware, clearUserCacheMiddleware, updateBalancesCacheMiddle
  *         - name
  *         - email
  *         - cpf
- *         - clientId
+ *         - companyId
  *       properties:
  *         id:
  *           type: string
@@ -42,10 +42,10 @@ const { userCacheMiddleware, clearUserCacheMiddleware, updateBalancesCacheMiddle
  *         privateKey:
  *           type: string
  *           description: Chave privada do usuário
- *         clientId:
+ *         companyId:
  *           type: string
  *           format: uuid
- *           description: ID do client ao qual o usuário pertence
+ *           description: ID do company ao qual o usuário pertence
  *         isActive:
  *           type: boolean
  *           description: Se o usuário está ativo
@@ -120,11 +120,11 @@ router.get('/test/service', userController.testService);
  *           default: 10
  *         description: Limite de itens por página
  *       - in: query
- *         name: clientId
+ *         name: companyId
  *         schema:
  *           type: string
  *           format: uuid
- *         description: Filtrar por client ID
+ *         description: Filtrar por company ID
  *       - in: query
  *         name: isActive
  *         schema:
@@ -421,18 +421,18 @@ router.post('/:id/activate', userController.activateUser);
 
 /**
  * @swagger
- * /api/users/client/{clientId}:
+ * /api/users/company/{companyId}:
  *   get:
- *     summary: Obtém usuários de um client específico
+ *     summary: Obtém usuários de um company específico
  *     tags: [Users]
  *     parameters:
  *       - in: path
- *         name: clientId
+ *         name: companyId
  *         required: true
  *         schema:
  *           type: string
  *           format: uuid
- *         description: ID do client
+ *         description: ID do company
  *       - in: query
  *         name: page
  *         schema:
@@ -463,11 +463,11 @@ router.post('/:id/activate', userController.activateUser);
  *         description: Incluir chave privada na resposta
  *     responses:
  *       200:
- *         description: Lista de usuários do client
+ *         description: Lista de usuários do company
  *       400:
  *         description: Parâmetros inválidos
  */
-// router.get('/client/:clientId', userController.getUsersByClientId); // TODO: Implementar função
+// router.get('/company/:companyId', userController.getUsersByCompanyId); // TODO: Implementar função
 
 /**
  * @swagger
@@ -497,9 +497,9 @@ router.post('/:id/activate', userController.activateUser);
 
 /**
  * @swagger
- * /api/users/{userId}/keys/client:
+ * /api/users/{userId}/keys/company:
  *   get:
- *     summary: Obtém chaves públicas e privadas de um usuário (Client)
+ *     summary: Obtém chaves públicas e privadas de um usuário (Company)
  *     tags: [Users]
  *     security:
  *       - ApiKeyAuth: []
@@ -519,7 +519,7 @@ router.post('/:id/activate', userController.activateUser);
  *       401:
  *         description: Não autorizado
  */
-// router.get('/:userId/keys/client', userController.getUserKeysClient); // TODO: Implementar função
+// router.get('/:userId/keys/company', userController.getUserKeysCompany); // TODO: Implementar função
 
 /**
  * @swagger

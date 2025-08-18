@@ -8,12 +8,12 @@ const getUserModel = () => {
   return global.models.User;
 };
 
-// Função para obter o modelo Client inicializado
-const getClientModel = () => {
-  if (!global.models || !global.models.Client) {
-    throw new Error('Modelo Client não está disponível. Verifique se os modelos foram inicializados.');
+// Função para obter o modelo Company inicializado
+const getCompanyModel = () => {
+  if (!global.models || !global.models.Company) {
+    throw new Error('Modelo Company não está disponível. Verifique se os modelos foram inicializados.');
   }
-  return global.models.Client;
+  return global.models.Company;
 };
 
 // Função para obter configurações do admin padrão
@@ -30,8 +30,8 @@ const getDefaultAdminConfig = () => {
   };
 };
 
-// Função para obter configurações do client padrão
-const getDefaultClientConfig = () => {
+// Função para obter configurações do company padrão
+const getDefaultCompanyConfig = () => {
   return {
     name: process.env.DEFAULT_CLIENT_NAME || 'Azore',
     rateLimit: {
@@ -43,19 +43,19 @@ const getDefaultClientConfig = () => {
 };
 
 /**
- * Serviço para gerenciamento do client admin padrão
+ * Serviço para gerenciamento do company admin padrão
  */
 class AdminService {
   /**
-   * Inicializa ou atualiza o client admin padrão
+   * Inicializa ou atualiza o company admin padrão
    */
   static async initializeDefaultAdmin() {
     try {
       const adminConfig = getDefaultAdminConfig();
-      const clientConfig = getDefaultClientConfig();
+      const companyConfig = getDefaultCompanyConfig();
       
       const User = getUserModel();
-      const Client = getClientModel();
+      const Company = getCompanyModel();
       
       // Verificar se o usuário admin já existe
       let adminUser = await User.findByEmail(adminConfig.email);
@@ -71,16 +71,16 @@ class AdminService {
       } else {
         console.log('Criando usuário admin padrão...');
         
-        // Primeiro, criar ou obter o client padrão
-        let defaultClient = await Client.findOne({
-          where: { name: clientConfig.name }
+        // Primeiro, criar ou obter o company padrão
+        let defaultCompany = await Company.findOne({
+          where: { name: companyConfig.name }
         });
         
-        if (!defaultClient) {
-          defaultClient = await Client.create({
-            name: clientConfig.name,
+        if (!defaultCompany) {
+          defaultCompany = await Company.create({
+            name: companyConfig.name,
             isActive: true,
-            rateLimit: clientConfig.rateLimit
+            rateLimit: companyConfig.rateLimit
           });
         }
         
@@ -110,11 +110,11 @@ class AdminService {
           birthDate: adminConfig.birthDate,
           publicKey: publicKey,
           privateKey: privateKey,
-          clientId: defaultClient.id,
+          companyId: defaultCompany.id,
           password: adminConfig.password,
           isFirstAccess: true,
           isApiAdmin: true,
-          isClientAdmin: true,
+          isCompanyAdmin: true,
           roles: ['API_ADMIN', 'CLIENT_ADMIN'],
           permissions: {
 
@@ -132,7 +132,7 @@ class AdminService {
             },
             admin: {
               fullAccess: true,
-              clients: {
+              companies: {
                 read: true,
                 create: true,
                 update: true,

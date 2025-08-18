@@ -15,10 +15,10 @@ router.get('/find-user/:email', async (req, res) => {
     const user = await getPrisma().user.findFirst({
       where: { email },
       include: {
-        userClients: {
+        userCompanies: {
           where: { status: 'active' },
           include: {
-            client: true
+            company: true
           }
         }
       }
@@ -34,12 +34,12 @@ router.get('/find-user/:email', async (req, res) => {
           email: user.email,
           isActive: user.isActive,
           isFirstAccess: user.isFirstAccess,
-          clients: user.userClients.map(uc => uc.client.name),
+          companies: user.userCompanies.map(uc => uc.company.name),
           createdAt: user.createdAt,
           lastActivityAt: user.lastActivityAt,
           roles: user.roles,
           isApiAdmin: user.isApiAdmin,
-          isClientAdmin: user.isClientAdmin,
+          isCompanyAdmin: user.isCompanyAdmin,
           // NUNCA retornar a senha em texto plano por segurança
           hasPassword: !!user.password,
           passwordLength: user.password ? user.password.length : 0
@@ -74,7 +74,7 @@ router.get('/list-users', async (req, res) => {
     const users = await getPrisma().user.findMany({
       take: 10, // Limitar a 10 usuários por segurança
       include: {
-        client: true
+        company: true
       },
       orderBy: {
         createdAt: 'desc'
@@ -87,11 +87,11 @@ router.get('/list-users', async (req, res) => {
       email: user.email,
       isActive: user.isActive,
       isFirstAccess: user.isFirstAccess,
-      client: user.client ? user.client.name : null,
+      company: user.company ? user.company.name : null,
       createdAt: user.createdAt,
       roles: user.roles,
       isApiAdmin: user.isApiAdmin,
-      isClientAdmin: user.isClientAdmin
+      isCompanyAdmin: user.isCompanyAdmin
     }));
     
     res.json({

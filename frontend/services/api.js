@@ -158,7 +158,7 @@ api.interceptors.response.use(
 
 // Serviços de autenticação
 export const authService = {
-  // Login
+  // Login regular
   login: async (email, password) => {
     try {
       const response = await api.post('/api/auth/login', {
@@ -166,6 +166,86 @@ export const authService = {
         password
       });
       // O backend retorna { success: true, data: { user, accessToken, ... } }
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  // Login whitelabel com company_alias
+  loginWhitelabel: async (email, password, companyAlias) => {
+    try {
+      // Primeiro, buscar o company ID pelo alias
+      const companyResponse = await api.get(`/api/whitelabel/company-branding/${companyAlias}`);
+      
+      if (!companyResponse.data.success) {
+        throw new Error('Company não encontrado');
+      }
+
+      // Fazer login com o company ID
+      const response = await api.post('/api/whitelabel/login/authenticate', {
+        email,
+        password,
+        companyId: companyResponse.data.data.company_id
+      });
+      
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  // Registro
+  register: async (userData) => {
+    try {
+      const response = await api.post('/api/auth/register', userData);
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  // Verificar status do usuário para registro whitelabel
+  checkUserStatus: async (email, companyAlias) => {
+    try {
+      const response = await api.post('/api/whitelabel/check-user-status', {
+        email,
+        companyAlias
+      });
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  // Registrar novo usuário no whitelabel
+  registerNewUserWhitelabel: async (userData) => {
+    try {
+      const response = await api.post('/api/whitelabel/register-new-user', userData);
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  // Vincular usuário existente ao companye
+  linkExistingUser: async (userId, password, companyAlias) => {
+    try {
+      const response = await api.post('/api/whitelabel/link-existing-user', {
+        userId,
+        password,
+        companyAlias
+      });
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  // Completar dados do primeiro acesso
+  completeFirstAccess: async (userData) => {
+    try {
+      const response = await api.post('/api/whitelabel/complete-first-access', userData);
       return response.data;
     } catch (error) {
       throw error;
@@ -250,7 +330,7 @@ export const userService = {
   },
 
   // Obter saldos do usuário por endereço (usa endpoint fresh que inclui AZE-t nativo)
-  getUserBalances: async (address, network = 'testnet', forceRefresh = false) => {
+  getUserBalances: async (address, network = 'mainnet', forceRefresh = false) => {
     // Usar o novo endpoint que busca dados frescos incluindo AZE-t
     const response = await api.get(`/api/balance-sync/fresh`, {
       params: { 
@@ -353,7 +433,7 @@ export const tokenService = {
   },
 
   // Obter saldo de token
-  getTokenBalance: async (contractAddress, walletAddress, network = 'testnet') => {
+  getTokenBalance: async (contractAddress, walletAddress, network = 'mainnet') => {
     const response = await api.post('/api/tokens/balance', {
       contractAddress,
       walletAddress,
@@ -378,13 +458,13 @@ export const earningsService = {
   },
 
   // Obter resumo dos proventos
-  getEarningsSummary: async (network = 'testnet') => {
+  getEarningsSummary: async (network = 'mainnet') => {
     const response = await api.get('/api/earnings/summary', { params: { network } });
     return response.data;
   },
 
   // Obter proventos por período
-  getEarningsByPeriod: async (startDate, endDate, network = 'testnet') => {
+  getEarningsByPeriod: async (startDate, endDate, network = 'mainnet') => {
     const response = await api.get('/api/earnings/period', { 
       params: { startDate, endDate, network } 
     });
@@ -410,17 +490,26 @@ export const earningsService = {
   },
 };
 
+// Serviços de configuração
+export const configService = {
+  // Obter configurações públicas
+  getPublicConfig: async () => {
+    const response = await api.get('/api/config/public');
+    return response.data;
+  },
+};
+
 // Serviços de whitelabel
 export const whitelabelService = {
-  // Obter cliente atual do usuário
-  getCurrentClient: async () => {
-    const response = await api.get('/api/whitelabel/user/current-client');
+  // Obter empresa atual do usuário
+  getCurrentCompany: async () => {
+    const response = await api.get('/api/whitelabel/user/current-company');
     return response.data;
   },
 
-  // Listar clientes do usuário
-  getUserClients: async (params = {}) => {
-    const response = await api.get('/api/whitelabel/user/clients', { params });
+  // Listar empresas do usuário
+  getUserCompanies: async (params = {}) => {
+    const response = await api.get('/api/whitelabel/user/companies', { params });
     return response.data;
   }
 };

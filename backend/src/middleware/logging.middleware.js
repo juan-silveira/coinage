@@ -22,7 +22,7 @@ const requestLogger = async (req, res, next) => {
     },
     ipAddress: req.ip || req.connection.remoteAddress,
     userAgent: req.get('User-Agent'),
-    clientId: req.client ? req.client.id : null
+    companyId: req.company ? req.company.id : null
   };
 
   // Interceptar a resposta
@@ -117,7 +117,7 @@ const transactionLogger = async (req, res, next) => {
       }
       
       createTransactionLog({
-        clientId: req.client ? req.client.id : null,
+        companyId: req.company ? req.company.id : null,
         userId: req.user ? req.user.id : null,
         requestLogId: null,
         contractId: req.params.address || null,
@@ -194,7 +194,7 @@ const transactionLogger = async (req, res, next) => {
       }
       
       createTransactionLog({
-        clientId: req.client ? req.client.id : null,
+        companyId: req.company ? req.company.id : null,
         userId: req.user ? req.user.id : null,
         requestLogId: null,
         contractId: null, // Será preenchido se necessário
@@ -257,7 +257,7 @@ const errorLogger = (err, req, res, next) => {
   const errorData = {
     method: req.method,
     path: req.path,
-    clientId: req.client ? req.client.id : null,
+    companyId: req.company ? req.company.id : null,
     error: {
       message: err.message,
       stack: err.stack,

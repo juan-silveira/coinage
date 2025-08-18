@@ -6,9 +6,10 @@ services:
     build: ./backend
     container_name: coinage_backend
     ports:
-      - "8800:3000"
+      - "8800:8800"
     environment:
       - NODE_ENV=production
+      - PORT=8800
       - DB_HOST=postgres
       - DB_PORT=5432
       - DB_NAME=coinage_db
@@ -32,7 +33,9 @@ services:
       - TESTNET_CHAIN_ID=88001
       - MAINNET_RPC_URL=https://rpc.azore.technology
       - MAINNET_CHAIN_ID=88000
-      - DEFAULT_NETWORK=testnet
+      - DEFAULT_NETWORK=mainnet
+      - MAINNET_EXPLORER_URL=https://azorescan.com/api
+      - TESTNET_EXPLORER_URL=https://floripa.azorescan.com/api
       - TOKEN_ABI=${TOKEN_ABI}
       - STAKE_ABI=${STAKE_ABI}
     networks:

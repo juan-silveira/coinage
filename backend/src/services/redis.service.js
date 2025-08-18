@@ -2,7 +2,7 @@ const redis = require('redis');
 
 class RedisService {
   constructor() {
-    this.client = null;
+    this.company = null;
     this.isConnected = false;
   }
 
@@ -11,7 +11,7 @@ class RedisService {
    */
   async initialize() {
     try {
-      this.client = redis.createClient({
+      this.company = redis.createClient({
         socket: {
           host: process.env.REDIS_HOST || 'localhost',
           port: parseInt(process.env.REDIS_PORT) || 6379,
@@ -27,27 +27,27 @@ class RedisService {
         maxRetriesPerRequest: 3
       });
 
-      this.client.on('error', (err) => {
-        console.error('❌ Redis Client Error:', err);
+      this.company.on('error', (err) => {
+        console.error('❌ Redis Company Error:', err);
         this.isConnected = false;
       });
 
-      this.client.on('connect', () => {
-        console.log('✅ Redis Client Connected');
+      this.company.on('connect', () => {
+        console.log('✅ Redis Company Connected');
         this.isConnected = true;
       });
 
-      this.client.on('ready', () => {
-        console.log('✅ Redis Client Ready');
+      this.company.on('ready', () => {
+        console.log('✅ Redis Company Ready');
         this.isConnected = true;
       });
 
-      this.client.on('end', () => {
-        console.log('⚠️ Redis Client Disconnected');
+      this.company.on('end', () => {
+        console.log('⚠️ Redis Company Disconnected');
         this.isConnected = false;
       });
 
-      await this.client.connect();
+      await this.company.connect();
       console.log('✅ Redis service initialized successfully');
     } catch (error) {
       console.error('❌ Error initializing Redis service:', error.message);
@@ -62,13 +62,13 @@ class RedisService {
    */
   async addToBlacklist(token, expiresIn = 3600) {
     try {
-      if (!this.isConnected || !this.client) {
+      if (!this.isConnected || !this.company) {
         console.warn('⚠️ Redis not connected, skipping blacklist operation');
         return false;
       }
 
       const key = `blacklist:${token}`;
-      await this.client.setEx(key, expiresIn, 'blacklisted');
+      await this.company.setEx(key, expiresIn, 'blacklisted');
       console.log(`✅ Token added to blacklist: ${token.substring(0, 20)}...`);
       return true;
     } catch (error) {
@@ -82,13 +82,13 @@ class RedisService {
    */
   async isBlacklisted(token) {
     try {
-      if (!this.isConnected || !this.client) {
+      if (!this.isConnected || !this.company) {
         console.warn('⚠️ Redis not connected, assuming token is not blacklisted');
         return false;
       }
 
       const key = `blacklist:${token}`;
-      const result = await this.client.get(key);
+      const result = await this.company.get(key);
       return result === 'blacklisted';
     } catch (error) {
       console.error('❌ Error checking blacklist:', error.message);
@@ -101,13 +101,13 @@ class RedisService {
    */
   async removeFromBlacklist(token) {
     try {
-      if (!this.isConnected || !this.client) {
+      if (!this.isConnected || !this.company) {
         console.warn('⚠️ Redis not connected, skipping blacklist removal');
         return false;
       }
 
       const key = `blacklist:${token}`;
-      await this.client.del(key);
+      await this.company.del(key);
       console.log(`✅ Token removed from blacklist: ${token.substring(0, 20)}...`);
       return true;
     } catch (error) {
@@ -121,19 +121,19 @@ class RedisService {
    */
   async cleanupExpiredTokens() {
     try {
-      if (!this.isConnected || !this.client) {
+      if (!this.isConnected || !this.company) {
         console.warn('⚠️ Redis not connected, skipping cleanup');
         return 0;
       }
 
       const pattern = 'blacklist:*';
-      const keys = await this.client.keys(pattern);
+      const keys = await this.company.keys(pattern);
       let removedCount = 0;
 
       for (const key of keys) {
-        const ttl = await this.client.ttl(key);
+        const ttl = await this.company.ttl(key);
         if (ttl <= 0) {
-          await this.client.del(key);
+          await this.company.del(key);
           removedCount++;
         }
       }
@@ -151,7 +151,7 @@ class RedisService {
    */
   async getBlacklistStats() {
     try {
-      if (!this.isConnected || !this.client) {
+      if (!this.isConnected || !this.company) {
         return {
           totalTokens: 0,
           isConnected: false
@@ -159,7 +159,7 @@ class RedisService {
       }
 
       const pattern = 'blacklist:*';
-      const keys = await this.client.keys(pattern);
+      const keys = await this.company.keys(pattern);
       
       const stats = {
         totalTokens: keys.length,
@@ -170,7 +170,7 @@ class RedisService {
       // Obter informações detalhadas dos primeiros 10 tokens
       for (let i = 0; i < Math.min(keys.length, 10); i++) {
         const key = keys[i];
-        const ttl = await this.client.ttl(key);
+        const ttl = await this.company.ttl(key);
         stats.tokens.push({
           token: key.replace('blacklist:', '').substring(0, 20) + '...',
           expiresIn: ttl > 0 ? ttl : 'expired'
@@ -198,7 +198,7 @@ class RedisService {
    */
   async cacheUserData(userId, userData, expiresIn = 3600) {
     try {
-      if (!this.isConnected || !this.client) {
+      if (!this.isConnected || !this.company) {
         console.warn('⚠️ Redis not connected, skipping user cache');
         return false;
       }
@@ -209,7 +209,7 @@ class RedisService {
         cachedAt: new Date().toISOString()
       });
 
-      await this.client.setEx(key, expiresIn, data);
+      await this.company.setEx(key, expiresIn, data);
       console.log(`✅ User data cached for ID: ${userId}`);
       return true;
     } catch (error) {
@@ -225,13 +225,13 @@ class RedisService {
    */
   async getCachedUserData(userId) {
     try {
-      if (!this.isConnected || !this.client) {
+      if (!this.isConnected || !this.company) {
         console.warn('⚠️ Redis not connected, user cache unavailable');
         return null;
       }
 
       const key = `user:${userId}`;
-      const data = await this.client.get(key);
+      const data = await this.company.get(key);
       
       if (!data) {
         return null;
@@ -252,13 +252,13 @@ class RedisService {
    */
   async removeCachedUserData(userId) {
     try {
-      if (!this.isConnected || !this.client) {
+      if (!this.isConnected || !this.company) {
         console.warn('⚠️ Redis not connected, skipping user cache removal');
         return false;
       }
 
       const key = `user:${userId}`;
-      await this.client.del(key);
+      await this.company.del(key);
       console.log(`✅ User data removed from cache for ID: ${userId}`);
       return true;
     } catch (error) {
@@ -275,13 +275,13 @@ class RedisService {
    */
   async updateCachedUserData(userId, updates, expiresIn = 3600) {
     try {
-      if (!this.isConnected || !this.client) {
+      if (!this.isConnected || !this.company) {
         console.warn('⚠️ Redis not connected, skipping user cache update');
         return false;
       }
 
       const key = `user:${userId}`;
-      const existingData = await this.client.get(key);
+      const existingData = await this.company.get(key);
       
       let userData = {};
       if (existingData) {
@@ -294,7 +294,7 @@ class RedisService {
         cachedAt: new Date().toISOString()
       };
 
-      await this.client.setEx(key, expiresIn, JSON.stringify(updatedData));
+      await this.company.setEx(key, expiresIn, JSON.stringify(updatedData));
       console.log(`✅ User data updated in cache for ID: ${userId}`);
       return true;
     } catch (error) {
@@ -315,7 +315,7 @@ class RedisService {
    */
   async cacheUserBalances(userId, address, network, balances, expiresIn = 60) {
     try {
-      if (!this.isConnected || !this.client) {
+      if (!this.isConnected || !this.company) {
         console.warn('⚠️ Redis not connected, skipping balances cache');
         return false;
       }
@@ -328,7 +328,7 @@ class RedisService {
         fromCache: true
       });
 
-      await this.client.setEx(key, expiresIn, data);
+      await this.company.setEx(key, expiresIn, data);
       console.log(`✅ User balances cached for ID: ${userId}, Address: ${address}, Network: ${network}`);
       return true;
     } catch (error) {
@@ -346,13 +346,13 @@ class RedisService {
    */
   async getCachedUserBalances(userId, address, network) {
     try {
-      if (!this.isConnected || !this.client) {
+      if (!this.isConnected || !this.company) {
         console.warn('⚠️ Redis not connected, balances cache unavailable');
         return null;
       }
 
       const key = `balances:${userId}:${address}:${network}`;
-      const data = await this.client.get(key);
+      const data = await this.company.get(key);
       
       if (!data) {
         console.log(`💰 Balances cache miss for user ${userId}, address: ${address}, network: ${network}`);
@@ -375,13 +375,13 @@ class RedisService {
    */
   async removeCachedUserBalances(userId, address) {
     try {
-      if (!this.isConnected || !this.client) {
+      if (!this.isConnected || !this.company) {
         console.warn('⚠️ Redis not connected, skipping balances cache removal');
         return false;
       }
 
       const key = `balances:${userId}:${address}`;
-      await this.client.del(key);
+      await this.company.del(key);
       console.log(`✅ User balances removed from cache for ID: ${userId}, Address: ${address}`);
       return true;
     } catch (error) {
@@ -399,13 +399,13 @@ class RedisService {
    */
   async updateCachedUserBalances(userId, address, updates, expiresIn = 300) {
     try {
-      if (!this.isConnected || !this.client) {
+      if (!this.isConnected || !this.company) {
         console.warn('⚠️ Redis not connected, skipping balances cache update');
         return false;
       }
 
       const key = `balances:${userId}:${address}`;
-      const existingData = await this.client.get(key);
+      const existingData = await this.company.get(key);
       
       let balances = {};
       if (existingData) {
@@ -418,7 +418,7 @@ class RedisService {
         cachedAt: new Date().toISOString()
       };
 
-      await this.client.setEx(key, expiresIn, JSON.stringify(updatedBalances));
+      await this.company.setEx(key, expiresIn, JSON.stringify(updatedBalances));
       console.log(`✅ User balances updated in cache for ID: ${userId}, Address: ${address}`);
       return true;
     } catch (error) {
@@ -432,7 +432,7 @@ class RedisService {
    */
   async getCacheStats() {
     try {
-      if (!this.isConnected || !this.client) {
+      if (!this.isConnected || !this.company) {
         return {
           isConnected: false,
           userCache: { count: 0 },
@@ -441,9 +441,9 @@ class RedisService {
         };
       }
 
-      const userKeys = await this.client.keys('user:*');
-      const balanceKeys = await this.client.keys('balances:*');
-      const blacklistKeys = await this.client.keys('blacklist:*');
+      const userKeys = await this.company.keys('user:*');
+      const balanceKeys = await this.company.keys('balances:*');
+      const blacklistKeys = await this.company.keys('blacklist:*');
 
       return {
         isConnected: true,
@@ -466,17 +466,17 @@ class RedisService {
    */
   async clearAllCache() {
     try {
-      if (!this.isConnected || !this.client) {
+      if (!this.isConnected || !this.company) {
         console.warn('⚠️ Redis not connected, skipping cache clear');
         return 0;
       }
 
-      const userKeys = await this.client.keys('user:*');
-      const balanceKeys = await this.client.keys('balances:*');
+      const userKeys = await this.company.keys('user:*');
+      const balanceKeys = await this.company.keys('balances:*');
       const allKeys = [...userKeys, ...balanceKeys];
 
       if (allKeys.length > 0) {
-        await this.client.del(allKeys);
+        await this.company.del(allKeys);
       }
 
       console.log(`✅ Cleared ${allKeys.length} cache entries`);
@@ -492,7 +492,7 @@ class RedisService {
    */
   async testConnection() {
     try {
-      if (!this.isConnected || !this.client) {
+      if (!this.isConnected || !this.company) {
         return {
           success: false,
           message: 'Redis not connected',
@@ -500,7 +500,7 @@ class RedisService {
         };
       }
 
-      const result = await this.client.ping();
+      const result = await this.company.ping();
       return {
         success: result === 'PONG',
         message: result === 'PONG' ? 'Redis connection successful' : 'Redis connection failed',
@@ -520,8 +520,8 @@ class RedisService {
    */
   async disconnect() {
     try {
-      if (this.client) {
-        await this.client.quit();
+      if (this.company) {
+        await this.company.quit();
         this.isConnected = false;
         console.log('✅ Redis connection closed');
       }

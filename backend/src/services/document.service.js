@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
-const Minio = require('minio');
+const { Client } = require('minio');
 const sharp = require('sharp');
 // Função para obter o modelo Document inicializado
 const getDocumentModel = () => {
@@ -22,7 +22,7 @@ const getSequelize = () => {
 class DocumentService {
   constructor() {
     // Configurar cliente MinIO
-    this.minioClient = new Minio.Client({
+    this.minioClient = new Client({
       endPoint: process.env.MINIO_ENDPOINT || 'localhost',
       port: parseInt(process.env.MINIO_PORT) || 9000,
       useSSL: process.env.MINIO_USE_SSL === 'true',
@@ -133,7 +133,7 @@ class DocumentService {
   /**
    * Upload de arquivo
    */
-  async uploadFile(file, clientId, userId = null, metadata = {}) {
+  async uploadFile(file, companyId, userId = null, metadata = {}) {
     try {
       // Validar tipo de arquivo
       if (!this.validateFileType(file.mimetype)) {
@@ -154,7 +154,7 @@ class DocumentService {
 
       // Gerar nome único
       const filename = this.generateUniqueFilename(file.originalname);
-      const objectName = `${clientId}/${filename}`;
+      const objectName = `${companyId}/${filename}`;
 
       // Otimizar imagem se necessário
       let fileBuffer = file.buffer;
@@ -180,7 +180,7 @@ class DocumentService {
       // Salvar no banco de dados
       const Document = getDocumentModel();
       const document = await Document.create({
-        clientId,
+        companyId,
         userId,
         name: metadata.name || file.originalname,
         originalName: file.originalname,
@@ -217,12 +217,12 @@ class DocumentService {
   }
 
   /**
-   * Listar documentos do cliente
+   * Listar documentos da empresa
    */
-  async getDocuments(clientId, filters = {}) {
+  async getDocuments(companyId, filters = {}) {
     try {
       const whereClause = {
-        clientId,
+        companyId,
         isActive: true
       };
 
@@ -267,13 +267,13 @@ class DocumentService {
   /**
    * Obter documento específico
    */
-  async getDocument(documentId, clientId) {
+  async getDocument(documentId, companyId) {
     try {
       const Document = getDocumentModel();
       const document = await Document.findOne({
         where: {
           id: documentId,
-          clientId,
+          companyId,
           isActive: true
         }
       });
@@ -304,13 +304,13 @@ class DocumentService {
   /**
    * Atualizar documento
    */
-  async updateDocument(documentId, clientId, updateData) {
+  async updateDocument(documentId, companyId, updateData) {
     try {
       const Document = getDocumentModel();
       const document = await Document.findOne({
         where: {
           id: documentId,
-          clientId,
+          companyId,
           isActive: true
         }
       });
@@ -343,13 +343,13 @@ class DocumentService {
   /**
    * Deletar documento
    */
-  async deleteDocument(documentId, clientId) {
+  async deleteDocument(documentId, companyId) {
     try {
       const Document = getDocumentModel();
       const document = await Document.findOne({
         where: {
           id: documentId,
-          clientId,
+          companyId,
           isActive: true
         }
       });
@@ -389,13 +389,13 @@ class DocumentService {
   /**
    * Gerar URL de download
    */
-  async generateDownloadUrl(documentId, clientId) {
+  async generateDownloadUrl(documentId, companyId) {
     try {
       const Document = getDocumentModel();
       const document = await Document.findOne({
         where: {
           id: documentId,
-          clientId,
+          companyId,
           isActive: true
         }
       });
@@ -450,12 +450,12 @@ class DocumentService {
   /**
    * Obter estatísticas de documentos
    */
-  async getDocumentStats(clientId) {
+  async getDocumentStats(companyId) {
     try {
       const Document = getDocumentModel();
       const sequelize = getSequelize();
       const stats = await Document.findAll({
-        where: { clientId, isActive: true },
+        where: { companyId, isActive: true },
         attributes: [
           [sequelize.fn('COUNT', sequelize.col('id')), 'total'],
           [sequelize.fn('SUM', sequelize.col('size')), 'totalSize'],

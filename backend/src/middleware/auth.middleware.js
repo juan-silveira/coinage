@@ -32,13 +32,13 @@ const authenticateApiKey = async (req, res, next) => {
       where: { keyHash: apiKeyHash },
       include: {
         user: {
-          include: {
-            userClients: {
-              include: {
-                client: true
-              }
+                  include: {
+          userCompanies: {
+            include: {
+              company: true
             }
           }
+        }
         }
       }
     });
@@ -52,12 +52,12 @@ const authenticateApiKey = async (req, res, next) => {
     }
 
     const user = apiKeyRecord.user;
-    const client = user.userClients?.[0]?.client; // Pegar o primeiro cliente do usuário
+    const company = user.userCompanies?.[0]?.company; // Pegar a primeira empresa do usuário
     
-    if (!user || !client) {
+    if (!user || !company) {
       return res.status(401).json({
         success: false,
-        message: 'API Key inválida ou usuário/cliente inativo',
+        message: 'API Key inválida ou usuário/empresa inativo',
         error: 'INVALID_API_KEY'
       });
     }
@@ -71,12 +71,12 @@ const authenticateApiKey = async (req, res, next) => {
       });
     }
 
-    // Verificar se o client está ativo
-    if (!client.isActive) {
+    // Verificar se a empresa está ativa
+    if (!company.isActive) {
       return res.status(401).json({
         success: false,
-        message: 'Client inativo',
-        error: 'INACTIVE_CLIENT'
+        message: 'Empresa inativa',
+        error: 'INACTIVE_COMPANY'
       });
     }
 
@@ -92,10 +92,10 @@ const authenticateApiKey = async (req, res, next) => {
       data: { lastActivityAt: new Date() }
     });
     
-    // Adicionar API Key, usuário e client ao request
+    // Adicionar API Key, usuário e empresa ao request
     req.apiKey = apiKeyRecord;
     req.user = user;
-    req.client = client;
+    req.company = company;
 
     next();
   } catch (error) {
@@ -143,7 +143,7 @@ const requireApiAdmin = async (req, res, next) => {
 /**
  * Middleware para verificar se o usuário é CLIENT_ADMIN
  */
-const requireClientAdmin = async (req, res, next) => {
+const requireCompanyAdmin = async (req, res, next) => {
   try {
     if (!req.user) {
       return res.status(401).json({
@@ -153,7 +153,7 @@ const requireClientAdmin = async (req, res, next) => {
       });
     }
 
-    if (!req.user.isClientAdminUser()) {
+    if (!req.user.isCompanyAdminUser()) {
       return res.status(403).json({
         success: false,
         message: 'Acesso negado: permissões de CLIENT_ADMIN necessárias',
@@ -185,7 +185,7 @@ const requireAnyAdmin = async (req, res, next) => {
       });
     }
 
-    if (!req.user.canAccessClientAdminRoutes()) {
+    if (!req.user.canAccessCompanyAdminRoutes()) {
       return res.status(403).json({
         success: false,
         message: 'Acesso negado: permissões de administrador necessárias',
@@ -359,7 +359,7 @@ const checkUsageLimits = async (req, res, next) => {
 const addUserInfo = (req, res, next) => {
   if (req.user) {
     // Verificar se é autenticação por API Key ou JWT
-    const isApiKeyAuth = req.apiKey && req.client;
+    const isApiKeyAuth = req.apiKey && req.company;
     const isJwtAuth = req.user.isApiAdmin !== undefined;
     
     // Adicionar headers com informações do usuário
@@ -372,17 +372,17 @@ const addUserInfo = (req, res, next) => {
 
     if (isApiKeyAuth) {
       // Autenticação por API Key
-      headers['X-Client-ID'] = req.user.clientId;
+      headers['X-Company-ID'] = req.user.companyId;
       headers['X-User-Is-Api-Admin'] = req.user.isApiAdminUser ? req.user.isApiAdminUser() : req.user.isApiAdmin;
-      headers['X-User-Is-Client-Admin'] = req.user.isClientAdminUser ? req.user.isClientAdminUser() : req.user.isClientAdmin;
-      headers['X-Rate-Limit-Minute'] = req.client.rateLimit.requestsPerMinute;
-      headers['X-Rate-Limit-Hour'] = req.client.rateLimit.requestsPerHour;
-      headers['X-Rate-Limit-Day'] = req.client.rateLimit.requestsPerDay;
+      headers['X-User-Is-Company-Admin'] = req.user.isCompanyAdminUser ? req.user.isCompanyAdminUser() : req.user.isCompanyAdmin;
+      headers['X-Rate-Limit-Minute'] = req.company.rateLimit.requestsPerMinute;
+      headers['X-Rate-Limit-Hour'] = req.company.rateLimit.requestsPerHour;
+      headers['X-Rate-Limit-Day'] = req.company.rateLimit.requestsPerDay;
     } else if (isJwtAuth) {
       // Autenticação por JWT
-      headers['X-Client-ID'] = req.user.clientId;
+      headers['X-Company-ID'] = req.user.companyId;
       headers['X-User-Is-Api-Admin'] = req.user.isApiAdmin;
-      headers['X-User-Is-Client-Admin'] = req.user.isClientAdmin;
+      headers['X-User-Is-Company-Admin'] = req.user.isCompanyAdmin;
     }
 
     res.set(headers);
@@ -397,11 +397,11 @@ const logAuthenticatedRequest = (req, res, next) => {
   if (req.user) {
     const userName = req.user.name || 'N/A';
     const userId = req.user.id || 'N/A';
-    const clientName = req.client?.name || 'N/A';
-    const clientId = req.client?.id || 'N/A';
+    const companyName = req.company?.name || 'N/A';
+    const companyId = req.company?.id || 'N/A';
     const roles = Array.isArray(req.user.roles) ? req.user.roles.join(', ') : 'N/A';
     
-    console.log(`[AUTH] ${req.method} ${req.path} - User: ${userName} (${userId}) - Client: ${clientName} (${clientId}) - Roles: ${roles}`);
+    console.log(`[AUTH] ${req.method} ${req.path} - User: ${userName} (${userId}) - Company: ${companyName} (${companyId}) - Roles: ${roles}`);
   }
   next();
 };
@@ -409,7 +409,7 @@ const logAuthenticatedRequest = (req, res, next) => {
 module.exports = {
   authenticateApiKey,
   requireApiAdmin,
-  requireClientAdmin,
+  requireCompanyAdmin,
   requireAnyAdmin,
   requireApiKeyManagement,
   checkPermission,

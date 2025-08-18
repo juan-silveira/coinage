@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "🎨 Sistema Whitelabel",
-    "description": "Endpoints para sistema de login whitelabel e multi-client",
+    "description": "Endpoints para sistema de login whitelabel e multi-company",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "version": "1.0.0"
   },
@@ -12,7 +12,7 @@
       "type": "string"
     },
     {
-      "key": "client_slug",
+      "key": "company_slug",
       "value": "pratique",
       "type": "string"
     },
@@ -54,7 +54,7 @@
   },
   "item": [
     {
-      "name": "📋 Obter Branding do Cliente",
+      "name": "📋 Obter Branding do Company",
       "request": {
         "method": "GET",
         "header": [
@@ -64,9 +64,9 @@
           }
         ],
         "url": {
-          "raw": "{{base_url}}/api/whitelabel/{{client_slug}}/branding",
+          "raw": "{{base_url}}/api/whitelabel/{{company_slug}}/branding",
           "host": ["{{base_url}}"],
-          "path": ["api", "whitelabel", "{{client_slug}}", "branding"]
+          "path": ["api", "whitelabel", "{{company_slug}}", "branding"]
         }
       },
       "response": []
@@ -105,9 +105,9 @@
           "raw": "{\n  \"email\": \"{{email}}\"\n}"
         },
         "url": {
-          "raw": "{{base_url}}/api/whitelabel/{{client_slug}}/login/initiate",
+          "raw": "{{base_url}}/api/whitelabel/{{company_slug}}/login/initiate",
           "host": ["{{base_url}}"],
-          "path": ["api", "whitelabel", "{{client_slug}}", "login", "initiate"]
+          "path": ["api", "whitelabel", "{{company_slug}}", "login", "initiate"]
         }
       },
       "response": []
@@ -154,9 +154,9 @@
           "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}"
         },
         "url": {
-          "raw": "{{base_url}}/api/whitelabel/{{client_slug}}/login/confirm",
+          "raw": "{{base_url}}/api/whitelabel/{{company_slug}}/login/confirm",
           "host": ["{{base_url}}"],
-          "path": ["api", "whitelabel", "{{client_slug}}", "login", "confirm"]
+          "path": ["api", "whitelabel", "{{company_slug}}", "login", "confirm"]
         }
       },
       "response": []
@@ -204,7 +204,7 @@
       "response": []
     },
     {
-      "name": "📋 Listar Clientes Vinculados",
+      "name": "📋 Listar Companys Vinculados",
       "request": {
         "method": "GET",
         "header": [
@@ -218,9 +218,9 @@
           }
         ],
         "url": {
-          "raw": "{{base_url}}/api/whitelabel/linked-clients",
+          "raw": "{{base_url}}/api/whitelabel/linked-companies",
           "host": ["{{base_url}}"],
-          "path": ["api", "whitelabel", "linked-clients"]
+          "path": ["api", "whitelabel", "linked-companies"]
         }
       },
       "response": []
@@ -240,9 +240,9 @@
           }
         ],
         "url": {
-          "raw": "{{base_url}}/api/whitelabel/unlink/{{client_id}}",
+          "raw": "{{base_url}}/api/whitelabel/unlink/{{company_id}}",
           "host": ["{{base_url}}"],
-          "path": ["api", "whitelabel", "unlink", "{{client_id}}"]
+          "path": ["api", "whitelabel", "unlink", "{{company_id}}"]
         }
       },
       "response": []

@@ -7,7 +7,7 @@ const userCacheService = require('./services/userCache.service');
 
 // Importar serviços (mantenha os originais por enquanto, eles serão migrados gradualmente)
 const contractService = require('./services/contract.service');
-const clientService = require('./services/client.service');
+const companyService = require('./services/company.service');
 const userService = require('./services/user.service');
 const logService = require('./services/log.service');
 const adminService = require('./services/admin.service.prisma');
@@ -86,10 +86,10 @@ const startServer = () => {
     }
     
     try {
-      await clientService.initialize();
-      console.log('✅ Client service (Prisma) inicializado');
+      await companyService.initialize();
+      console.log('✅ Company service (Prisma) inicializado');
     } catch (error) {
-      console.log('⚠️ Client service: erro na inicialização -', error.message);
+      console.log('⚠️ Company service: erro na inicialização -', error.message);
     }
     
     try {
@@ -149,6 +149,68 @@ const startServer = () => {
       console.log('⚠️ Tokens padrão: aguardando migração para Prisma');
     } catch (error) {
       console.log('⚠️ Tokens padrão: não inicializados');
+    }
+
+    // Inicializar dados padrão
+    console.log('🔍 Verificando dados padrão...');
+    try {
+      // Verificar se existem empresas
+      const companiesCount = await prisma.company.count();
+      console.log(`📊 Companies existentes: ${companiesCount}`);
+      
+      if (companiesCount === 0) {
+        console.log('🏗️ Criando empresa padrão...');
+        const defaultCompany = await prisma.company.create({
+          data: {
+            name: 'Company Padrão',
+            alias: 'default',
+            isActive: true,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          }
+        });
+        console.log('✅ Company padrão criado:', defaultCompany.name);
+      }
+
+      // Verificar se existe empresa com alias 'navi'
+      const naviCompany = await prisma.company.findFirst({
+        where: { alias: 'navi' }
+      });
+
+      if (!naviCompany) {
+        console.log('🏗️ Criando empresa Navi...');
+        const naviCompany = await prisma.company.create({
+          data: {
+            name: 'Navi',
+            alias: 'navi',
+            isActive: true,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          }
+        });
+        console.log('✅ Company Navi criada:', naviCompany.name);
+      }
+      
+      // Verificar se existem usuários
+      const usersCount = await prisma.user.count();
+      console.log(`👥 Usuários existentes: ${usersCount}`);
+      
+      // Criar usuário admin padrão se não existir
+      console.log(`🔍 Verificando se deve criar usuário admin (usersCount = ${usersCount})`);
+      if (usersCount === 0) {
+        console.log('👤 Criando usuário admin padrão...');
+        try {
+          await adminService.initializeDefaultAdmin();
+          console.log('✅ Usuário admin padrão criado com sucesso');
+        } catch (error) {
+          console.log('⚠️ Erro ao criar usuário admin padrão:', error.message);
+        }
+      } else {
+        console.log('👤 Usuário admin já existe, pulando criação');
+      }
+      
+    } catch (error) {
+      console.log('⚠️ Erro ao verificar dados padrão:', error.message);
     }
     
     console.log('');

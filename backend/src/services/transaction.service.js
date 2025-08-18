@@ -21,7 +21,7 @@ class TransactionService {
   /**
    * Dispara webhooks para eventos de transação
    */
-  async triggerTransactionWebhooks(event, transaction, clientId) {
+  async triggerTransactionWebhooks(event, transaction, companyId) {
     try {
       const webhookService = getWebhookService();
       await webhookService.triggerWebhooks(event, {
@@ -35,7 +35,7 @@ class TransactionService {
         network: transaction.network,
         blockNumber: transaction.blockNumber,
         timestamp: transaction.createdAt
-      }, clientId);
+      }, companyId);
     } catch (error) {
       console.error('Erro ao disparar webhooks de transação:', error.message);
       // Não falhar a operação principal por erro de webhook
@@ -54,8 +54,8 @@ class TransactionService {
       const transaction = await this.Transaction.create(transactionData);
       
       // Disparar webhook de transação criada
-      if (transaction.clientId) {
-        await this.triggerTransactionWebhooks('transaction.created', transaction, transaction.clientId);
+      if (transaction.companyId) {
+        await this.triggerTransactionWebhooks('transaction.created', transaction, transaction.companyId);
       }
       
       return transaction;
@@ -84,7 +84,7 @@ class TransactionService {
       
       // Disparar webhook se o status mudou
       if (updateData.status && updateData.status !== oldStatus) {
-        await this.triggerTransactionWebhooks('transaction.status_updated', transaction, transaction.clientId);
+        await this.triggerTransactionWebhooks('transaction.status_updated', transaction, transaction.companyId);
       }
       
       return transaction;
@@ -124,7 +124,7 @@ class TransactionService {
    */
   async recordMintTransaction(data) {
     const {
-      clientId,
+      companyId,
       userId,
       contractAddress,
       toAddress,
@@ -140,7 +140,7 @@ class TransactionService {
     } = data;
 
     const transactionData = {
-      clientId,
+      companyId,
       userId,
       network: network || 'testnet',
       transactionType: 'contract_call',
@@ -168,8 +168,8 @@ class TransactionService {
     const transaction = await this.createTransaction(transactionData);
     
     // Disparar webhook específico de mint
-    if (clientId) {
-      await this.triggerTransactionWebhooks('transaction.mint', transaction, clientId);
+    if (companyId) {
+      await this.triggerTransactionWebhooks('transaction.mint', transaction, companyId);
     }
     
     return transaction;
@@ -180,7 +180,7 @@ class TransactionService {
    */
   async recordBurnTransaction(data) {
     const {
-      clientId,
+      companyId,
       userId,
       contractAddress,
       fromAddress,
@@ -196,7 +196,7 @@ class TransactionService {
     } = data;
 
     const transactionData = {
-      clientId,
+      companyId,
       userId,
       network: network || 'testnet',
       transactionType: 'contract_call',
@@ -224,8 +224,8 @@ class TransactionService {
     const transaction = await this.createTransaction(transactionData);
     
     // Disparar webhook específico de burn
-    if (clientId) {
-      await this.triggerTransactionWebhooks('transaction.burn', transaction, clientId);
+    if (companyId) {
+      await this.triggerTransactionWebhooks('transaction.burn', transaction, companyId);
     }
     
     return transaction;
@@ -236,7 +236,7 @@ class TransactionService {
    */
   async recordTransferTransaction(data) {
     const {
-      clientId,
+      companyId,
       userId,
       contractAddress,
       fromAddress,
@@ -253,7 +253,7 @@ class TransactionService {
     } = data;
 
     const transactionData = {
-      clientId,
+      companyId,
       userId,
       network: network || 'testnet',
       transactionType: 'contract_call',
@@ -283,8 +283,8 @@ class TransactionService {
     const transaction = await this.createTransaction(transactionData);
     
     // Disparar webhook específico de transfer
-    if (clientId) {
-      await this.triggerTransactionWebhooks('transaction.transfer', transaction, clientId);
+    if (companyId) {
+      await this.triggerTransactionWebhooks('transaction.transfer', transaction, companyId);
     }
     
     return transaction;
@@ -295,7 +295,7 @@ class TransactionService {
    */
   async recordGrantRoleTransaction(data) {
     const {
-      clientId,
+      companyId,
       userId,
       contractAddress,
       role,
@@ -310,7 +310,7 @@ class TransactionService {
     } = data;
 
     const transactionData = {
-      clientId,
+      companyId,
       userId,
       network: network || 'testnet',
       transactionType: 'contract_call',
@@ -340,7 +340,7 @@ class TransactionService {
    */
   async recordRevokeRoleTransaction(data) {
     const {
-      clientId,
+      companyId,
       userId,
       contractAddress,
       role,
@@ -355,7 +355,7 @@ class TransactionService {
     } = data;
 
     const transactionData = {
-      clientId,
+      companyId,
       userId,
       network: network || 'testnet',
       transactionType: 'contract_call',
@@ -381,17 +381,17 @@ class TransactionService {
   }
 
   /**
-   * Busca transações por cliente
+   * Busca transações por empresa
    */
-  async getTransactionsByClient(clientId, options = {}) {
+  async getTransactionsByCompany(companyId, options = {}) {
     try {
       if (!this.Transaction) {
         await this.initialize();
       }
 
-      return await this.Transaction.findByClientId(clientId, options);
+      return await this.Transaction.findByCompanyId(companyId, options);
     } catch (error) {
-      console.error('Erro ao buscar transações do cliente:', error.message);
+      console.error('Erro ao buscar transações da empresa:', error.message);
       throw error;
     }
   }
@@ -429,7 +429,7 @@ class TransactionService {
 
       // Construir filtros
       const where = { 
-        userId: userId  // SEMPRE filtrar por userId, independente do cliente
+        userId: userId  // SEMPRE filtrar por userId, independente da empresa
       };
       
       // Adicionar filtros opcionais
@@ -532,7 +532,7 @@ class TransactionService {
           this.prisma.transaction.findMany({
             where,
             include: {
-              client: {
+              company: {
                 select: {
                   id: true,
                   name: true,

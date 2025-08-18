@@ -8,10 +8,10 @@ class WebhookController {
    */
   async createWebhook(req, res) {
     try {
-      const { clientId } = req.user;
+      const { companyId } = req.user;
       const webhookData = {
         ...req.body,
-        clientId
+        companyId
       };
 
       const result = await webhookService.createWebhook(webhookData);
@@ -32,12 +32,12 @@ class WebhookController {
   }
 
   /**
-   * Listar webhooks do cliente
+   * Listar webhooks da empresa
    */
   async getWebhooks(req, res) {
     try {
-      const { clientId } = req.user;
-      const result = await webhookService.getWebhooksByClient(clientId);
+      const { companyId } = req.user;
+      const result = await webhookService.getWebhooksByCompany(companyId);
       
       if (result.success) {
         return res.status(200).json(result);
@@ -60,9 +60,9 @@ class WebhookController {
   async getWebhook(req, res) {
     try {
       const { id } = req.params;
-      const { clientId } = req.user;
+      const { companyId } = req.user;
 
-      const webhooks = await webhookService.getWebhooksByClient(clientId);
+      const webhooks = await webhookService.getWebhooksByCompany(companyId);
       
       if (!webhooks.success) {
         return res.status(400).json(webhooks);
@@ -97,11 +97,11 @@ class WebhookController {
   async updateWebhook(req, res) {
     try {
       const { id } = req.params;
-      const { clientId } = req.user;
+      const { companyId } = req.user;
       const updateData = req.body;
 
-      // Verificar se o webhook pertence ao cliente
-      const webhooks = await webhookService.getWebhooksByClient(clientId);
+      // Verificar se o webhook pertence à empresa
+      const webhooks = await webhookService.getWebhooksByCompany(companyId);
       if (!webhooks.success) {
         return res.status(400).json(webhooks);
       }
@@ -137,10 +137,10 @@ class WebhookController {
   async deleteWebhook(req, res) {
     try {
       const { id } = req.params;
-      const { clientId } = req.user;
+      const { companyId } = req.user;
 
-      // Verificar se o webhook pertence ao cliente
-      const webhooks = await webhookService.getWebhooksByClient(clientId);
+      // Verificar se o webhook pertence à empresa
+      const webhooks = await webhookService.getWebhooksByCompany(companyId);
       if (!webhooks.success) {
         return res.status(400).json(webhooks);
       }
@@ -176,10 +176,10 @@ class WebhookController {
   async testWebhook(req, res) {
     try {
       const { id } = req.params;
-      const { clientId } = req.user;
+      const { companyId } = req.user;
 
-      // Verificar se o webhook pertence ao cliente
-      const webhooks = await webhookService.getWebhooksByClient(clientId);
+      // Verificar se o webhook pertence à empresa
+      const webhooks = await webhookService.getWebhooksByCompany(companyId);
       if (!webhooks.success) {
         return res.status(400).json(webhooks);
       }
@@ -214,8 +214,8 @@ class WebhookController {
    */
   async getWebhookStats(req, res) {
     try {
-      const { clientId } = req.user;
-      const result = await webhookService.getWebhookStats(clientId);
+      const { companyId } = req.user;
+      const result = await webhookService.getWebhookStats(companyId);
       
       if (result.success) {
         return res.status(200).json(result);

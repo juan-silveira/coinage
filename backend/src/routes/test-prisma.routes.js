@@ -23,15 +23,15 @@ router.get('/prisma-connection', async (req, res) => {
     
     // Testar query simples
     console.log('📊 Testando query...');
-    const clientCount = await prisma.client.count();
-    console.log('✅ Query executada, clientes encontrados:', clientCount);
+    const companyCount = await prisma.company.count();
+    console.log('✅ Query executada, empresas encontrados:', companyCount);
     
     res.json({
       success: true,
       message: 'Prisma está funcionando corretamente',
       data: {
         connection: connectionTest,
-        clientCount: clientCount,
+        companyCount: companyCount,
         prismaConnected: prismaConfig.isConnected
       }
     });
@@ -63,7 +63,7 @@ router.get('/test-user', async (req, res) => {
     const user = await prisma.user.findFirst({
       where: { email: 'test@example.com' },
       include: {
-        client: true
+        company: true
       }
     });
     
@@ -77,7 +77,7 @@ router.get('/test-user', async (req, res) => {
           name: user.name,
           email: user.email,
           isActive: user.isActive,
-          client: user.client ? user.client.name : null
+          company: user.company ? user.company.name : null
         }
       });
     } else {

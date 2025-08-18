@@ -4,13 +4,18 @@ import useAuthStore from '@/store/authStore';
 import api from '@/services/api';
 import balanceSyncService from '@/services/balanceSyncService';
 import { useNotificationEvents } from '@/contexts/NotificationContext';
+import useConfig from '@/hooks/useConfig';
 
 const SYNC_INTERVAL_MS = 60 * 1000; // 1 minuto
-const CACHE_KEY_PREFIX = 'balanceSync_';
-const AZORESCAN_API_BASE = 'https://floripa.azorescan.com/api';
+// REMOVIDO: CACHE_KEY_PREFIX não é mais usado para localStorage
 
 // Cache global para evitar notificações duplicadas
-const NOTIFICATION_CACHE_KEY = 'balanceSync_notifications_sent';
+// REMOVIDO: NOTIFICATION_CACHE_KEY não é mais usado para localStorage
+// const NOTIFICATION_CACHE_KEY = 'balanceSync_notifications_sent';
+// const NOTIFICATION_CACHE_TTL = 60 * 60 * 1000; // 1 hora
+
+// Cache em memória para evitar notificações duplicadas
+const notificationCache = new Map();
 const NOTIFICATION_CACHE_TTL = 60 * 60 * 1000; // 1 hora
 
 const useBalanceSync = (onBalanceUpdate = null) => {
@@ -27,6 +32,9 @@ const useBalanceSync = (onBalanceUpdate = null) => {
   
   // Notification events para tocar som
   const { notifyNewNotification } = useNotificationEvents();
+  
+  // Config
+  const { defaultNetwork, currentExplorerUrl } = useConfig();
 
   // Refs
   const syncIntervalRef = useRef(null);
@@ -35,48 +43,8 @@ const useBalanceSync = (onBalanceUpdate = null) => {
 
   // Sistema totalmente silencioso - sem alerts/toasts
 
-  // Chave do cache localStorage baseada no usuário
-  const getCacheKey = useCallback(() => {
-    if (!user?.id) return null;
-    return `${CACHE_KEY_PREFIX}${user.id}`;
-  }, [user?.id]);
-
-  // Carrega balances anteriores do cache localStorage
-  const loadPreviousBalances = useCallback(() => {
-    const cacheKey = getCacheKey();
-    if (!cacheKey) return {};
-    
-    try {
-      const cached = localStorage.getItem(cacheKey);
-      const result = cached ? JSON.parse(cached) : {};
-      
-      // Log detalhado dos valores em cache no login
-      // console.log('📋 [BalanceSync] Valores em cache no login:', {
-      //   cacheKey,
-      //   hasCachedData: !!cached,
-      //   cachedBalances: result?.balancesTable || {},
-      //   lastUpdated: result?.lastUpdated || 'nunca',
-      //   totalTokensInCache: Object.keys(result?.balancesTable || {}).length
-      // });
-      
-      return result;
-    } catch (error) {
-      console.error('❌ Erro ao carregar cache de balances:', error);
-      return {};
-    }
-  }, [getCacheKey]);
-
-  // Salva balances no cache localStorage
-  const savePreviousBalances = useCallback((balances) => {
-    const cacheKey = getCacheKey();
-    if (!cacheKey) return;
-    
-    try {
-      localStorage.setItem(cacheKey, JSON.stringify(balances));
-    } catch (error) {
-      console.error('❌ Erro ao salvar cache de balances:', error);
-    }
-  }, [getCacheKey]);
+  // REMOVIDO: Funções de localStorage não são mais necessárias
+  // Os dados de balance são gerenciados pelo Redis através do backend
 
   // Busca balances diretamente da API do Azorescan
   const fetchBalancesFromAzorescan = useCallback(async (address) => {
@@ -86,9 +54,9 @@ const useBalanceSync = (onBalanceUpdate = null) => {
       // Fazer duas chamadas: uma para tokens ERC-20 e outra para balance nativo
       const [tokensResponse, balanceResponse] = await Promise.all([
         // Buscar tokens ERC-20
-        fetch(`${AZORESCAN_API_BASE}/?module=account&action=tokenlist&address=${address}`),
+        fetch(`${currentExplorerUrl}/?module=account&action=tokenlist&address=${address}`),
         // Buscar balance nativo AZE-t
-        fetch(`${AZORESCAN_API_BASE}/?module=account&action=balance&address=${address}&tag=latest`)
+        fetch(`${currentExplorerUrl}/?module=account&action=balance&address=${address}&tag=latest`)
       ]);
       
       if (!tokensResponse.ok || !balanceResponse.ok) {
@@ -110,7 +78,7 @@ const useBalanceSync = (onBalanceUpdate = null) => {
       
       // Transformar dados da API do Azorescan para o formato esperado
       const transformedBalances = {
-        network: 'testnet',
+        network: defaultNetwork, // Usar rede da configuração
         address: address,
         balancesTable: {},
         lastUpdated: new Date().toISOString(),
@@ -154,7 +122,7 @@ const useBalanceSync = (onBalanceUpdate = null) => {
       console.error('❌ [BalanceSync] Erro ao buscar balances da API Azorescan:', error);
       throw error;
     }
-  }, []);
+  }, [defaultNetwork, currentExplorerUrl]);
 
   // Sincroniza com Redis
   const syncWithRedis = useCallback(async (balances) => {
@@ -168,7 +136,8 @@ const useBalanceSync = (onBalanceUpdate = null) => {
       const result = await balanceSyncService.syncWithRedis(
         user.id,
         user.publicKey,
-        balances
+        balances,
+        defaultNetwork
       );
       
       if (result && result.success) {
@@ -194,7 +163,7 @@ const useBalanceSync = (onBalanceUpdate = null) => {
       // Não mostrar erro para usuário, continuar sem Redis
       return { success: false, synced: false, changes: [] };
     }
-  }, [user?.id, user?.publicKey]);
+  }, [user?.id, user?.publicKey, defaultNetwork]);
 
   // Compara balances e detecta mudanças (PROTEGIDO CONTRA CRASHES)
   const detectBalanceChanges = useCallback((newBalances, previousBalances) => {
@@ -301,14 +270,14 @@ const useBalanceSync = (onBalanceUpdate = null) => {
   // Função para verificar se notificação já foi enviada
   const isNotificationAlreadySent = useCallback((change) => {
     try {
-      const cache = localStorage.getItem(NOTIFICATION_CACHE_KEY);
+      const cache = notificationCache.get(change.token);
       if (!cache) return false;
       
-      const { notifications, timestamp } = JSON.parse(cache);
+      const { notifications, timestamp } = cache;
       
       // Verificar se cache expirou (1 hora)
       if (Date.now() - timestamp > NOTIFICATION_CACHE_TTL) {
-        localStorage.removeItem(NOTIFICATION_CACHE_KEY);
+        notificationCache.delete(change.token);
         return false;
       }
       
@@ -328,9 +297,9 @@ const useBalanceSync = (onBalanceUpdate = null) => {
       let cache = { notifications: [], timestamp: Date.now() };
       
       try {
-        const existing = localStorage.getItem(NOTIFICATION_CACHE_KEY);
+        const existing = notificationCache.get(change.token);
         if (existing) {
-          cache = JSON.parse(existing);
+          cache = existing;
         }
       } catch (parseError) {
         // Usar cache vazio se erro no parse
@@ -348,7 +317,7 @@ const useBalanceSync = (onBalanceUpdate = null) => {
           cache.notifications = cache.notifications.slice(-50);
         }
         
-        localStorage.setItem(NOTIFICATION_CACHE_KEY, JSON.stringify(cache));
+        notificationCache.set(change.token, cache);
       }
     } catch (error) {
       console.error('❌ [BalanceSync] Erro ao salvar cache de notificações:', error);
@@ -377,26 +346,28 @@ const useBalanceSync = (onBalanceUpdate = null) => {
     
       let title, message, notificationType;
     
+      const networkLabel = defaultNetwork === 'mainnet' ? 'Mainnet' : 'Testnet';
+      
       switch (type) {
         case 'increase':
-          title = `💰 Saldo Aumentado - ${token}`;
+          title = `💰 Saldo Aumentado - ${token} (${networkLabel})`;
           message = isOfflineDetection 
-            ? `Detectado no login: Seu saldo de ${token} aumentou em ${difference}. Novo saldo: ${newBalance}`
-            : `Seu saldo de ${token} aumentou em ${difference}. Novo saldo: ${newBalance}`;
+            ? `Detectado no login: Seu saldo de ${token} aumentou em ${difference} na ${networkLabel}. Novo saldo: ${newBalance}`
+            : `Seu saldo de ${token} aumentou em ${difference} na ${networkLabel}. Novo saldo: ${newBalance}`;
           notificationType = 'balance_increase';
           break;
         case 'decrease':
-          title = `📉 Saldo Reduzido - ${token}`;
+          title = `📉 Saldo Reduzido - ${token} (${networkLabel})`;
           message = isOfflineDetection
-            ? `Detectado no login: Seu saldo de ${token} diminuiu em ${Math.abs(difference)}. Novo saldo: ${newBalance}`
-            : `Seu saldo de ${token} diminuiu em ${Math.abs(difference)}. Novo saldo: ${newBalance}`;
+            ? `Detectado no login: Seu saldo de ${token} diminuiu em ${Math.abs(difference)} na ${networkLabel}. Novo saldo: ${newBalance}`
+            : `Seu saldo de ${token} diminuiu em ${Math.abs(difference)} na ${networkLabel}. Novo saldo: ${newBalance}`;
           notificationType = 'balance_decrease';
           break;
         case 'new_token':
-          title = `🆕 Novo Token Recebido - ${token}`;
+          title = `🆕 Novo Token Recebido - ${token} (${networkLabel})`;
           message = isOfflineDetection
-            ? `Detectado no login: Você recebeu ${newBalance} ${token} em sua carteira`
-            : `Você recebeu ${newBalance} ${token} em sua carteira`;
+            ? `Detectado no login: Você recebeu ${newBalance} ${token} em sua carteira na ${networkLabel}`
+            : `Você recebeu ${newBalance} ${token} em sua carteira na ${networkLabel}`;
           notificationType = 'new_token';
           break;
         default:
@@ -411,7 +382,9 @@ const useBalanceSync = (onBalanceUpdate = null) => {
           token,
           change: difference,
           newBalance,
-          changeType: type
+          changeType: type,
+          network: defaultNetwork,
+          networkLabel
         }
       };
 
@@ -478,7 +451,7 @@ const useBalanceSync = (onBalanceUpdate = null) => {
       // Não propagar o erro para evitar crash do sistema
       return false;
     }
-  }, [addNotification, user?.id, notifyNewNotification, isNotificationAlreadySent, markNotificationAsSent]);
+  }, [addNotification, user?.id, notifyNewNotification, isNotificationAlreadySent, markNotificationAsSent, defaultNetwork]);
 
   // Sincroniza balances com a blockchain via Azorescan
   const syncBalances = useCallback(async (manual = false, bypassActiveCheck = false) => {
@@ -493,8 +466,11 @@ const useBalanceSync = (onBalanceUpdate = null) => {
     try {
       setSyncError(null);
       
-      // Buscar balances da API do Azorescan
-      const newBalances = await fetchBalancesFromAzorescan(user.publicKey);
+      // Buscar balances via API do backend (usando network correto)
+      console.log('🔧 [DEBUG] useBalanceSync usando network:', defaultNetwork);
+      const response = await api.get(`/api/balance-sync/fresh?address=${user.publicKey}&network=${defaultNetwork}`);
+      console.log('🔧 [DEBUG] Resposta da API:', response.data);
+      const newBalances = response.data.data;
       const previousBalances = previousBalancesRef.current;
       
       // Detectar mudanças sempre (mesmo na primeira vez)
@@ -536,7 +512,7 @@ const useBalanceSync = (onBalanceUpdate = null) => {
 
       // Atualizar cache local
       previousBalancesRef.current = newBalances;
-      savePreviousBalances(newBalances);
+      // REMOVIDO: savePreviousBalances não é mais necessário
       setLastSync(new Date().toISOString());
 
       // Sincronização manual realizada silenciosamente
@@ -553,7 +529,7 @@ const useBalanceSync = (onBalanceUpdate = null) => {
       
       // Erro já logado no console
     }
-  }, [user?.publicKey, isActive, detectBalanceChanges, createBalanceNotification, savePreviousBalances, onBalanceUpdate, fetchBalancesFromAzorescan, syncWithRedis]);
+  }, [user?.publicKey, isActive, detectBalanceChanges, createBalanceNotification, onBalanceUpdate, defaultNetwork, syncWithRedis]);
 
   // Inicia o serviço de sincronização
   const startSync = useCallback(async () => {
@@ -574,54 +550,35 @@ const useBalanceSync = (onBalanceUpdate = null) => {
     // Pequeno delay para garantir que o estado seja atualizado
     await new Promise(resolve => setTimeout(resolve, 100));
     
-    // Carregar cache existente antes de limpar para detectar mudanças offline
-    const cacheKey = getCacheKey();
-    const existingCache = cacheKey ? localStorage.getItem(cacheKey) : null;
-    let previousCachedBalances = {};
-    
-    if (existingCache) {
-      try {
-        previousCachedBalances = JSON.parse(existingCache);
-        // console.log('🗂️ [BalanceSync] Cache existente encontrado:', previousCachedBalances);
-      } catch (error) {
-        console.error('❌ [BalanceSync] Erro ao parsear cache existente:', error);
-      }
-    } else {
-      // console.log('📭 [BalanceSync] Nenhum cache existente encontrado');
-    }
-    
-    // Definir cache anterior em memória para evitar detecção durante primeira sync
-    previousBalancesRef.current = previousCachedBalances;
+    // REMOVIDO: Carregar cache existente antes de limpar para detectar mudanças offline
+    // previousBalancesRef.current = {}; // Limpar cache anterior
 
     // Fazer primeira sincronização (bypass do check isActive)
     await syncBalances(true, true);
     
     // Detectar mudanças offline apenas se havia cache anterior válido
-    if (Object.keys(previousCachedBalances).length > 0 && previousCachedBalances.balancesTable) {
-      const offlineChanges = detectBalanceChanges(previousBalancesRef.current, previousCachedBalances);
-      
-      if (offlineChanges.length > 0) {
-        // console.log(`🔍 [BalanceSync] ${offlineChanges.length} mudança(s) detectada(s) enquanto offline:`, offlineChanges);
-        
-        // Criar notificações para cada mudança detectada enquanto offline (sem som para evitar spam)
-        for (const change of offlineChanges) {
-          try {
-            // Modificar o título para indicar que foi detectado no login
-            const modifiedChange = {
-              ...change,
-              timestamp: new Date().toISOString(),
-              isOfflineDetection: true
-            };
-            
-            await createBalanceNotification(modifiedChange);
-          } catch (notificationError) {
-            console.error('❌ [BalanceSync] Erro ao criar notificação offline (CONTINUANDO):', notificationError);
-          }
-        }
-      } else {
-        // console.log('✅ [BalanceSync] Nenhuma mudança detectada enquanto offline');
-      }
-    }
+    // REMOVIDO: previousBalancesRef.current é sempre vazio, então não há mudanças offline
+    // if (Object.keys(previousBalancesRef.current).length > 0 && previousBalancesRef.current.balancesTable) {
+    //   const offlineChanges = detectBalanceChanges(previousBalancesRef.current, {}); // Comparar com vazio
+    //   if (offlineChanges.length > 0) {
+    //     // console.log(`🔍 [BalanceSync] ${offlineChanges.length} mudança(s) detectada(s) enquanto offline:`, offlineChanges);
+    //     for (const change of offlineChanges) {
+    //       try {
+    //         // Modificar o título para indicar que foi detectado no login
+    //         const modifiedChange = {
+    //           ...change,
+    //           timestamp: new Date().toISOString(),
+    //           isOfflineDetection: true
+    //         };
+    //         await createBalanceNotification(modifiedChange);
+    //       } catch (notificationError) {
+    //         console.error('❌ [BalanceSync] Erro ao criar notificação offline (CONTINUANDO):', notificationError);
+    //       }
+    //     }
+    //   } else {
+    //     // console.log('✅ [BalanceSync] Nenhuma mudança detectada enquanto offline');
+    //   }
+    // }
     
     // Configurar intervalo automático
     if (syncIntervalRef.current) {
@@ -645,7 +602,7 @@ const useBalanceSync = (onBalanceUpdate = null) => {
     }, SYNC_INTERVAL_MS);
 
     // Sincronização iniciada silenciosamente
-  }, [user?.publicKey, syncBalances, getCacheKey]);
+  }, [user?.publicKey, syncBalances]);
 
   // Para o serviço de sincronização
   const stopSync = useCallback(() => {

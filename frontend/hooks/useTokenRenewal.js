@@ -57,8 +57,8 @@ const useTokenRenewal = () => {
   // Fazer logout por inatividade
   const logoutByInactivity = useCallback(() => {
     console.log('🚪 [TokenRenewal] Logout por inatividade');
-    logout();
-    window.location.href = '/login?reason=inactivity';
+    const companyAlias = logout();
+    window.location.href = `/login/${companyAlias}?reason=inactivity`;
   }, [logout]);
 
   // Resetar timer de sessão

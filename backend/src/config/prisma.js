@@ -236,8 +236,8 @@ class PrismaConfig {
     // Ordem importante para evitar conflitos de FK
     const tableNames = [
       'UserTwoFactor',
-      'UserClient', 
-      'ClientBranding',
+      'UserCompany', 
+      'CompanyBranding',
       'Document',
       'Webhook',
       'PasswordReset',
@@ -247,7 +247,7 @@ class PrismaConfig {
       'SmartContract',
       'Stake',
       'User',
-      'Client'
+      'Company'
     ];
 
     for (const tableName of tableNames) {

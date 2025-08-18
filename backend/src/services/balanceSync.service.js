@@ -17,48 +17,52 @@ class BalanceSyncService {
    * Gera chave Redis para cache de um usuário
    * @param {string} userId - ID do usuário
    * @param {string} address - Endereço da carteira
+   * @param {string} network - Rede (mainnet/testnet)
    * @returns {string} Chave Redis
    */
-  generateCacheKey(userId, address) {
-    return `${REDIS_PREFIXES.CACHE}:${userId}:${address}`;
+  generateCacheKey(userId, address, network = 'mainnet') {
+    return `${REDIS_PREFIXES.CACHE}:${network}:${userId}:${address}`;
   }
 
   /**
    * Gera chave Redis para histórico de um usuário
    * @param {string} userId - ID do usuário
    * @param {string} address - Endereço da carteira
+   * @param {string} network - Rede (mainnet/testnet)
    * @returns {string} Chave Redis
    */
-  generateHistoryKey(userId, address) {
-    return `${REDIS_PREFIXES.HISTORY}:${userId}:${address}`;
+  generateHistoryKey(userId, address, network = 'mainnet') {
+    return `${REDIS_PREFIXES.HISTORY}:${network}:${userId}:${address}`;
   }
 
   /**
    * Gera chave Redis para status de um usuário
    * @param {string} userId - ID do usuário
    * @param {string} address - Endereço da carteira
+   * @param {string} network - Rede (mainnet/testnet)
    * @returns {string} Chave Redis
    */
-  generateStatusKey(userId, address) {
-    return `${REDIS_PREFIXES.STATUS}:${userId}:${address}`;
+  generateStatusKey(userId, address, network = 'mainnet') {
+    return `${REDIS_PREFIXES.STATUS}:${network}:${userId}:${address}`;
   }
 
   /**
    * Busca cache Redis para um usuário
    * @param {string} userId - ID do usuário
    * @param {string} address - Endereço da carteira
+   * @param {string} network - Rede (mainnet/testnet)
    * @returns {Promise<Object|null>} Dados do cache ou null se não existir
    */
-  async getCache(userId, address) {
+  async getCache(userId, address, network = 'mainnet') {
     try {
-      const cacheKey = this.generateCacheKey(userId, address);
+      const cacheKey = this.generateCacheKey(userId, address, network);
       
-      if (!redisService.isConnected || !redisService.client) {
+      if (!redisService.isConnected || !redisService.company) {
         console.warn('⚠️ [BalanceSyncService] Redis não conectado');
         return null;
       }
       
-      const cachedData = await redisService.client.get(cacheKey);
+      const cachedData = await redisService.company.get(cacheKey);
       
       if (!cachedData) {
         return null;
@@ -80,15 +84,16 @@ class BalanceSyncService {
    * @param {Object} balances - Novos balances
    * @param {string} timestamp - Timestamp da atualização
    * @param {string} source - Fonte da atualização
+   * @param {string} network - Rede (mainnet/testnet)
    * @returns {Promise<Object>} Resultado da atualização
    */
-  async updateCache(userId, address, balances, timestamp, source) {
+  async updateCache(userId, address, balances, timestamp, source, network = 'mainnet') {
     try {
-      const cacheKey = this.generateCacheKey(userId, address);
-      const historyKey = this.generateHistoryKey(userId, address);
-      const statusKey = this.generateStatusKey(userId, address);
+      const cacheKey = this.generateCacheKey(userId, address, network);
+      const historyKey = this.generateHistoryKey(userId, address, network);
+      const statusKey = this.generateStatusKey(userId, address, network);
       
-      if (!redisService.isConnected || !redisService.client) {
+      if (!redisService.isConnected || !redisService.company) {
         console.warn('⚠️ [BalanceSyncService] Redis não conectado, pulando atualização');
         return { success: false, message: 'Redis não disponível' };
       }
@@ -104,7 +109,7 @@ class BalanceSyncService {
       };
       
       // Salvar no cache principal
-      await redisService.client.set(cacheKey, JSON.stringify(cacheData));
+      await redisService.company.set(cacheKey, JSON.stringify(cacheData));
       
       // Adicionar ao histórico
       const historyEntry = {
@@ -114,10 +119,10 @@ class BalanceSyncService {
         action: 'update'
       };
       
-      await redisService.client.lPush(historyKey, JSON.stringify(historyEntry));
+      await redisService.company.lPush(historyKey, JSON.stringify(historyEntry));
       
       // Manter apenas os últimos 100 registros no histórico
-      await redisService.client.lTrim(historyKey, 0, 99);
+      await redisService.company.lTrim(historyKey, 0, 99);
       
       // Atualizar status
       const statusData = {
@@ -127,7 +132,7 @@ class BalanceSyncService {
         balanceCount: Object.keys(balances.balancesTable || {}).length
       };
       
-      await redisService.client.set(statusKey, JSON.stringify(statusData));
+      await redisService.company.set(statusKey, JSON.stringify(statusData));
       
       return {
         success: true,
@@ -148,18 +153,19 @@ class BalanceSyncService {
    * @param {string} userId - ID do usuário
    * @param {string} address - Endereço da carteira
    * @param {number} limit - Limite de registros
+   * @param {string} network - Rede (mainnet/testnet)
    * @returns {Promise<Array>} Histórico de mudanças
    */
-  async getHistory(userId, address, limit = 50) {
+  async getHistory(userId, address, limit = 50, network = 'mainnet') {
     try {
-      const historyKey = this.generateHistoryKey(userId, address);
+      const historyKey = this.generateHistoryKey(userId, address, network);
       
-      if (!redisService.isConnected || !redisService.client) {
+      if (!redisService.isConnected || !redisService.company) {
         console.warn('⚠️ [BalanceSyncService] Redis não conectado');
         return [];
       }
       
-      const historyData = await redisService.client.lRange(historyKey, 0, limit - 1);
+      const historyData = await redisService.company.lRange(historyKey, 0, limit - 1);
       
       if (!historyData || historyData.length === 0) {
         return [];
@@ -178,22 +184,23 @@ class BalanceSyncService {
    * Limpa cache Redis para um usuário
    * @param {string} userId - ID do usuário
    * @param {string} address - Endereço da carteira
+   * @param {string} network - Rede (mainnet/testnet)
    * @returns {Promise<Object>} Resultado da limpeza
    */
-  async clearCache(userId, address) {
+  async clearCache(userId, address, network = 'mainnet') {
     try {
-      const cacheKey = this.generateCacheKey(userId, address);
-      const historyKey = this.generateHistoryKey(userId, address);
-      const statusKey = this.generateStatusKey(userId, address);
+      const cacheKey = this.generateCacheKey(userId, address, network);
+      const historyKey = this.generateHistoryKey(userId, address, network);
+      const statusKey = this.generateStatusKey(userId, address, network);
       
-      if (!redisService.isConnected || !redisService.client) {
+      if (!redisService.isConnected || !redisService.company) {
         console.warn('⚠️ [BalanceSyncService] Redis não conectado, pulando limpeza');
         return { success: false, message: 'Redis não disponível' };
       }
       
       // Remover todas as chaves relacionadas
       const keysToDelete = [cacheKey, historyKey, statusKey];
-      const deletePromises = keysToDelete.map(key => redisService.client.del(key));
+      const deletePromises = keysToDelete.map(key => redisService.company.del(key));
       
       await Promise.all(deletePromises);
       
@@ -213,14 +220,15 @@ class BalanceSyncService {
    * Busca status da sincronização
    * @param {string} userId - ID do usuário
    * @param {string} address - Endereço da carteira
+   * @param {string} network - Rede (mainnet/testnet)
    * @returns {Promise<Object>} Status da sincronização
    */
-  async getStatus(userId, address) {
+  async getStatus(userId, address, network = 'mainnet') {
     try {
-      const statusKey = this.generateStatusKey(userId, address);
-      const cacheKey = this.generateCacheKey(userId, address);
+      const statusKey = this.generateStatusKey(userId, address, network);
+      const cacheKey = this.generateCacheKey(userId, address, network);
       
-      if (!redisService.isConnected || !redisService.client) {
+      if (!redisService.isConnected || !redisService.company) {
         console.warn('⚠️ [BalanceSyncService] Redis não conectado');
         return {
           userId,
@@ -235,8 +243,8 @@ class BalanceSyncService {
       }
       
       const [statusData, cacheData] = await Promise.all([
-        redisService.client.get(statusKey),
-        redisService.client.get(cacheKey)
+        redisService.company.get(statusKey),
+        redisService.company.get(cacheKey)
       ]);
       
       const status = statusData ? JSON.parse(statusData) : null;
@@ -264,18 +272,21 @@ class BalanceSyncService {
   /**
    * Busca todas as chaves relacionadas a um usuário
    * @param {string} userId - ID do usuário
+   * @param {string} network - Rede (mainnet/testnet, opcional)
    * @returns {Promise<Array>} Lista de chaves
    */
-  async getUserKeys(userId) {
+  async getUserKeys(userId, network = null) {
     try {
-      const pattern = `${REDIS_PREFIXES.CACHE}:${userId}:*`;
+      const pattern = network 
+        ? `${REDIS_PREFIXES.CACHE}:${network}:${userId}:*` 
+        : `${REDIS_PREFIXES.CACHE}:*:${userId}:*`;
       
-      if (!redisService.isConnected || !redisService.client) {
+      if (!redisService.isConnected || !redisService.company) {
         console.warn('⚠️ [BalanceSyncService] Redis não conectado');
         return [];
       }
       
-      const keys = await redisService.client.keys(pattern);
+      const keys = await redisService.company.keys(pattern);
       return keys;
       
     } catch (error) {
@@ -294,7 +305,7 @@ class BalanceSyncService {
       const userKeys = await this.getUserKeys(userId);
       
       if (userKeys.length > 0) {
-        await Promise.all(userKeys.map(key => redisService.client.del(key)));
+        await Promise.all(userKeys.map(key => redisService.company.del(key)));
       }
       
       return userKeys.length;

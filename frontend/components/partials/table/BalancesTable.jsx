@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import Icon from "@/components/ui/Icon";
+import useConfig from "@/hooks/useConfig";
 
 // Hook personalizado para detectar tamanho da tela
 const useScreenSize = () => {
@@ -25,6 +26,7 @@ const useScreenSize = () => {
 
 const BalancesTable = ({ balances, loading = false }) => {
   const isMobile = useScreenSize();
+  const { defaultNetwork } = useConfig();
 
   // Mapear símbolos para nomes completos
   const tokenNames = {
@@ -66,8 +68,8 @@ const BalancesTable = ({ balances, loading = false }) => {
 
   // Função para obter o símbolo correto do AZE baseado na rede
   const getCorrectAzeSymbol = () => {
-    if (!balances) return 'AZE-t'; // Default para testnet
-    const network = balances.network || 'testnet';
+    if (!balances) return defaultNetwork === 'testnet' ? 'AZE-t' : 'AZE';
+    const network = balances.network || defaultNetwork;
     return network === 'testnet' ? 'AZE-t' : 'AZE';
   };
 
@@ -79,7 +81,7 @@ const BalancesTable = ({ balances, loading = false }) => {
 
     // Se o símbolo é AZE, usar o símbolo correto baseado na rede
     if (symbol === 'AZE') {
-      const network = balancesData.network || 'testnet';
+      const network = balancesData.network || defaultNetwork;
       symbol = network === 'testnet' ? 'AZE-t' : 'AZE';
     }
 
@@ -279,7 +281,7 @@ const BalancesTable = ({ balances, loading = false }) => {
               Rede:
             </span>
             <span className="text-slate-900 dark:text-slate-300">
-              {balances.network || 'testnet'}
+              {balances.network || defaultNetwork}
             </span>
           </div>
           <div className="flex justify-between">

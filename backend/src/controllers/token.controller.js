@@ -86,7 +86,7 @@ class TokenController {
         network, 
         {
           ...options,
-          clientId: req.client?.id,
+          companyId: req.company?.id,
           userId: req.user?.id
         }
       );
@@ -150,7 +150,7 @@ class TokenController {
         network, 
         {
           ...options,
-          clientId: req.client?.id,
+          companyId: req.company?.id,
           userId: req.user?.id
         }
       );
@@ -223,7 +223,7 @@ class TokenController {
         network, 
         {
           ...options,
-          clientId: req.client?.id,
+          companyId: req.company?.id,
           userId: req.user?.id
         }
       );

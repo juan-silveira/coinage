@@ -16,7 +16,7 @@ const { authenticateAdmin } = require('../middleware/admin.middleware');
  *         email:
  *           type: string
  *           format: email
- *           description: Email do client
+ *           description: Email do company
  *       example:
  *         email: "admin@azore.technology"
  *     
@@ -127,7 +127,7 @@ router.get('/validate/:token', passwordResetController.validateResetToken);
  * /api/password-reset/reset/{token}:
  *   post:
  *     summary: Redefine a senha usando um token
- *     description: Redefine a senha do client usando um token válido
+ *     description: Redefine a senha do company usando um token válido
  *     tags: [Recuperação de Senha]
  *     parameters:
  *       - in: path

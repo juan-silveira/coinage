@@ -22,8 +22,8 @@
       "type": "string"
     },
     {
-      "key": "client_id",
-      "value": "{{client_id}}",
+      "key": "company_id",
+      "value": "{{company_id}}",
       "type": "string"
     },
     {
@@ -115,7 +115,7 @@
       "response": []
     },
     {
-      "name": "Get Client Logs",
+      "name": "Get Company Logs",
       "request": {
         "method": "GET",
         "header": [
@@ -125,9 +125,9 @@
           }
         ],
         "url": {
-          "raw": "{{base_url}}/api/logs/client/{{client_id}}?page={{page}}&limit={{limit}}",
+          "raw": "{{base_url}}/api/logs/company/{{company_id}}?page={{page}}&limit={{limit}}",
           "host": ["{{base_url}}"],
-          "path": ["api", "logs", "client", "{{client_id}}"],
+          "path": ["api", "logs", "company", "{{company_id}}"],
           "query": [
             {
               "key": "page",
@@ -309,7 +309,7 @@
       "response": []
     },
     {
-      "name": "Get Client Log Statistics",
+      "name": "Get Company Log Statistics",
       "request": {
         "method": "GET",
         "header": [
@@ -319,9 +319,9 @@
           }
         ],
         "url": {
-          "raw": "{{base_url}}/api/logs/client/{{client_id}}/statistics",
+          "raw": "{{base_url}}/api/logs/company/{{company_id}}/statistics",
           "host": ["{{base_url}}"],
-          "path": ["api", "logs", "client", "{{client_id}}", "statistics"]
+          "path": ["api", "logs", "company", "{{company_id}}", "statistics"]
         }
       },
       "response": []

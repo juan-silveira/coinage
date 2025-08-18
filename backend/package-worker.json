@@ -1,0 +1,28 @@
+{
+  "name": "deposit-worker",
+  "version": "1.0.0",
+  "description": "Worker para processar depósitos da fila RabbitMQ",
+  "main": "scripts/start-deposit-worker.js",
+  "scripts": {
+    "start": "node scripts/start-deposit-worker.js",
+    "dev": "nodemon scripts/start-deposit-worker.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "amqplib": "^0.10.3",
+    "uuid": "^9.0.0",
+    "dotenv": "^16.0.3"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.22"
+  },
+  "keywords": [
+    "rabbitmq",
+    "worker",
+    "deposits",
+    "blockchain"
+  ],
+  "author": "Coinage Team",
+  "license": "MIT"
+}
+

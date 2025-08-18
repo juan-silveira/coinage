@@ -2,6 +2,7 @@ import { useCallback, useEffect } from 'react';
 import useAuthStore from '@/store/authStore';
 import { userService } from '@/services/api';
 import UserPlanService from '@/services/userPlanService';
+import useConfig from '@/hooks/useConfig';
 
 // Função para obter o intervalo baseado no plano do usuário
 const getCacheDurationMs = (userPlan = 'BASIC') => {
@@ -24,6 +25,8 @@ export const useCachedBalances = () => {
     setBalancesLoading,
     clearCachedBalances
   } = useAuthStore();
+  
+  const { defaultNetwork } = useConfig();
 
   // Verificar se o cache é válido
   const isCacheValid = useCallback(() => {
@@ -51,7 +54,8 @@ export const useCachedBalances = () => {
     try {
       setBalancesLoading(true);
       
-      const response = await userService.getUserBalances(user.publicKey);
+      console.log('🔧 [DEBUG] useCachedBalances usando network:', defaultNetwork);
+      const response = await userService.getUserBalances(user.publicKey, defaultNetwork);
       
       if (response.success) {
         setCachedBalances(response.data);
@@ -106,10 +110,10 @@ export const useCachedBalances = () => {
   }, []);
 
   const getCorrectAzeSymbol = useCallback(() => {
-    if (!cachedBalances) return 'AZE';
-    const network = cachedBalances.network || 'testnet';
+    if (!cachedBalances) return defaultNetwork === 'testnet' ? 'AZE-t' : 'AZE';
+    const network = cachedBalances.network || defaultNetwork;
     return network === 'testnet' ? 'AZE-t' : 'AZE';
-  }, [cachedBalances]);
+  }, [cachedBalances, defaultNetwork]);
 
   return {
     balances: cachedBalances,

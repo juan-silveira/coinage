@@ -141,7 +141,7 @@ class AzoreScanService {
    * Inclui balance nativo e todos os tokens ERC-20
    * VERSÃO SIMPLIFICADA: apenas 2 chamadas à API
    */
-  async getCompleteBalances(address, network = 'testnet') {
+  async getCompleteBalances(address, network = 'mainnet') {
     try {
       console.log(`🔄 Iniciando consulta completa de balances para ${address} na ${network}`);
       

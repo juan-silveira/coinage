@@ -89,7 +89,7 @@ const {
  * @swagger
  * /api/webhooks:
  *   get:
- *     summary: Listar webhooks do cliente
+ *     summary: Listar webhooks da empresa
  *     tags: [Webhooks]
  *     security:
  *       - ApiKeyAuth: []

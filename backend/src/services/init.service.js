@@ -42,7 +42,7 @@ class InitService {
           email: adminUser.email,
           isFirstAccess: adminUser.isFirstAccess,
           isApiAdmin: adminUser.isApiAdmin,
-          isClientAdmin: adminUser.isClientAdmin
+          isCompanyAdmin: adminUser.isCompanyAdmin
         });
       } else {
         console.error('❌ Erro: Usuário admin não foi criado');
@@ -73,7 +73,7 @@ class InitService {
   static async checkSystemStatus() {
     try {
       const models = global.models;
-      const { User, Client } = models;
+      const { User, Company } = models;
       
       // Verificar se existe pelo menos um usuário admin
       const adminUser = await User.findOne({
@@ -83,8 +83,8 @@ class InitService {
         }
       });
       
-      // Verificar se existe pelo menos um client
-      const client = await Client.findOne({
+      // Verificar se existe pelo menos um company
+      const company = await Company.findOne({
         where: {
           isActive: true
         }
@@ -94,7 +94,7 @@ class InitService {
         success: true,
         data: {
           hasAdminUser: !!adminUser,
-          hasClient: !!client,
+          hasCompany: !!company,
           adminUser: adminUser ? {
             id: adminUser.id,
             email: adminUser.email,

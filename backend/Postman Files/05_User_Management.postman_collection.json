@@ -37,8 +37,8 @@
       "type": "string"
     },
     {
-      "key": "client_id",
-      "value": "{{client_id}}",
+      "key": "company_id",
+      "value": "{{company_id}}",
       "type": "string"
     },
     {
@@ -99,7 +99,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"name\": \"{{user_name}}\",\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\",\n  \"cpf\": \"{{cpf}}\",\n  \"clientId\": \"{{client_id}}\"\n}"
+          "raw": "{\n  \"name\": \"{{user_name}}\",\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\",\n  \"cpf\": \"{{cpf}}\",\n  \"companyId\": \"{{company_id}}\"\n}"
         },
         "url": {
           "raw": "{{base_url}}/api/users",
@@ -296,7 +296,7 @@
       "response": []
     },
     {
-      "name": "Get Users by Client",
+      "name": "Get Users by Company",
       "request": {
         "method": "GET",
         "header": [
@@ -306,9 +306,9 @@
           }
         ],
         "url": {
-          "raw": "{{base_url}}/api/users/client/{{client_id}}?page={{page}}&limit={{limit}}",
+          "raw": "{{base_url}}/api/users/company/{{company_id}}?page={{page}}&limit={{limit}}",
           "host": ["{{base_url}}"],
-          "path": ["api", "users", "client", "{{client_id}}"],
+          "path": ["api", "users", "company", "{{company_id}}"],
           "query": [
             {
               "key": "page",
@@ -342,7 +342,7 @@
       "response": []
     },
     {
-      "name": "Get User Keys (Client)",
+      "name": "Get User Keys (Company)",
       "request": {
         "method": "GET",
         "header": [
@@ -352,9 +352,9 @@
           }
         ],
         "url": {
-          "raw": "{{base_url}}/api/users/{{user_id}}/keys/client",
+          "raw": "{{base_url}}/api/users/{{user_id}}/keys/company",
           "host": ["{{base_url}}"],
-          "path": ["api", "users", "{{user_id}}", "keys", "client"]
+          "path": ["api", "users", "{{user_id}}", "keys", "company"]
         }
       },
       "response": []

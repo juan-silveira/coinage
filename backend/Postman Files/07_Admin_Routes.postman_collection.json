@@ -22,8 +22,8 @@
       "type": "string"
     },
     {
-      "key": "client_id",
-      "value": "{{client_id}}",
+      "key": "company_id",
+      "value": "{{company_id}}",
       "type": "string"
     },
     {
@@ -67,7 +67,7 @@
       "response": []
     },
     {
-      "name": "List All Clients (Admin)",
+      "name": "List All Companies (Admin)",
       "request": {
         "method": "GET",
         "header": [
@@ -77,9 +77,9 @@
           }
         ],
         "url": {
-          "raw": "{{base_url}}/api/admin/clients?page={{page}}&limit={{limit}}",
+          "raw": "{{base_url}}/api/admin/companies?page={{page}}&limit={{limit}}",
           "host": ["{{base_url}}"],
-          "path": ["api", "admin", "clients"],
+          "path": ["api", "admin", "companies"],
           "query": [
             {
               "key": "page",
@@ -95,7 +95,7 @@
       "response": []
     },
     {
-      "name": "Get Client by ID (Admin)",
+      "name": "Get Company by ID (Admin)",
       "request": {
         "method": "GET",
         "header": [
@@ -105,15 +105,15 @@
           }
         ],
         "url": {
-          "raw": "{{base_url}}/api/admin/clients/{{client_id}}",
+          "raw": "{{base_url}}/api/admin/companies/{{company_id}}",
           "host": ["{{base_url}}"],
-          "path": ["api", "admin", "clients", "{{client_id}}"]
+          "path": ["api", "admin", "companies", "{{company_id}}"]
         }
       },
       "response": []
     },
     {
-      "name": "Create Client (Admin)",
+      "name": "Create Company (Admin)",
       "request": {
         "method": "POST",
         "header": [
@@ -128,18 +128,18 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"name\": \"Cliente Admin\",\n  \"rateLimit\": {\n    \"requestsPerMinute\": 100,\n    \"requestsPerHour\": 1000,\n    \"requestsPerDay\": 10000\n  }\n}"
+          "raw": "{\n  \"name\": \"Company Admin\",\n  \"rateLimit\": {\n    \"requestsPerMinute\": 100,\n    \"requestsPerHour\": 1000,\n    \"requestsPerDay\": 10000\n  }\n}"
         },
         "url": {
-          "raw": "{{base_url}}/api/admin/clients",
+          "raw": "{{base_url}}/api/admin/companies",
           "host": ["{{base_url}}"],
-          "path": ["api", "admin", "clients"]
+          "path": ["api", "admin", "companies"]
         }
       },
       "response": []
     },
     {
-      "name": "Update Client (Admin)",
+      "name": "Update Company (Admin)",
       "request": {
         "method": "PUT",
         "header": [
@@ -154,18 +154,18 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"name\": \"Cliente Admin Atualizado\",\n  \"isActive\": true\n}"
+          "raw": "{\n  \"name\": \"Company Admin Atualizado\",\n  \"isActive\": true\n}"
         },
         "url": {
-          "raw": "{{base_url}}/api/admin/clients/{{client_id}}",
+          "raw": "{{base_url}}/api/admin/companies/{{company_id}}",
           "host": ["{{base_url}}"],
-          "path": ["api", "admin", "clients", "{{client_id}}"]
+          "path": ["api", "admin", "companies", "{{company_id}}"]
         }
       },
       "response": []
     },
     {
-      "name": "Deactivate Client (Admin)",
+      "name": "Deactivate Company (Admin)",
       "request": {
         "method": "DELETE",
         "header": [
@@ -175,15 +175,15 @@
           }
         ],
         "url": {
-          "raw": "{{base_url}}/api/admin/clients/{{client_id}}",
+          "raw": "{{base_url}}/api/admin/companies/{{company_id}}",
           "host": ["{{base_url}}"],
-          "path": ["api", "admin", "clients", "{{client_id}}"]
+          "path": ["api", "admin", "companies", "{{company_id}}"]
         }
       },
       "response": []
     },
     {
-      "name": "Activate Client (Admin)",
+      "name": "Activate Company (Admin)",
       "request": {
         "method": "POST",
         "header": [
@@ -193,15 +193,15 @@
           }
         ],
         "url": {
-          "raw": "{{base_url}}/api/admin/clients/{{client_id}}/activate",
+          "raw": "{{base_url}}/api/admin/companies/{{company_id}}/activate",
           "host": ["{{base_url}}"],
-          "path": ["api", "admin", "clients", "{{client_id}}", "activate"]
+          "path": ["api", "admin", "companies", "{{company_id}}", "activate"]
         }
       },
       "response": []
     },
     {
-      "name": "Get Client Users (Admin)",
+      "name": "Get Company Users (Admin)",
       "request": {
         "method": "GET",
         "header": [
@@ -211,9 +211,9 @@
           }
         ],
         "url": {
-          "raw": "{{base_url}}/api/admin/clients/{{client_id}}/users?page={{page}}&limit={{limit}}",
+          "raw": "{{base_url}}/api/admin/companies/{{company_id}}/users?page={{page}}&limit={{limit}}",
           "host": ["{{base_url}}"],
-          "path": ["api", "admin", "clients", "{{client_id}}", "users"],
+          "path": ["api", "admin", "companies", "{{company_id}}", "users"],
           "query": [
             {
               "key": "page",
@@ -244,7 +244,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"name\": \"Usuário Admin\",\n  \"email\": \"admin@test.com\",\n  \"password\": \"senha123\",\n  \"clientId\": \"{{client_id}}\",\n  \"cpf\": \"12345678901\"\n}"
+          "raw": "{\n  \"name\": \"Usuário Admin\",\n  \"email\": \"admin@test.com\",\n  \"password\": \"senha123\",\n  \"companyId\": \"{{company_id}}\",\n  \"cpf\": \"12345678901\"\n}"
         },
         "url": {
           "raw": "{{base_url}}/api/admin/users",

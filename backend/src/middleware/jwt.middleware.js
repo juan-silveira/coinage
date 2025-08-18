@@ -34,13 +34,13 @@ const authenticateToken = async (req, res, next) => {
     // Verificar e decodificar o token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
-    // Buscar usuário completo no banco com dados do cliente
+    // Buscar usuário completo no banco com dados da empresa
     const user = await getPrisma().user.findUnique({
       where: { id: decoded.id },
       include: {
-        userClients: {
+        userCompanies: {
           include: {
-            client: true
+            company: true
           }
         }
       }
@@ -53,9 +53,9 @@ const authenticateToken = async (req, res, next) => {
       });
     }
 
-    // Adicionar dados do cliente se existir
-    if (user.userClients && user.userClients.length > 0) {
-      req.client = user.userClients[0].client;
+    // Adicionar dados da empresa se existir
+    if (user.userCompanies && user.userCompanies.length > 0) {
+      req.company = user.userCompanies[0].company;
     }
     
     req.user = user;
@@ -108,7 +108,7 @@ const optionalJWT = async (req, res, next) => {
     const user = await getPrisma().user.findUnique({
       where: { id: decoded.id },
       include: {
-        client: true
+        company: true
       }
     });
 

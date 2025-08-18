@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { userService } from '@/services/api';
 import useAuthStore from '@/store/authStore';
 import api from '@/services/api';
+import useConfig from '@/hooks/useConfig';
 
 // Tempo de atualização configurável (padrão: 5 minutos)
 // Futuramente pode ser personalizado por usuário (ex: premium = 1 minuto)
@@ -23,14 +24,19 @@ const triggerNotificationRefresh = () => {
 };
 
 const useCacheData = () => {
-  const [cachedUser, setCachedUser] = useState(null);
-  const [balances, setBalances] = useState({
-    network: 'testnet',
+  const { defaultNetwork } = useConfig();
+  
+  // Helper para retornar balances vazios com network correta
+  const getEmptyBalances = useCallback(() => ({
+    network: defaultNetwork,
     balancesTable: {},
     tokenBalances: [],
     totalTokens: 0,
     categories: null
-  });
+  }), [defaultNetwork]);
+  
+  const [cachedUser, setCachedUser] = useState(null);
+  const [balances, setBalances] = useState(() => getEmptyBalances());
   const [loading, setLoading] = useState(true);
 
   // Store
@@ -223,7 +229,7 @@ const useCacheData = () => {
 
     if (!user?.email) {
       setLoading(false);
-      setBalances({ network: 'testnet', balancesTable: {}, tokenBalances: [], totalTokens: 0, categories: null });
+      setBalances(getEmptyBalances());
       return;
     }
 
@@ -288,7 +294,8 @@ const useCacheData = () => {
         updateUser(userData);
 
         if (userData?.publicKey) {
-          const balanceResponse = await userService.getUserBalances(userData.publicKey);
+          console.log('🔧 [DEBUG] useCacheData usando network no getUserBalances:', defaultNetwork);
+          const balanceResponse = await userService.getUserBalances(userData.publicKey, defaultNetwork);
           
           if (balanceResponse.success) {
             const newBalanceData = balanceResponse.data;
@@ -324,15 +331,15 @@ const useCacheData = () => {
             setCacheLoaded(true);
           } else {
             // Erro ao carregar balances
-            setBalances({ network: 'testnet', balancesTable: {}, tokenBalances: [], totalTokens: 0, categories: null });
+            setBalances(getEmptyBalances());
           }
         } else {
           // PublicKey não encontrada
-          setBalances({ network: 'testnet', balancesTable: {}, tokenBalances: [], totalTokens: 0, categories: null });
+          setBalances(getEmptyBalances());
         }
       } else {
         // Resposta inválida
-        setBalances({ network: 'testnet', balancesTable: {}, tokenBalances: [], totalTokens: 0, categories: null });
+        setBalances(getEmptyBalances());
       }
     } catch (error) {
       // Se for erro 401 em modo silent, não mostrar erro
@@ -352,7 +359,7 @@ const useCacheData = () => {
         });
       }
       
-      setBalances({ network: 'testnet', balancesTable: {}, tokenBalances: [], totalTokens: 0, categories: null });
+      setBalances(getEmptyBalances());
     } finally {
       // Parar loading com timeout para dar tempo de mostrar a mudança
       if (reason === 'silent') {
@@ -375,7 +382,7 @@ const useCacheData = () => {
       loadCacheData('initial');
     } else {
       // Limpar dados se não há usuário
-      setBalances({ network: 'testnet', balancesTable: {}, tokenBalances: [], totalTokens: 0, categories: null });
+      setBalances(getEmptyBalances());
       setCachedUser(null);
       setLoading(false);
     }
@@ -441,10 +448,10 @@ const useCacheData = () => {
   }, []);
 
   const getCorrectAzeSymbol = useCallback(() => {
-    if (!balances) return 'AZE';
-    const network = balances.network || 'testnet';
+    if (!balances) return defaultNetwork === 'testnet' ? 'AZE-t' : 'AZE';
+    const network = balances.network || defaultNetwork;
     return network === 'testnet' ? 'AZE-t' : 'AZE';
-  }, [balances]);
+  }, [balances, defaultNetwork]);
 
   const getBalance = useCallback((symbol) => {
     if (!balances) return '0.000000';

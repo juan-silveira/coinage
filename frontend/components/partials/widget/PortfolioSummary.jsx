@@ -3,6 +3,7 @@ import React from "react";
 import useCachedBalances from "@/hooks/useCachedBalances";
 import PortfolioDonutChart from "@/components/partials/widget/chart/portfolio-donut-chart";
 import useAuthStore from "@/store/authStore";
+import useConfig from "@/hooks/useConfig";
 import {
   getTokenPrice,
   formatCurrency as formatCurrencyHelper,
@@ -11,13 +12,14 @@ import {
 const PortfolioSummary = () => {
   const { balances, loading, getCorrectAzeSymbol } = useCachedBalances();
   const { user } = useAuthStore();
+  const { defaultNetwork } = useConfig();
 
   // Usar formatação centralizada
   const formatCurrency = formatCurrencyHelper;
 
   // Mapeamento de tokens por categoria (4 categorias para Total Investido)
   const getTokenCategories = () => {
-    const network = balances?.network || "testnet";
+    const network = balances?.network || defaultNetwork;
     return {
       cryptocurrencies: [getCorrectAzeSymbol()], // AZE ou AZE-t dependendo da rede
       startups: ["CNT"],
@@ -32,6 +34,35 @@ const PortfolioSummary = () => {
     if (hour < 12) return "Bom dia";
     if (hour < 18) return "Boa tarde";
     return "Boa noite";
+  };
+
+  // Função para formatar nome para saudação (abreviar intermediários, ocultar nomes < 4 chars)
+  const formatNameForGreeting = (fullName) => {
+    if (!fullName) return 'Usuário';
+    
+    const names = fullName.trim().split(' ').filter(name => name.length > 0);
+    if (names.length === 0) return 'Usuário';
+    if (names.length === 1) return names[0];
+    
+    // Primeiro nome sempre aparece completo
+    const result = [names[0]];
+    
+    // Processar nomes do meio (índices 1 até length-2)
+    for (let i = 1; i < names.length - 1; i++) {
+      const name = names[i];
+      if (name.length >= 4) {
+        // Abreviar nomes com 4+ caracteres (primeiro char + maiúsculo)
+        result.push(name.charAt(0).toUpperCase());
+      }
+      // Nomes com menos de 4 caracteres são omitidos
+    }
+    
+    // Último nome sempre aparece completo
+    if (names.length > 1) {
+      result.push(names[names.length - 1]);
+    }
+    
+    return result.join(' ');
   };
 
   const tokenCategories = getTokenCategories();
@@ -140,7 +171,7 @@ const PortfolioSummary = () => {
             <div className="flex-1">
               <h4 className="text-xl font-medium mb-2">
                 <span className="block font-light">{getGreeting()},</span>
-                <span className="block">{user?.name || "Usuário"}</span>
+                <span className="block">{formatNameForGreeting(user?.name)}</span>
               </h4>
               <p className="text-sm dark:text-slate-300">Bem-vindo à Coinage</p>
             </div>
