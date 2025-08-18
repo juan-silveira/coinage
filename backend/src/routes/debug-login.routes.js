@@ -1,10 +1,13 @@
 const express = require('express');
 const router = express.Router();
-const bcrypt = require('bcryptjs');
+// Removido bcrypt pois não é mais usado
 
 // Função helper para obter Prisma
 const prismaConfig = require('../config/prisma');
 const getPrisma = () => prismaConfig.getPrisma();
+
+// Importar userService para verificação de senha
+const userService = require('../services/user.service');
 
 /**
  * Endpoint para debug do processo de login
@@ -21,7 +24,7 @@ router.post('/debug-login', async (req, res) => {
     console.log('👤 Buscando usuário...');
     const user = await getPrisma().user.findFirst({
       where: { email },
-      include: { client: true }
+      include: { company: true }
     });
     
     if (!user) {
@@ -35,13 +38,13 @@ router.post('/debug-login', async (req, res) => {
     }
     
     console.log('✅ Usuário encontrado:', user.email);
-    console.log('🏢 Client:', user.client?.name);
+    console.log('🏢 Company:', user.company?.name);
     console.log('🔧 IsActive:', user.isActive);
     console.log('🔑 HashedPassword length:', user.password ? user.password.length : 'undefined');
     
-    // Verificar senha
+    // Verificar senha usando o método correto
     console.log('🔐 Verificando senha...');
-    const isPasswordValid = await bcrypt.compare(password, user.password);
+    const isPasswordValid = userService.verifyPassword(password, user.password, user.email);
     console.log('✅ Password valid:', isPasswordValid);
     
     // Resposta de debug
@@ -54,7 +57,7 @@ router.post('/debug-login', async (req, res) => {
         email: user.email,
         name: user.name,
         isActive: user.isActive,
-        clientName: user.client?.name,
+        companyName: user.company?.name,
         passwordMatches: isPasswordValid,
         hashedPasswordStart: user.password ? user.password.substring(0, 10) + '...' : null
       }

@@ -6,9 +6,9 @@ const queueService = require('../services/queue.service');
  */
 class TransactionController {
   /**
-   * Obtém transações de um cliente
+   * Obtém transações de uma empresa
    */
-  async getTransactionsByClient(req, res) {
+  async getTransactionsByCompany(req, res) {
     try {
       const { page = 1, limit = 50, status, network, transactionType, tokenSymbol, startDate, endDate } = req.query;
       const userId = req.user.id;
@@ -138,12 +138,12 @@ class TransactionController {
   async getTransactionStats(req, res) {
     try {
       const { startDate, endDate, network } = req.query;
-      const clientId = req.client?.id;
+      const companyId = req.company?.id;
 
       const stats = await transactionService.getTransactionStats({
         startDate,
         endDate,
-        clientId,
+        companyId,
         network
       });
 
@@ -174,12 +174,12 @@ class TransactionController {
   async getStatusStats(req, res) {
     try {
       const { startDate, endDate, network } = req.query;
-      const clientId = req.client?.id;
+      const companyId = req.company?.id;
 
       const stats = await transactionService.getStatusStats({
         startDate,
         endDate,
-        clientId,
+        companyId,
         network
       });
 
@@ -203,12 +203,12 @@ class TransactionController {
   async getTypeStats(req, res) {
     try {
       const { startDate, endDate, network } = req.query;
-      const clientId = req.client?.id;
+      const companyId = req.company?.id;
 
       const stats = await transactionService.getTypeStats({
         startDate,
         endDate,
-        clientId,
+        companyId,
         network
       });
 
@@ -248,7 +248,7 @@ class TransactionController {
   async enqueueBlockchainTransaction(req, res) {
     try {
       const { type, data } = req.body;
-      const clientId = req.client?.id;
+      const companyId = req.company?.id;
       const userId = req.user?.id;
 
       if (!type || !data) {
@@ -258,10 +258,10 @@ class TransactionController {
         });
       }
 
-      // Adicionar informações do cliente e usuário aos dados da transação
+      // Adicionar informações da empresa e usuário aos dados da transação
       const transactionData = {
         ...data,
-        clientId,
+        companyId,
         userId,
         type,
         timestamp: new Date().toISOString()
@@ -271,7 +271,7 @@ class TransactionController {
       const result = await queueService.enqueueBlockchainTransaction(transactionData);
 
       // Obter dados de rate limit do middleware
-      const rateLimitKey = `transaction_rate_limit:${clientId}`;
+      const rateLimitKey = `transaction_rate_limit:${companyId}`;
       const rateLimitData = req.rateLimitData?.[rateLimitKey];
 
       res.status(200).json({

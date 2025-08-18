@@ -5,7 +5,7 @@ class LogService {
   constructor() {
     this.RequestLog = null;
     this.Transaction = null;
-    this.Client = null;
+    this.Company = null;
     this.sequelize = null;
   }
 
@@ -25,7 +25,7 @@ class LogService {
       this.sequelize = global.sequelize;
       this.RequestLog = global.models.RequestLog;
       this.Transaction = global.models.Transaction;
-      this.Client = global.models.Client;
+      this.Company = global.models.Company;
       console.log('✅ Serviço de logs inicializado com sucesso');
     } catch (error) {
       console.error('❌ Erro ao inicializar serviço de logs:', error.message);
@@ -34,13 +34,13 @@ class LogService {
   }
 
   /**
-   * Obtém estatísticas de requests de um client
+   * Obtém estatísticas de requests de um company
    */
-  async getClientRequestsStats(clientId, period = 'day') {
+  async getCompanyRequestsStats(companyId, period = 'day') {
     try {
-      const client = await this.Client.findByPk(clientId);
-      if (!client) {
-        throw new Error('Client não encontrado');
+      const company = await this.Company.findByPk(companyId);
+      if (!company) {
+        throw new Error('Company não encontrado');
       }
 
       // Calcular data de início baseada no período
@@ -65,7 +65,7 @@ class LogService {
       // Total de requests no período
       const totalRequests = await this.RequestLog.count({
         where: {
-          clientId,
+          companyId,
           created_at: {
             [Op.gte]: startDate
           }
@@ -75,7 +75,7 @@ class LogService {
       // Requests por status
       const successRequests = await this.RequestLog.count({
         where: {
-          clientId,
+          companyId,
           statusCode: {
             [Op.between]: [200, 299]
           },
@@ -87,7 +87,7 @@ class LogService {
 
       const errorRequests = await this.RequestLog.count({
         where: {
-          clientId,
+          companyId,
           statusCode: {
             [Op.gte]: 400
           },
@@ -100,7 +100,7 @@ class LogService {
       // Requests por método HTTP
       const methodStats = await this.RequestLog.findAll({
         where: {
-          clientId,
+          companyId,
           created_at: {
             [Op.gte]: startDate
           }
@@ -116,7 +116,7 @@ class LogService {
       // Requests por endpoint
       const endpointStats = await this.RequestLog.findAll({
         where: {
-          clientId,
+          companyId,
           created_at: {
             [Op.gte]: startDate
           }
@@ -134,7 +134,7 @@ class LogService {
       // Tempo médio de resposta
       const avgResponseTime = await this.RequestLog.findOne({
         where: {
-          clientId,
+          companyId,
           created_at: {
             [Op.gte]: startDate
           }
@@ -147,7 +147,7 @@ class LogService {
       // Requests por hora (últimas 24 horas)
       const hourlyStats = await this.RequestLog.findAll({
         where: {
-          clientId,
+          companyId,
           created_at: {
             [Op.gte]: new Date(Date.now() - 24 * 60 * 60 * 1000)
           }
@@ -164,9 +164,9 @@ class LogService {
         success: true,
         message: 'Estatísticas de requests obtidas com sucesso',
         data: {
-          client: {
-            id: client.id,
-            name: client.name
+          company: {
+            id: company.id,
+            name: company.name
           },
           period,
           summary: {
@@ -204,7 +204,7 @@ class LogService {
       const {
         page = 1,
         limit = 50,
-        clientId,
+        companyId,
         resourceType,
         statusCode,
         startDate,
@@ -215,7 +215,7 @@ class LogService {
       const offset = (page - 1) * limit;
       const where = {};
 
-      if (clientId) where.clientId = clientId;
+      if (companyId) where.companyId = companyId;
       if (resourceType) where.resourceType = resourceType;
       if (statusCode) where.statusCode = statusCode;
 
@@ -266,7 +266,7 @@ class LogService {
       const {
         page = 1,
         limit = 50,
-        clientId,
+        companyId,
         status,
         network,
         transactionType,
@@ -277,7 +277,7 @@ class LogService {
       const offset = (page - 1) * limit;
       const where = {};
 
-      if (clientId) where.clientId = clientId;
+      if (companyId) where.companyId = companyId;
       if (status) where.status = status;
       if (network) where.network = network;
       if (transactionType) where.transactionType = transactionType;
@@ -321,7 +321,7 @@ class LogService {
       const {
         startDate,
         endDate,
-        clientId,
+        companyId,
         network,
         resourceType,
         transactionType
@@ -331,7 +331,7 @@ class LogService {
       const requestStats = await this.RequestLog.getStats({
         startDate,
         endDate,
-        clientId,
+        companyId,
         resourceType
       });
 
@@ -339,7 +339,7 @@ class LogService {
       const transactionStats = await this.Transaction.getStats({
         startDate,
         endDate,
-        clientId,
+        companyId,
         network,
         transactionType
       });
@@ -348,21 +348,21 @@ class LogService {
       const methodStats = await this.RequestLog.getMethodStats({
         startDate,
         endDate,
-        clientId
+        companyId
       });
 
       // Estatísticas por tipo de recurso
       const resourceTypeStats = await this.RequestLog.getResourceTypeStats({
         startDate,
         endDate,
-        clientId
+        companyId
       });
 
       // Estatísticas por status de transação
       const transactionStatusStats = await this.Transaction.getStatusStats({
         startDate,
         endDate,
-        clientId,
+        companyId,
         network
       });
 
@@ -370,7 +370,7 @@ class LogService {
       const transactionTypeStats = await this.Transaction.getTypeStats({
         startDate,
         endDate,
-        clientId,
+        companyId,
         network
       });
 
@@ -544,7 +544,7 @@ class LogService {
       const {
         startDate,
         endDate,
-        clientId,
+        companyId,
         network,
         format = 'json'
       } = options;
@@ -557,7 +557,7 @@ class LogService {
         if (endDate) where.created_at.$lte = new Date(endDate);
       }
 
-      if (clientId) where.clientId = clientId;
+      if (companyId) where.companyId = companyId;
       if (network) where.network = network;
 
       const requestLogs = await this.RequestLog.findAll({
@@ -619,7 +619,7 @@ class LogService {
         offset: parseInt(offset),
         order: [['created_at', 'DESC']],
         include: [
-          { model: this.Client, as: 'client', attributes: ['id', 'name'] },
+          { model: this.Company, as: 'company', attributes: ['id', 'name'] },
           { model: global.models.User, as: 'user', attributes: ['id', 'name', 'email'] }
         ]
       });
@@ -672,7 +672,7 @@ class LogService {
         offset: parseInt(offset),
         order: [['created_at', 'DESC']],
         include: [
-          { model: this.Client, as: 'client', attributes: ['id', 'name'] },
+          { model: this.Company, as: 'company', attributes: ['id', 'name'] },
           { model: global.models.User, as: 'user', attributes: ['id', 'name', 'email'] }
         ]
       });
@@ -781,18 +781,18 @@ class LogService {
    */
   async testService() {
     try {
-      // Buscar um cliente real para o teste
-      const testClient = await this.Client.findOne({
+      // Buscar um empresa real para o teste
+      const testCompany = await this.Company.findOne({
         where: { isActive: true }
       });
       
-      if (!testClient) {
-        throw new Error('Nenhum cliente ativo encontrado para o teste');
+      if (!testCompany) {
+        throw new Error('Nenhum empresa ativo encontrado para o teste');
       }
 
       // Teste de criação de log de requisição
       const testRequestLog = await this.RequestLog.create({
-        clientId: testClient.id,
+        companyId: testCompany.id,
         method: 'GET',
         path: '/api/test',
         statusCode: 200,
@@ -803,7 +803,7 @@ class LogService {
 
       // Teste de criação de transação
       const testTransaction = await this.Transaction.create({
-        clientId: testClient.id,
+        companyId: testCompany.id,
         network: 'testnet',
         transactionType: 'contract_call',
         status: 'pending',

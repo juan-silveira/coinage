@@ -1,7 +1,7 @@
 {
   "info": {
-    "name": "🏢 Gerenciamento de Cliente",
-    "description": "Endpoints para gerenciamento de clientes da API Azore Blockchain",
+    "name": "🏢 Gerenciamento de Company",
+    "description": "Endpoints para gerenciamento de empresas da API Azore Blockchain",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "version": "1.0.0"
   },
@@ -17,13 +17,13 @@
       "type": "string"
     },
     {
-      "key": "client_id",
-      "value": "{{client_id}}",
+      "key": "company_id",
+      "value": "{{company_id}}",
       "type": "string"
     },
     {
-      "key": "client_name",
-      "value": "{{client_name}}",
+      "key": "company_name",
+      "value": "{{company_name}}",
       "type": "string"
     },
     {
@@ -39,7 +39,7 @@
   ],
   "item": [
     {
-      "name": "Create Client",
+      "name": "Create Company",
       "request": {
         "method": "POST",
         "header": [
@@ -54,18 +54,18 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"name\": \"{{client_name}}\"\n}"
+          "raw": "{\n  \"name\": \"{{company_name}}\"\n}"
         },
         "url": {
-          "raw": "{{base_url}}/api/clients",
+          "raw": "{{base_url}}/api/companies",
           "host": ["{{base_url}}"],
-          "path": ["api", "clients"]
+          "path": ["api", "companies"]
         }
       },
       "response": []
     },
     {
-      "name": "List Clients",
+      "name": "List Companies",
       "request": {
         "method": "GET",
         "header": [
@@ -75,9 +75,9 @@
           }
         ],
         "url": {
-          "raw": "{{base_url}}/api/clients?page={{page}}&limit={{limit}}",
+          "raw": "{{base_url}}/api/companies?page={{page}}&limit={{limit}}",
           "host": ["{{base_url}}"],
-          "path": ["api", "clients"],
+          "path": ["api", "companies"],
           "query": [
             {
               "key": "page",
@@ -93,7 +93,7 @@
       "response": []
     },
     {
-      "name": "Get Client by ID",
+      "name": "Get Company by ID",
       "request": {
         "method": "GET",
         "header": [
@@ -103,15 +103,15 @@
           }
         ],
         "url": {
-          "raw": "{{base_url}}/api/clients/{{client_id}}",
+          "raw": "{{base_url}}/api/companies/{{company_id}}",
           "host": ["{{base_url}}"],
-          "path": ["api", "clients", "{{client_id}}"]
+          "path": ["api", "companies", "{{company_id}}"]
         }
       },
       "response": []
     },
     {
-      "name": "Update Client",
+      "name": "Update Company",
       "request": {
         "method": "PUT",
         "header": [
@@ -126,18 +126,18 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"name\": \"{{client_name}} Atualizado\",\n  \"isActive\": true\n}"
+          "raw": "{\n  \"name\": \"{{company_name}} Atualizado\",\n  \"isActive\": true\n}"
         },
         "url": {
-          "raw": "{{base_url}}/api/clients/{{client_id}}",
+          "raw": "{{base_url}}/api/companies/{{company_id}}",
           "host": ["{{base_url}}"],
-          "path": ["api", "clients", "{{client_id}}"]
+          "path": ["api", "companies", "{{company_id}}"]
         }
       },
       "response": []
     },
     {
-      "name": "Deactivate Client",
+      "name": "Deactivate Company",
       "request": {
         "method": "POST",
         "header": [
@@ -147,15 +147,15 @@
           }
         ],
         "url": {
-          "raw": "{{base_url}}/api/clients/{{client_id}}/deactivate",
+          "raw": "{{base_url}}/api/companies/{{company_id}}/deactivate",
           "host": ["{{base_url}}"],
-          "path": ["api", "clients", "{{client_id}}", "deactivate"]
+          "path": ["api", "companies", "{{company_id}}", "deactivate"]
         }
       },
       "response": []
     },
     {
-      "name": "Activate Client",
+      "name": "Activate Company",
       "request": {
         "method": "POST",
         "header": [
@@ -165,9 +165,9 @@
           }
         ],
         "url": {
-          "raw": "{{base_url}}/api/clients/{{client_id}}/activate",
+          "raw": "{{base_url}}/api/companies/{{company_id}}/activate",
           "host": ["{{base_url}}"],
-          "path": ["api", "clients", "{{client_id}}", "activate"]
+          "path": ["api", "companies", "{{company_id}}", "activate"]
         }
       },
       "response": []
@@ -191,15 +191,15 @@
           "raw": "{\n  \"rateLimit\": {\n    \"requestsPerMinute\": 100,\n    \"requestsPerHour\": 1000,\n    \"requestsPerDay\": 10000\n  }\n}"
         },
         "url": {
-          "raw": "{{base_url}}/api/clients/{{client_id}}/rate-limits",
+          "raw": "{{base_url}}/api/companies/{{company_id}}/rate-limits",
           "host": ["{{base_url}}"],
-          "path": ["api", "clients", "{{client_id}}", "rate-limits"]
+          "path": ["api", "companies", "{{company_id}}", "rate-limits"]
         }
       },
       "response": []
     },
     {
-      "name": "Get Client Usage Stats",
+      "name": "Get Company Usage Stats",
       "request": {
         "method": "GET",
         "header": [
@@ -209,15 +209,15 @@
           }
         ],
         "url": {
-          "raw": "{{base_url}}/api/clients/{{client_id}}/usage-stats",
+          "raw": "{{base_url}}/api/companies/{{company_id}}/usage-stats",
           "host": ["{{base_url}}"],
-          "path": ["api", "clients", "{{client_id}}", "usage-stats"]
+          "path": ["api", "companies", "{{company_id}}", "usage-stats"]
         }
       },
       "response": []
     },
     {
-      "name": "Get Client Users",
+      "name": "Get Company Users",
       "request": {
         "method": "GET",
         "header": [
@@ -227,9 +227,9 @@
           }
         ],
         "url": {
-          "raw": "{{base_url}}/api/clients/{{client_id}}/users?page={{page}}&limit={{limit}}",
+          "raw": "{{base_url}}/api/companies/{{company_id}}/users?page={{page}}&limit={{limit}}",
           "host": ["{{base_url}}"],
-          "path": ["api", "clients", "{{client_id}}", "users"],
+          "path": ["api", "companies", "{{company_id}}", "users"],
           "query": [
             {
               "key": "page",
@@ -245,7 +245,7 @@
       "response": []
     },
     {
-      "name": "Get Client Users Stats",
+      "name": "Get Company Users Stats",
       "request": {
         "method": "GET",
         "header": [
@@ -255,15 +255,15 @@
           }
         ],
         "url": {
-          "raw": "{{base_url}}/api/clients/{{client_id}}/users/stats",
+          "raw": "{{base_url}}/api/companies/{{company_id}}/users/stats",
           "host": ["{{base_url}}"],
-          "path": ["api", "clients", "{{client_id}}", "users", "stats"]
+          "path": ["api", "companies", "{{company_id}}", "users", "stats"]
         }
       },
       "response": []
     },
     {
-      "name": "Get Client Requests Stats",
+      "name": "Get Company Requests Stats",
       "request": {
         "method": "GET",
         "header": [
@@ -273,9 +273,9 @@
           }
         ],
         "url": {
-          "raw": "{{base_url}}/api/clients/{{client_id}}/requests/stats?period=day",
+          "raw": "{{base_url}}/api/companies/{{company_id}}/requests/stats?period=day",
           "host": ["{{base_url}}"],
-          "path": ["api", "clients", "{{client_id}}", "requests", "stats"],
+          "path": ["api", "companies", "{{company_id}}", "requests", "stats"],
           "query": [
             {
               "key": "period",
@@ -287,7 +287,7 @@
       "response": []
     },
     {
-      "name": "Test Clients Service",
+      "name": "Test Companies Service",
       "request": {
         "method": "GET",
         "header": [
@@ -297,9 +297,9 @@
           }
         ],
         "url": {
-          "raw": "{{base_url}}/api/clients/test/service",
+          "raw": "{{base_url}}/api/companies/test/service",
           "host": ["{{base_url}}"],
-          "path": ["api", "clients", "test", "service"]
+          "path": ["api", "companies", "test", "service"]
         }
       },
       "response": []

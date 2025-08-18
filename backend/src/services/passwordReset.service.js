@@ -30,9 +30,9 @@ class PasswordResetService {
   /**
    * Solicita recuperação de senha para um usuário
    */
-  static async requestClientReset(email, ipAddress = null, userAgent = null) {
+  static async requestCompanyReset(email, ipAddress = null, userAgent = null) {
     try {
-      console.log('🔍 Iniciando requestClientReset para:', email);
+      console.log('🔍 Iniciando requestCompanyReset para:', email);
       const models = getModels();
       console.log('🔍 Models disponíveis:', Object.keys(models));
       const { User, PasswordReset } = models;

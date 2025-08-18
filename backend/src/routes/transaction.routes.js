@@ -13,7 +13,7 @@ router.get('/test-no-auth', async (req, res) => {
       transactions: [
         {
           id: '1',
-          client: { name: 'Coinage App' },
+          company: { name: 'Coinage App' },
           tokenSymbol: 'STT',
           tokenName: 'Stake Token',
           txHash: '0x1234567890abcdef1234567890abcdef12345678901234567890abcdef123456',
@@ -26,7 +26,7 @@ router.get('/test-no-auth', async (req, res) => {
         },
         {
           id: '2', 
-          client: { name: 'Navi' },
+          company: { name: 'Navi' },
           tokenSymbol: 'STT',
           tokenName: 'Stake Token',
           txHash: '0x2345678901bcdef12345678901bcdef12345678901234567890bcdef123457',
@@ -75,7 +75,7 @@ router.get('/direct-prisma-test', async (req, res) => {
     const transactions = await prisma.transaction.findMany({
       where: { userId },
       include: {
-        client: {
+        company: {
           select: { id: true, name: true, alias: true }
         }
       },
@@ -89,8 +89,8 @@ router.get('/direct-prisma-test', async (req, res) => {
     const safeTransactions = transactions.map(tx => ({
       id: tx.id,
       userId: tx.userId,
-      clientId: tx.clientId,
-      client: tx.client,
+      companyId: tx.companyId,
+      company: tx.company,
       network: tx.network,
       transactionType: tx.transactionType,
       status: tx.status,
@@ -148,10 +148,10 @@ router.use(authenticateToken);
  *           type: string
  *           format: uuid
  *           description: ID único da transação
- *         clientId:
+ *         companyId:
  *           type: string
  *           format: uuid
- *           description: ID do cliente que iniciou a transação
+ *           description: ID da empresa que iniciou a transação
  *         userId:
  *           type: string
  *           format: uuid
@@ -237,7 +237,7 @@ router.use(authenticateToken);
  * @swagger
  * /api/transactions:
  *   get:
- *     summary: Obtém transações de um cliente
+ *     summary: Obtém transações de um empresa
  *     tags: [Transactions]
  *     security:
  *       - ApiKeyAuth: []
@@ -319,7 +319,7 @@ router.use(authenticateToken);
  *       401:
  *         description: Não autorizado
  */
-router.get('/', transactionController.getTransactionsByClient);
+router.get('/', transactionController.getTransactionsByCompany);
 
 /**
  * @swagger

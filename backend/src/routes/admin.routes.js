@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const clientController = require('../controllers/client.controller');
+const companyController = require('../controllers/company.controller');
 const userController = require('../controllers/user.controller');
 const contractController = require('../controllers/contract.controller');
 const { authenticateApiKey, requireApiAdmin, requireAnyAdmin } = require('../middleware/auth.middleware');
@@ -20,9 +20,9 @@ const { requirePasswordChange } = require('../middleware/session.middleware');
 
 /**
  * @swagger
- * /api/admin/clients:
+ * /api/admin/companies:
  *   get:
- *     summary: Lista todos os clients (Admin)
+ *     summary: Lista todos os companies (Admin)
  *     tags: [Admin]
  *     security:
  *       - ApiKeyAuth: []
@@ -51,19 +51,19 @@ const { requirePasswordChange } = require('../middleware/session.middleware');
  *         description: Buscar por nome ou email
  *     responses:
  *       200:
- *         description: Lista de clients
+ *         description: Lista de companies
  *       401:
  *         description: Não autorizado
  *       403:
  *         description: Acesso negado
  */
-router.get('/clients', authenticateApiKey, requireApiAdmin, requirePasswordChange, clientController.listClients);
+router.get('/companies', authenticateApiKey, requireApiAdmin, requirePasswordChange, companyController.listCompanies);
 
 /**
  * @swagger
- * /api/admin/clients/{id}:
+ * /api/admin/companies/{id}:
  *   get:
- *     summary: Obtém um client por ID (Admin)
+ *     summary: Obtém uma empresa por ID (Admin)
  *     tags: [Admin]
  *     security:
  *       - ApiKeyAuth: []
@@ -74,24 +74,24 @@ router.get('/clients', authenticateApiKey, requireApiAdmin, requirePasswordChang
  *         schema:
  *           type: string
  *           format: uuid
- *         description: ID do client
+ *         description: ID da empresa
  *     responses:
  *       200:
- *         description: Client encontrado
+ *         description: Empresa encontrada
  *       401:
  *         description: Não autorizado
  *       403:
  *         description: Acesso negado
  *       404:
- *         description: Client não encontrado
+ *         description: Empresa não encontrada
  */
-router.get('/clients/:id', authenticateApiKey, requireApiAdmin, requirePasswordChange, clientController.getClientById);
+router.get('/companies/:id', authenticateApiKey, requireApiAdmin, requirePasswordChange, companyController.getCompanyById);
 
 /**
  * @swagger
- * /api/admin/clients:
+ * /api/admin/companies:
  *   post:
- *     summary: Cria um novo client (Admin)
+ *     summary: Cria uma nova empresa (Admin)
  *     tags: [Admin]
  *     security:
  *       - ApiKeyAuth: []
@@ -106,7 +106,7 @@ router.get('/clients/:id', authenticateApiKey, requireApiAdmin, requirePasswordC
  *             properties:
  *               name:
  *                 type: string
- *                 description: Nome do client
+ *                 description: Nome da empresa
  *               rateLimit:
  *                 type: object
  *                 properties:
@@ -121,7 +121,7 @@ router.get('/clients/:id', authenticateApiKey, requireApiAdmin, requirePasswordC
  *                     default: 10000
  *     responses:
  *       201:
- *         description: Client criado com sucesso
+ *         description: Empresa criada com sucesso
  *       400:
  *         description: Dados inválidos
  *       401:
@@ -129,13 +129,13 @@ router.get('/clients/:id', authenticateApiKey, requireApiAdmin, requirePasswordC
  *       403:
  *         description: Acesso negado
  */
-router.post('/clients', authenticateApiKey, requireApiAdmin, requirePasswordChange, clientController.createClient);
+router.post('/companies', authenticateApiKey, requireApiAdmin, requirePasswordChange, companyController.createCompany);
 
 /**
  * @swagger
- * /api/admin/clients/{id}:
+ * /api/admin/companies/{id}:
  *   put:
- *     summary: Atualiza um client (Admin)
+ *     summary: Atualiza uma empresa (Admin)
  *     tags: [Admin]
  *     security:
  *       - ApiKeyAuth: []
@@ -146,7 +146,7 @@ router.post('/clients', authenticateApiKey, requireApiAdmin, requirePasswordChan
  *         schema:
  *           type: string
  *           format: uuid
- *         description: ID do client
+ *         description: ID da empresa
  *     requestBody:
  *       required: true
  *       content:
@@ -156,10 +156,10 @@ router.post('/clients', authenticateApiKey, requireApiAdmin, requirePasswordChan
  *             properties:
  *               name:
  *                 type: string
- *                 description: Nome do client
+ *                 description: Nome do company
  *               isActive:
  *                 type: boolean
- *                 description: Status ativo do client
+ *                 description: Status ativo do company
  *               rateLimit:
  *                 type: object
  *                 properties:
@@ -171,7 +171,7 @@ router.post('/clients', authenticateApiKey, requireApiAdmin, requirePasswordChan
  *                     type: integer
  *     responses:
  *       200:
- *         description: Client atualizado com sucesso
+ *         description: Empresa atualizada com sucesso
  *       400:
  *         description: Dados inválidos
  *       401:
@@ -179,15 +179,15 @@ router.post('/clients', authenticateApiKey, requireApiAdmin, requirePasswordChan
  *       403:
  *         description: Acesso negado
  *       404:
- *         description: Client não encontrado
+ *         description: Company não encontrado
  */
-router.put('/clients/:id', authenticateApiKey, requireApiAdmin, clientController.updateClient);
+router.put('/companies/:id', authenticateApiKey, requireApiAdmin, companyController.updateCompany);
 
 /**
  * @swagger
- * /api/admin/clients/{id}:
+ * /api/admin/companies/{id}:
  *   delete:
- *     summary: Desativa um client (Admin)
+ *     summary: Desativa uma empresa (Admin)
  *     tags: [Admin]
  *     security:
  *       - ApiKeyAuth: []
@@ -198,24 +198,24 @@ router.put('/clients/:id', authenticateApiKey, requireApiAdmin, clientController
  *         schema:
  *           type: string
  *           format: uuid
- *         description: ID do client
+ *         description: ID da empresa
  *     responses:
  *       200:
- *         description: Client desativado com sucesso
+ *         description: Empresa desativada com sucesso
  *       401:
  *         description: Não autorizado
  *       403:
  *         description: Acesso negado
  *       404:
- *         description: Client não encontrado
+ *         description: Company não encontrado
  */
-router.delete('/clients/:id', authenticateApiKey, requireApiAdmin, clientController.deactivateClient);
+router.delete('/companies/:id', authenticateApiKey, requireApiAdmin, companyController.deactivateCompany);
 
 /**
  * @swagger
- * /api/admin/clients/{id}/activate:
+ * /api/admin/companies/{id}/activate:
  *   post:
- *     summary: Reativa um client (Admin)
+ *     summary: Reativa uma empresa (Admin)
  *     tags: [Admin]
  *     security:
  *       - ApiKeyAuth: []
@@ -226,24 +226,24 @@ router.delete('/clients/:id', authenticateApiKey, requireApiAdmin, clientControl
  *         schema:
  *           type: string
  *           format: uuid
- *         description: ID do client
+ *         description: ID da empresa
  *     responses:
  *       200:
- *         description: Client reativado com sucesso
+ *         description: Empresa reativada com sucesso
  *       401:
  *         description: Não autorizado
  *       403:
  *         description: Acesso negado
  *       404:
- *         description: Client não encontrado
+ *         description: Company não encontrado
  */
-router.post('/clients/:id/activate', authenticateApiKey, requireApiAdmin, clientController.activateClient);
+router.post('/companies/:id/activate', authenticateApiKey, requireApiAdmin, companyController.activateCompany);
 
 /**
  * @swagger
- * /api/admin/clients/{id}/users:
+ * /api/admin/companies/{id}/users:
  *   get:
- *     summary: Obtém usuários de um client específico (Admin)
+ *     summary: Obtém usuários de uma empresa específica (Admin)
  *     tags: [Admin]
  *     security:
  *       - AdminAuth: []
@@ -254,7 +254,7 @@ router.post('/clients/:id/activate', authenticateApiKey, requireApiAdmin, client
  *         schema:
  *           type: string
  *           format: uuid
- *         description: ID do client
+ *         description: ID da empresa
  *       - in: query
  *         name: page
  *         schema:
@@ -285,13 +285,13 @@ router.post('/clients/:id/activate', authenticateApiKey, requireApiAdmin, client
  *         description: Incluir chave privada na resposta
  *     responses:
  *       200:
- *         description: Lista de usuários do client
+ *         description: Lista de usuários da empresa
  *       401:
  *         description: Não autorizado
  *       403:
  *         description: Acesso negado
  */
-// router.get('/clients/:id/users', authenticateApiKey, requireApiAdmin, userController.getUsersByClientId); // TODO: Implementar função
+// router.get('/companies/:id/users', authenticateApiKey, requireApiAdmin, userController.getUsersByCompanyId); // TODO: Implementar função
 
 /**
  * @swagger
@@ -311,7 +311,7 @@ router.post('/clients/:id/activate', authenticateApiKey, requireApiAdmin, client
  *               - name
  *               - email
  *               - password
- *               - clientId
+ *               - companyId
  *             properties:
  *               name:
  *                 type: string
@@ -323,10 +323,10 @@ router.post('/clients/:id/activate', authenticateApiKey, requireApiAdmin, client
  *               password:
  *                 type: string
  *                 description: Senha do usuário
- *               clientId:
+ *               companyId:
  *                 type: string
  *                 format: uuid
- *                 description: ID do client ao qual o usuário será vinculado
+ *                 description: ID da empresa à qual o usuário será vinculado
  *               cpf:
  *                 type: string
  *                 description: CPF do usuário
@@ -379,11 +379,11 @@ router.post('/users', authenticateApiKey, requireApiAdmin, userController.create
  *           default: 10
  *         description: Limite de itens por página
  *       - in: query
- *         name: clientId
+ *         name: companyId
  *         schema:
  *           type: string
  *           format: uuid
- *         description: Filtrar por client ID
+ *         description: Filtrar por company ID
  *       - in: query
  *         name: isActive
  *         schema:
@@ -597,9 +597,9 @@ router.get('/users/cpf/:cpf', authenticateApiKey, requireApiAdmin, userControlle
 
 /**
  * @swagger
- * /api/admin/users/{userId}/add-client-admin:
+ * /api/admin/users/{userId}/add-company-admin:
  *   post:
- *     summary: Concede a flag isClientAdmin de um usuário (Admin)
+ *     summary: Concede a flag isCompanyAdmin de um usuário (Admin)
  *     tags: [Admin]
  *     security:
  *       - ApiKeyAuth: []
@@ -621,13 +621,13 @@ router.get('/users/cpf/:cpf', authenticateApiKey, requireApiAdmin, userControlle
  *       403:
  *         description: Acesso negado
  */
-// router.post('/users/:userId/add-client-admin', authenticateApiKey, requireAnyAdmin, userController.addClientAdmin); // TODO: Implementar função
+// router.post('/users/:userId/add-company-admin', authenticateApiKey, requireAnyAdmin, userController.addCompanyAdmin); // TODO: Implementar função
 
 /**
  * @swagger
- * /api/admin/users/{userId}/remove-client-admin:
+ * /api/admin/users/{userId}/remove-company-admin:
  *   post:
- *     summary: Remove a flag isClientAdmin de um usuário (Admin)
+ *     summary: Remove a flag isCompanyAdmin de um usuário (Admin)
  *     tags: [Admin]
  *     security:
  *       - ApiKeyAuth: []
@@ -649,7 +649,7 @@ router.get('/users/cpf/:cpf', authenticateApiKey, requireApiAdmin, userControlle
  *       403:
  *         description: Acesso negado
  */
-// router.post('/users/:userId/remove-client-admin', authenticateApiKey, requireAnyAdmin, userController.removeClientAdmin); // TODO: Implementar função
+// router.post('/users/:userId/remove-company-admin', authenticateApiKey, requireAnyAdmin, userController.removeCompanyAdmin); // TODO: Implementar função
 
 /**
  * @swagger
@@ -670,38 +670,38 @@ router.get('/users/cpf/:cpf', authenticateApiKey, requireApiAdmin, userControlle
 router.get('/dashboard/stats', authenticateApiKey, requireApiAdmin, requirePasswordChange, async (req, res) => {
   try {
     // Obter modelos do banco
-    const { Client, User, SmartContract, Transaction } = global.models;
+    const { Company, User, SmartContract, Transaction } = global.models;
     
     // Buscar estatísticas reais do banco
     const [
-      totalClients,
-      activeClients,
+      totalCompanies,
+      activeCompanies,
       totalUsers,
       activeUsers,
       totalContracts,
       totalTransactions,
       totalApiAdminUsers,
-      totalClientAdminUsers
+      totalCompanyAdminUsers
     ] = await Promise.all([
-      Client.count(),
-      Client.count({ where: { isActive: true } }),
+      Company.count(),
+      Company.count({ where: { isActive: true } }),
       User.count(),
       User.count({ where: { isActive: true } }),
       SmartContract.count(),
       Transaction.count(),
       User.count({ where: { isApiAdmin: true, isActive: true } }),
-      User.count({ where: { isClientAdmin: true, isActive: true } })
+      User.count({ where: { isCompanyAdmin: true, isActive: true } })
     ]);
 
     const stats = {
-      totalClients,
-      activeClients,
+      totalCompanies,
+      activeCompanies,
       totalUsers,
       activeUsers,
       totalContracts,
       totalTransactions,
       totalApiAdminUsers,
-      totalClientAdminUsers,
+      totalCompanyAdminUsers,
       systemUptime: process.uptime(),
       timestamp: new Date().toISOString()
     };
@@ -782,7 +782,7 @@ router.get('/test/service', async (req, res) => {
   try {
     const results = {
       adminAuth: 'OK',
-      clientService: 'OK',
+      companyService: 'OK',
       userService: 'OK',
       timestamp: new Date().toISOString()
     };
@@ -956,9 +956,9 @@ router.post('/cache/clear', authenticateApiKey, requireApiAdmin, async (req, res
  *                 data:
  *                   type: object
  *                   properties:
- *                     client:
+ *                     company:
  *                       type: object
- *                       description: Cliente padrão criado
+ *                       description: Company padrão criado
  *                     user:
  *                       type: object
  *                       description: Usuário padrão criado

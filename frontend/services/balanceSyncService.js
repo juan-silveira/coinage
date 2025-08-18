@@ -16,12 +16,13 @@ class BalanceSyncService {
    * Busca o cache Redis atual para um usuário
    * @param {string} userId - ID do usuário
    * @param {string} address - Endereço da carteira
+   * @param {string} network - Rede (mainnet/testnet)
    * @returns {Promise<Object>} Dados do cache Redis
    */
-  async getRedisCache(userId, address) {
+  async getRedisCache(userId, address, network = 'mainnet') {
     try {
       const response = await api.get('/api/balance-sync/cache', {
-        params: { userId, address }
+        params: { userId, address, network }
       });
       
       if (response.data.success) {
@@ -39,14 +40,16 @@ class BalanceSyncService {
    * @param {string} userId - ID do usuário
    * @param {string} address - Endereço da carteira
    * @param {Object} balances - Novos balances
+   * @param {string} network - Rede (mainnet/testnet)
    * @returns {Promise<Object>} Resultado da atualização
    */
-  async updateRedisCache(userId, address, balances) {
+  async updateRedisCache(userId, address, balances, network = 'mainnet') {
     try {
       const response = await api.post('/api/balance-sync/cache', {
         userId,
         address,
         balances,
+        network,
         timestamp: new Date().toISOString()
       });
       
@@ -65,12 +68,13 @@ class BalanceSyncService {
    * @param {string} userId - ID do usuário
    * @param {string} address - Endereço da carteira
    * @param {number} limit - Limite de registros
+   * @param {string} network - Rede (mainnet/testnet)
    * @returns {Promise<Array>} Histórico de mudanças
    */
-  async getChangeHistory(userId, address, limit = 50) {
+  async getChangeHistory(userId, address, limit = 50, network = 'mainnet') {
     try {
       const response = await api.get('/api/balance-sync/history', {
-        params: { userId, address, limit }
+        params: { userId, address, limit, network }
       });
       
       if (response.data.success) {
@@ -87,12 +91,13 @@ class BalanceSyncService {
    * Limpa o cache Redis para um usuário
    * @param {string} userId - ID do usuário
    * @param {string} address - Endereço da carteira
+   * @param {string} network - Rede (mainnet/testnet)
    * @returns {Promise<Object>} Resultado da limpeza
    */
-  async clearRedisCache(userId, address) {
+  async clearRedisCache(userId, address, network = 'mainnet') {
     try {
       const response = await api.delete('/api/balance-sync/cache/clear', {
-        params: { userId, address }
+        params: { userId, address, network }
       });
       
       if (response.data.success) {
@@ -174,19 +179,20 @@ class BalanceSyncService {
    * @param {string} userId - ID do usuário
    * @param {string} address - Endereço da carteira
    * @param {Object} localBalances - Balances locais
+   * @param {string} network - Rede (mainnet/testnet)
    * @returns {Promise<Object>} Resultado da sincronização
    */
-  async syncWithRedis(userId, address, localBalances) {
+  async syncWithRedis(userId, address, localBalances, network = 'mainnet') {
     try {
       // Buscar cache atual do Redis
-      const redisCache = await this.getRedisCache(userId, address);
+      const redisCache = await this.getRedisCache(userId, address, network);
       
       // Comparar balances locais com Redis
       const comparison = this.compareWithRedis(localBalances, redisCache);
       
       if (comparison.changes.length > 0) {
         // Atualizar Redis com novos balances
-        const updateResult = await this.updateRedisCache(userId, address, localBalances);
+        const updateResult = await this.updateRedisCache(userId, address, localBalances, network);
         
         if (updateResult) {
           return {

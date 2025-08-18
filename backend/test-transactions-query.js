@@ -17,7 +17,7 @@ async function testTransactions() {
         const transactions = await prisma.transaction.findMany({
             where: { userId },
             include: {
-                client: {
+                company: {
                     select: { id: true, name: true, alias: true }
                 }
             },
@@ -32,7 +32,7 @@ async function testTransactions() {
             const tx = transactions[0];
             console.log({
                 id: tx.id,
-                client: tx.client?.name,
+                company: tx.company?.name,
                 type: tx.transactionType,
                 status: tx.status,
                 txHash: tx.txHash,
@@ -43,7 +43,7 @@ async function testTransactions() {
             
             console.log('\n📋 Todas as transações encontradas:');
             transactions.forEach((tx, i) => {
-                console.log(`${i + 1}. Client: ${tx.client?.name || 'N/A'}, Type: ${tx.transactionType}, Status: ${tx.status}, Hash: ${tx.txHash}`);
+                console.log(`${i + 1}. Company: ${tx.company?.name || 'N/A'}, Type: ${tx.transactionType}, Status: ${tx.status}, Hash: ${tx.txHash}`);
             });
         } else {
             console.log('❌ Nenhuma transação encontrada para este usuário');

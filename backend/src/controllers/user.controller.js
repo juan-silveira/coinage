@@ -1,4 +1,4 @@
-// Importar Prisma client
+// Importar Prisma company
 const prismaConfig = require('../config/prisma');
 
 // Função helper para obter Prisma
@@ -14,7 +14,7 @@ const { validatePassword } = require('../utils/passwordValidation');
 const createUser = async (req, res) => {
   try {
     const userData = req.body;
-    const clientId = req.user.clientId; // Cliente do usuário autenticado
+    const companyId = req.user.companyId; // Empresa do usuário autenticado
 
     // Validações básicas
     if (!userData.name || !userData.email || !userData.cpf || !userData.password) {
@@ -34,7 +34,7 @@ const createUser = async (req, res) => {
       });
     }
 
-    const user = await userService.createUser(userData, clientId);
+    const user = await userService.createUser(userData, companyId);
 
     res.status(201).json({
       success: true,
@@ -126,7 +126,7 @@ const listUsers = async (req, res) => {
     const options = {
       page: parseInt(req.query.page) || 1,
       limit: parseInt(req.query.limit) || 50,
-      clientId: req.user.isApiAdmin ? req.query.clientId : req.user.clientId,
+      companyId: req.user.isApiAdmin ? req.query.companyId : req.user.companyId,
       isActive: req.query.isActive !== undefined ? req.query.isActive === 'true' : undefined,
       search: req.query.search,
       roles: req.query.roles ? req.query.roles.split(',') : undefined,
@@ -287,8 +287,8 @@ const getUserBalancesByAddress = async (req, res) => {
         const redisService = require('../services/redis.service');
         const cacheKey = `balances:${req.user.id}:${address}:${network}`;
         try {
-          if (redisService.client && redisService.isConnected) {
-            await redisService.client.del(cacheKey);
+          if (redisService.company && redisService.isConnected) {
+            await redisService.company.del(cacheKey);
             console.log(`🗑️ Cache Redis REMOVIDO para chave: ${cacheKey}`);
           }
         } catch (error) {
@@ -520,13 +520,13 @@ const getUserByEmail = async (req, res) => {
 };
 
 /**
- * Lista transações do usuário (considerando contexto multi-cliente)
+ * Lista transações do usuário (considerando contexto multi-empresa)
  */
 const listUserTransactions = async (req, res) => {
   try {
     const userId = req.params.id || req.user.id;
     const { 
-      clientId, 
+      companyId, 
       page = 1, 
       limit = 50,
       status,
@@ -547,34 +547,34 @@ const listUserTransactions = async (req, res) => {
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const where = {};
 
-    if (clientId) {
-      // Buscar transações específicas do cliente
-      const userClient = await prisma.userClient.findUnique({
+    if (companyId) {
+      // Buscar transações específicas da empresa
+      const userCompany = await prisma.userCompany.findUnique({
         where: {
-          userId_clientId: {
+          userId_companyId: {
             userId,
-            clientId
+            companyId
           }
         }
       });
 
-      if (!userClient) {
+      if (!userCompany) {
         return res.status(404).json({
           success: false,
-          message: 'Usuário não vinculado a este cliente'
+          message: 'Usuário não vinculado a esta empresa'
         });
       }
 
-      where.userClientId = userClient.id;
+      where.userCompanyId = userCompany.id;
     } else {
       // Buscar todas as transações do usuário (através de todas as vinculações)
-      const userClients = await prisma.userClient.findMany({
+      const userCompanies = await prisma.userCompany.findMany({
         where: { userId, status: 'active' },
         select: { id: true }
       });
 
-      where.userClientId = {
-        in: userClients.map(uc => uc.id)
+      where.userCompanyId = {
+        in: userCompanies.map(uc => uc.id)
       };
     }
 
@@ -591,9 +591,9 @@ const listUserTransactions = async (req, res) => {
       prisma.transaction.findMany({
         where,
         include: {
-          userClient: {
+          userCompany: {
             include: {
-              client: {
+              company: {
                 select: { id: true, name: true }
               }
             }

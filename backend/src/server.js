@@ -6,7 +6,7 @@ const redisService = require('./services/redis.service');
 const userCacheService = require('./services/userCache.service');
 
 // Importar serviços Prisma
-const clientService = require('./services/client.service');
+const companyService = require('./services/company.service');
 const userService = require('./services/user.service');
 
 const PORT = process.env.PORT || 3000;
@@ -71,10 +71,10 @@ const startServer = () => {
     console.log('🔍 Inicializando serviços...');
     
     try {
-      await clientService.initialize();
-      console.log('✅ Client service (Prisma) inicializado');
+      await companyService.initialize();
+      console.log('✅ Company service (Prisma) inicializado');
     } catch (error) {
-      console.log('⚠️ Client service: erro na inicialização -', error.message);
+      console.log('⚠️ Company service: erro na inicialização -', error.message);
     }
     
     try {
@@ -87,21 +87,21 @@ const startServer = () => {
     // Inicializar dados padrão
     console.log('🔍 Verificando dados padrão...');
     try {
-      // Verificar se existem clientes
-      const clientsCount = await prisma.client.count();
-      console.log(`📊 Clientes existentes: ${clientsCount}`);
+      // Verificar se existem empresas
+      const companiesCount = await prisma.company.count();
+      console.log(`📊 Companies existentes: ${companiesCount}`);
       
-      if (clientsCount === 0) {
-        console.log('🏗️ Criando cliente padrão...');
-        const defaultClient = await clientService.createClient({
-          name: 'Cliente Padrão',
+      if (companiesCount === 0) {
+        console.log('🏗️ Crianda empresa padrão...');
+        const defaultCompany = await companyService.createCompany({
+          name: 'Company Padrão',
           rateLimit: {
             requestsPerMinute: 1000,
             requestsPerHour: 10000,
             requestsPerDay: 100000
           }
         });
-        console.log('✅ Cliente padrão criado:', defaultClient.data.name);
+        console.log('✅ Company padrão criado:', defaultCompany.data.name);
       }
       
       // Verificar se existem usuários

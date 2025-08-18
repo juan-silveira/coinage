@@ -2,12 +2,14 @@
 import React, { useState } from "react";
 import dynamic from "next/dynamic";
 import useCachedBalances from "@/hooks/useCachedBalances";
+import useConfig from "@/hooks/useConfig";
 import { getTokenPrice, formatCurrency as formatCurrencyHelper } from "@/constants/tokenPrices";
 
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
 const PortfolioDonutChart = () => {
   const { balances, loading, getCorrectAzeSymbol } = useCachedBalances();
+  const { defaultNetwork } = useConfig();
   const [hoveredIndex, setHoveredIndex] = useState(-1);
 
   // Usar formatação centralizada
@@ -16,7 +18,7 @@ const PortfolioDonutChart = () => {
 
   // Mapeamento de tokens por categoria (4 categorias)
   const getTokenCategories = () => {
-    const network = balances?.network || 'testnet';
+    const network = balances?.network || defaultNetwork;
     return {
       cryptocurrencies: [getCorrectAzeSymbol()], // AZE ou AZE-t dependendo da rede
       startups: ['CNT'],

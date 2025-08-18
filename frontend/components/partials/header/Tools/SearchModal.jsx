@@ -27,7 +27,7 @@ const SearchModal = () => {
     },
     {
       id: 4,
-      name: "Our Clients",
+      name: "Our Companies",
     },
     {
       id: 5,

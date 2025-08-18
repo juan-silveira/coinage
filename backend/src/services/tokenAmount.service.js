@@ -45,15 +45,15 @@ class TokenAmountService {
   /**
    * Obter balances anteriores do Redis
    */
-  async getPreviousBalances(userId) {
+  async getPreviousBalances(userId, network = 'mainnet') {
     try {
-      if (!redisService.isConnected || !redisService.client) {
+      if (!redisService.isConnected || !redisService.company) {
         console.warn('⚠️ Redis não conectado, retornando balances vazios');
         return {};
       }
 
-      const key = `previous_balances:${userId}`;
-      const data = await redisService.client.get(key);
+      const key = `previous_balances:${network}:${userId}`;
+      const data = await redisService.company.get(key);
       
       if (!data) {
         return {};
@@ -70,22 +70,23 @@ class TokenAmountService {
   /**
    * Salvar balances anteriores no Redis
    */
-  async savePreviousBalances(userId, balances) {
+  async savePreviousBalances(userId, balances, network = 'mainnet') {
     try {
-      if (!redisService.isConnected || !redisService.client) {
+      if (!redisService.isConnected || !redisService.company) {
         console.warn('⚠️ Redis não conectado, ignorando salvamento de balances anteriores');
         return false;
       }
 
-      const key = `previous_balances:${userId}`;
+      const key = `previous_balances:${network}:${userId}`;
       const data = {
         userId,
+        network,
         balancesTable: balances,
         savedAt: new Date().toISOString()
       };
 
       // TTL de 7 dias para manter histórico
-      await redisService.client.setEx(key, 7 * 24 * 60 * 60, JSON.stringify(data));
+      await redisService.company.setEx(key, 7 * 24 * 60 * 60, JSON.stringify(data));
       return true;
     } catch (error) {
       console.error('❌ Erro ao salvar balances anteriores no Redis:', error);
@@ -96,9 +97,9 @@ class TokenAmountService {
   /**
    * Detectar mudanças nos saldos de um usuário específico
    */
-  async detectBalanceChanges(userId, newBalances, publicKey, isFirstLoad = false) {
+  async detectBalanceChanges(userId, newBalances, publicKey, isFirstLoad = false, network = 'mainnet') {
     try {
-      const previousBalances = await this.getPreviousBalances(userId);
+      const previousBalances = await this.getPreviousBalances(userId, network);
       
       if (!newBalances.balancesTable) {
         return { changes: [], isFirstLoad: true };
@@ -137,16 +138,16 @@ class TokenAmountService {
       
       // Criar notificações para novos tokens
       for (const newToken of newTokens) {
-        await this.createNewTokenNotification(userId, newToken);
+        await this.createNewTokenNotification(userId, newToken, network);
       }
       
       // Criar notificações para mudanças significativas
       for (const change of changes) {
-        await this.createBalanceChangeNotification(userId, change);
+        await this.createBalanceChangeNotification(userId, change, network);
       }
       
       // Atualizar saldos anteriores no Redis
-      await this.savePreviousBalances(userId, newBalances.balancesTable);
+      await this.savePreviousBalances(userId, newBalances.balancesTable, network);
       
       if (changes.length > 0 || newTokens.length > 0) {
         console.log(`📊 Usuário ${userId}: ${changes.length} mudanças e ${newTokens.length} novos tokens detectados`);
@@ -163,13 +164,14 @@ class TokenAmountService {
   /**
    * Criar notificação de novo token
    */
-  async createNewTokenNotification(userId, newToken) {
+  async createNewTokenNotification(userId, newToken, network = 'mainnet') {
     try {
+      const networkLabel = network === 'mainnet' ? 'Mainnet' : 'Testnet';
       const notification = await this.notificationService.createNotification({
         userId: userId,
         sender: 'coinage',
-        title: `🪙 Novo token detectado: ${newToken.token}`,
-        message: `Um novo token **${newToken.token}** foi detectado em sua carteira com saldo de **${newToken.amount}**. Bem-vindo ao ecossistema!`
+        title: `🪙 Novo token detectado: ${newToken.token} (${networkLabel})`,
+        message: `Um novo token **${newToken.token}** foi detectado em sua carteira na ${networkLabel} com saldo de **${newToken.amount}**. Bem-vindo ao ecossistema!`
       });
       
       console.log(`🔔 Notificação de novo token criada para usuário ${userId}: ${newToken.token}`);
@@ -188,15 +190,17 @@ class TokenAmountService {
   /**
    * Criar notificação de mudança de saldo
    */
-  async createBalanceChangeNotification(userId, change) {
+  async createBalanceChangeNotification(userId, change, network = 'mainnet') {
     try {
+      const networkLabel = network === 'mainnet' ? 'Mainnet' : 'Testnet';
       const notification = await this.notificationService.createBalanceChangeNotification(
         userId,
         change.token,
         change.oldAmount,
         change.newAmount,
         change.changePercent,
-        change.changeType
+        change.changeType,
+        networkLabel
       );
       
       console.log(`🔔 Notificação criada para usuário ${userId}: ${change.token} ${change.changeType}`);

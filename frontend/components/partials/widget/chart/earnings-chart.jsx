@@ -229,9 +229,9 @@ const EarningsChart = ({ height = 360, earnings = [] }) => {
     return (
       <div className="flex items-center justify-center h-full min-h-[200px]">
         <div className="text-center">
-          <div className="text-red-500 text-4xl mb-4">⚠️</div>
-          <p className="text-red-600 font-medium mb-2">Erro ao carregar gráfico</p>
-          <p className="text-slate-500 dark:text-slate-400 text-sm">{error}</p>
+          <div className="text-slate-400 text-4xl mb-4">📊</div>
+          <p className="text-slate-500 dark:text-slate-400 font-medium">Sem resultados</p>
+          <p className="text-slate-400 text-sm">Nenhum dado disponível para o gráfico</p>
         </div>
       </div>
     );

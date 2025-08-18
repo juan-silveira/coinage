@@ -16,10 +16,10 @@ const { authenticateToken } = require('../middleware/jwt.middleware');
  *         email:
  *           type: string
  *           format: email
- *           description: Email do client
+ *           description: Email do company
  *         password:
  *           type: string
- *           description: Senha do client
+ *           description: Senha do company
  *     ChangePasswordRequest:
  *       type: object
  *       required:
@@ -91,7 +91,7 @@ const { authenticateToken } = require('../middleware/jwt.middleware');
  *               description: Indica se é o primeiro acesso
  *             apiKeys:
  *               type: array
- *               description: Lista de API Keys do cliente
+ *               description: Lista de API Keys da empresa
  *               items:
  *                 type: object
  *                 properties:
@@ -113,7 +113,7 @@ const { authenticateToken } = require('../middleware/jwt.middleware');
  *                   expiresAt:
  *                     type: string
  *                     format: date-time
- *             client:
+ *             company:
  *               type: object
  *               properties:
  *                 id:
@@ -131,8 +131,8 @@ const { authenticateToken } = require('../middleware/jwt.middleware');
  * @swagger
  * /api/auth/login:
  *   post:
- *     summary: Login do client
- *     description: Realiza login do client com email e senha
+ *     summary: Login do company
+ *     description: Realiza login do company com email e senha
  *     tags: [Authentication]
  *     requestBody:
  *       required: true
@@ -162,16 +162,58 @@ const { authenticateToken } = require('../middleware/jwt.middleware');
  *       400:
  *         description: Dados inválidos ou email/senha inválidos
  *       403:
- *         description: Client inativo
+ *         description: Company inativo
  */
 router.post('/login', authController.login);
 
 /**
  * @swagger
+ * /api/auth/register:
+ *   post:
+ *     summary: Registro de usuário
+ *     description: Registra um novo usuário no sistema
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - name
+ *               - email
+ *               - password
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 description: Nome completo do usuário
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 description: Email do usuário
+ *               password:
+ *                 type: string
+ *                 minLength: 6
+ *                 description: Senha do usuário
+ *               company_alias:
+ *                 type: string
+ *                 description: Alias da empresa (opcional para whitelabel)
+ *     responses:
+ *       201:
+ *         description: Usuário registrado com sucesso
+ *       400:
+ *         description: Dados inválidos
+ *       409:
+ *         description: Email já está em uso
+ */
+router.post('/register', authController.register);
+
+/**
+ * @swagger
  * /api/auth/logout:
  *   post:
- *     summary: Logout do client
- *     description: Invalida a sessão atual do client
+ *     summary: Logout do company
+ *     description: Invalida a sessão atual do company
  *     tags: [Authentication]
  *     security:
  *       - sessionAuth: []
@@ -188,7 +230,7 @@ router.post('/logout', authenticateToken, authController.logout);
  * /api/auth/change-password:
  *   post:
  *     summary: Alterar senha
- *     description: Altera a senha do client (usado no primeiro acesso)
+ *     description: Altera a senha do company (usado no primeiro acesso)
  *     tags: [Autenticação]
  *     security:
  *       - sessionAuth: []
@@ -213,7 +255,7 @@ router.post('/change-password', authenticateToken, authController.changePassword
  * /api/auth/generate-api-key:
  *   post:
  *     summary: Gerar API Key
- *     description: Gera uma nova API Key para o client autenticado
+ *     description: Gera uma nova API Key para o company autenticado
  *     tags: [API Keys]
  *     security:
  *       - bearerAuth: []
@@ -265,7 +307,7 @@ router.post('/generate-api-key', authenticateToken, authController.generateApiKe
  * /api/auth/api-keys:
  *   get:
  *     summary: Listar API Keys
- *     description: Lista todas as API Keys do client autenticado
+ *     description: Lista todas as API Keys do company autenticado
  *     tags: [API Keys]
  *     security:
  *       - sessionAuth: []
@@ -317,7 +359,7 @@ router.get('/api-keys', authenticateToken, authController.listApiKeys);
  * /api/auth/api-keys/{apiKeyId}/revoke:
  *   post:
  *     summary: Revogar API Key
- *     description: Revoga uma API Key específica do client autenticado
+ *     description: Revoga uma API Key específica do company autenticado
  *     tags: [API Keys]
  *     security:
  *       - sessionAuth: []
@@ -461,7 +503,7 @@ router.post('/refresh', authController.refreshToken);
  *                             type: string
  *                         isApiAdmin:
  *                           type: boolean
- *                         isClientAdmin:
+ *                         isCompanyAdmin:
  *                           type: boolean
  *       401:
  *         description: Token inválido
@@ -484,5 +526,96 @@ router.get('/me', authenticateToken, authController.getCurrentUser);
  *         description: Erro no teste
  */
 router.get('/test-blacklist', authenticateToken, authController.testBlacklist);
+
+/**
+ * @swagger
+ * /api/auth/admin/blocked-users:
+ *   get:
+ *     summary: Lista usuários bloqueados
+ *     description: Lista todos os usuários que estão bloqueados por tentativas de login
+ *     tags: [Authentication, Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Lista de usuários bloqueados
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     blockedUsers:
+ *                       type: array
+ *                     count:
+ *                       type: number
+ *       401:
+ *         description: Token inválido
+ *       500:
+ *         description: Erro interno do servidor
+ */
+router.get('/admin/blocked-users', authenticateToken, authController.listBlockedUsers);
+
+/**
+ * @swagger
+ * /api/auth/admin/unblock-user:
+ *   post:
+ *     summary: Desbloquear usuário
+ *     description: Remove o bloqueio de login de um usuário específico
+ *     tags: [Authentication, Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 description: Email do usuário a ser desbloqueado
+ *     responses:
+ *       200:
+ *         description: Usuário desbloqueado com sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     email:
+ *                       type: string
+ *                     name:
+ *                       type: string
+ *                     wasBlocked:
+ *                       type: boolean
+ *                     previousAttempts:
+ *                       type: number
+ *       400:
+ *         description: Email é obrigatório
+ *       404:
+ *         description: Usuário não encontrado
+ *       401:
+ *         description: Token inválido
+ *       500:
+ *         description: Erro interno do servidor
+ */
+router.post('/admin/unblock-user', authenticateToken, authController.unblockUser);
 
 module.exports = router; 

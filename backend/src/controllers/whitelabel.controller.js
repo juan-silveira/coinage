@@ -1,5 +1,5 @@
 const whitelabelService = require('../services/whitelabel.service');
-const userClientService = require('../services/userClient.service');
+const userCompanyService = require('../services/userCompany.service');
 const jwtService = require('../services/jwt.service');
 
 /**
@@ -7,12 +7,12 @@ const jwtService = require('../services/jwt.service');
  */
 const initiateLogin = async (req, res) => {
   try {
-    const { email, clientId } = req.body;
+    const { email, companyId } = req.body;
 
-    if (!email || !clientId) {
+    if (!email || !companyId) {
       return res.status(400).json({
         success: false,
-        message: 'Email e clientId são obrigatórios'
+        message: 'Email e companyId são obrigatórios'
       });
     }
 
@@ -25,7 +25,7 @@ const initiateLogin = async (req, res) => {
       });
     }
 
-    const result = await whitelabelService.initiateWhitelabelLogin(email, clientId);
+    const result = await whitelabelService.initiateWhitelabelLogin(email, companyId);
 
     res.json(result);
 
@@ -39,20 +39,20 @@ const initiateLogin = async (req, res) => {
 };
 
 /**
- * Confirma vinculação de usuário ao cliente
+ * Confirma vinculação de usuário aa empresa
  */
 const confirmLinking = async (req, res) => {
   try {
-    const { userId, clientId, password } = req.body;
+    const { userId, companyId, password } = req.body;
 
-    if (!userId || !clientId || !password) {
+    if (!userId || !companyId || !password) {
       return res.status(400).json({
         success: false,
-        message: 'UserId, clientId e password são obrigatórios'
+        message: 'UserId, companyId e password são obrigatórios'
       });
     }
 
-    const result = await whitelabelService.confirmClientLinking(userId, clientId, password);
+    const result = await whitelabelService.confirmCompanyLinking(userId, companyId, password);
 
     res.json(result);
 
@@ -66,32 +66,59 @@ const confirmLinking = async (req, res) => {
 };
 
 /**
- * Autentica usuário em cliente específico
+ * Autentica usuário em empresa específico
  */
 const authenticateUser = async (req, res) => {
   try {
-    const { email, password, clientId } = req.body;
+    const { email, password, companyId } = req.body;
 
-    if (!email || !password || !clientId) {
+    if (!email || !password || !companyId) {
       return res.status(400).json({
         success: false,
-        message: 'Email, password e clientId são obrigatórios'
+        message: 'Email, password e companyId são obrigatórios'
       });
     }
 
-    const result = await whitelabelService.authenticateWhitelabelUser(email, password, clientId);
+    // Se companyId é um alias, converter para UUID real
+    let actualCompanyId = companyId;
+    console.log('🔍 Debug companyId recebido:', companyId);
+    if (companyId && !companyId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i)) {
+      console.log('🔍 CompanyId é um alias, convertendo para UUID...');
+      // É um alias, precisa buscar o ID real usando o método de branding
+      try {
+        const companyBranding = await whitelabelService.getCompanyBrandingByAlias(companyId);
+        actualCompanyId = companyBranding.company_id;
+        console.log('🔍 UUID da empresa encontrado:', actualCompanyId);
+      } catch (error) {
+        console.error('❌ Erro ao buscar empresa por alias:', error.message);
+        return res.status(404).json({
+          success: false,
+          message: 'Empresa não encontrada'
+        });
+      }
+    }
+
+    const result = await whitelabelService.authenticateWhitelabelUser(email, password, actualCompanyId);
 
     if (!result.success) {
       return res.status(401).json(result);
+    }
+
+    // Atualizar último acesso na empresa
+    try {
+      const userCompanyService = require('../services/userCompany.service');
+      await userCompanyService.updateLastActivity(result.data.user.id, actualCompanyId);
+    } catch (accessError) {
+      console.warn('⚠️ Erro ao atualizar último acesso:', accessError.message);
     }
 
     // Gerar tokens JWT
     const user = result.data.user;
     const tokens = jwtService.generateTokenPair({
       ...user,
-      // Adicionar informações do contexto do cliente
-      currentClientId: clientId,
-      currentClientRole: result.data.userClient.role
+      // Adicionar informações do contexto da empresa
+      currentCompanyId: companyId,
+      currentCompanyRole: result.data.userCompany.role
     });
 
     res.json({
@@ -103,8 +130,8 @@ const authenticateUser = async (req, res) => {
         expiresIn: tokens.expiresIn,
         refreshExpiresIn: tokens.refreshExpiresIn,
         user: result.data.user,
-        client: result.data.client,
-        userClient: result.data.userClient
+        company: result.data.company,
+        userCompany: result.data.userCompany
       }
     });
 
@@ -118,20 +145,20 @@ const authenticateUser = async (req, res) => {
 };
 
 /**
- * Obtém configuração de branding do cliente por alias
+ * Obtém configuração de branding da empresa por alias
  */
-const getClientBrandingByAlias = async (req, res) => {
+const getCompanyBrandingByAlias = async (req, res) => {
   try {
-    const { clientAlias } = req.params;
+    const { companyAlias } = req.params;
 
-    if (!clientAlias) {
-      return res.status(400).json({
-        success: false,
-        message: 'Client alias é obrigatório'
-      });
+    // Se companyAlias for undefined, vazio ou a string "undefined", usar 'coinage' como padrão
+    let alias = companyAlias;
+    
+    if (!alias || alias === 'undefined' || alias === 'null') {
+      alias = 'coinage';
     }
 
-    const branding = await whitelabelService.getClientBrandingByAlias(clientAlias);
+    const branding = await whitelabelService.getCompanyBrandingByAlias(alias);
 
     res.json({
       success: true,
@@ -141,10 +168,10 @@ const getClientBrandingByAlias = async (req, res) => {
   } catch (error) {
     console.error('❌ Erro ao obter branding por alias:', error);
     
-    if (error.message === 'Cliente não encontrado') {
+    if (error.message === 'Empresa não encontrada') {
       return res.status(404).json({
         success: false,
-        message: 'Cliente não encontrado'
+        message: 'Empresa não encontrada'
       });
     }
     
@@ -156,20 +183,20 @@ const getClientBrandingByAlias = async (req, res) => {
 };
 
 /**
- * Obtém configuração de branding do cliente
+ * Obtém configuração de branding da empresa
  */
-const getClientBranding = async (req, res) => {
+const getCompanyBranding = async (req, res) => {
   try {
-    const { clientId } = req.params;
+    const { companyId } = req.params;
 
-    if (!clientId) {
+    if (!companyId) {
       return res.status(400).json({
         success: false,
-        message: 'ClientId é obrigatório'
+        message: 'CompanyId é obrigatório'
       });
     }
 
-    const branding = await whitelabelService.getClientBranding(clientId);
+    const branding = await whitelabelService.getCompanyBranding(companyId);
 
     res.json({
       success: true,
@@ -186,26 +213,26 @@ const getClientBranding = async (req, res) => {
 };
 
 /**
- * Lista clientes vinculados a um usuário
+ * Lista empresas vinculadas a um usuário
  */
-const getUserClients = async (req, res) => {
+const getUserCompanies = async (req, res) => {
   try {
     const userId = req.user.id;
     const { includeInactive } = req.query;
 
-    const clients = await userClientService.getUserClients(userId, {
+    const companies = await userCompanyService.getUserCompanies(userId, {
       includeInactive: includeInactive === 'true'
     });
 
     res.json({
       success: true,
       data: {
-        clients
+        companies
       }
     });
 
   } catch (error) {
-    console.error('❌ Erro ao listar clientes do usuário:', error);
+    console.error('❌ Erro ao listar empresas do usuário:', error);
     res.status(500).json({
       success: false,
       message: 'Erro interno do servidor'
@@ -214,11 +241,11 @@ const getUserClients = async (req, res) => {
 };
 
 /**
- * Lista usuários vinculados a um cliente
+ * Lista usuários vinculados a um empresa
  */
-const getClientUsers = async (req, res) => {
+const getCompanyUsers = async (req, res) => {
   try {
-    const { clientId } = req.params;
+    const { companyId } = req.params;
     const { 
       status = 'active',
       role,
@@ -226,21 +253,21 @@ const getClientUsers = async (req, res) => {
       limit = 50
     } = req.query;
 
-    // Verificar se o usuário tem permissão para ver usuários deste cliente
-    const hasPermission = await userClientService.hasPermission(
+    // Verificar se o usuário tem permissão para ver usuários deste empresa
+    const hasPermission = await userCompanyService.hasPermission(
       req.user.id, 
-      clientId, 
-      'read_client_users'
+      companyId, 
+      'read_company_users'
     );
 
     if (!hasPermission) {
       return res.status(403).json({
         success: false,
-        message: 'Sem permissão para acessar usuários deste cliente'
+        message: 'Sem permissão para acessar usuários deste empresa'
       });
     }
 
-    const result = await userClientService.getClientUsers(clientId, {
+    const result = await userCompanyService.getCompanyUsers(companyId, {
       status,
       role,
       page: parseInt(page),
@@ -253,7 +280,7 @@ const getClientUsers = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('❌ Erro ao listar usuários do cliente:', error);
+    console.error('❌ Erro ao listar usuários da empresa:', error);
     res.status(500).json({
       success: false,
       message: 'Erro interno do servidor'
@@ -262,11 +289,11 @@ const getClientUsers = async (req, res) => {
 };
 
 /**
- * Atualiza role de usuário em um cliente
+ * Atualiza role de usuário em um empresa
  */
 const updateUserRole = async (req, res) => {
   try {
-    const { clientId, userId } = req.params;
+    const { companyId, userId } = req.params;
     const { role } = req.body;
 
     if (!role) {
@@ -277,22 +304,22 @@ const updateUserRole = async (req, res) => {
     }
 
     // Verificar se o usuário tem permissão para alterar roles
-    const hasPermission = await userClientService.hasPermission(
+    const hasPermission = await userCompanyService.hasPermission(
       req.user.id, 
-      clientId, 
-      'update_client_users'
+      companyId, 
+      'update_company_users'
     );
 
     if (!hasPermission) {
       return res.status(403).json({
         success: false,
-        message: 'Sem permissão para alterar roles neste cliente'
+        message: 'Sem permissão para alterar roles neste empresa'
       });
     }
 
-    const userClient = await userClientService.updateUserClientRole(
+    const userCompany = await userCompanyService.updateUserCompanyRole(
       userId, 
-      clientId, 
+      companyId, 
       role, 
       req.user.id
     );
@@ -301,7 +328,7 @@ const updateUserRole = async (req, res) => {
       success: true,
       message: 'Role atualizada com sucesso',
       data: {
-        userClient
+        userCompany
       }
     });
 
@@ -315,27 +342,27 @@ const updateUserRole = async (req, res) => {
 };
 
 /**
- * Remove vinculação de usuário a cliente
+ * Remove vinculação de usuário a empresa
  */
 const unlinkUser = async (req, res) => {
   try {
-    const { clientId, userId } = req.params;
+    const { companyId, userId } = req.params;
 
     // Verificar se o usuário tem permissão
-    const hasPermission = await userClientService.hasPermission(
+    const hasPermission = await userCompanyService.hasPermission(
       req.user.id, 
-      clientId, 
-      'update_client_users'
+      companyId, 
+      'update_company_users'
     );
 
     if (!hasPermission) {
       return res.status(403).json({
         success: false,
-        message: 'Sem permissão para remover usuários deste cliente'
+        message: 'Sem permissão para remover usuários desta empresa'
       });
     }
 
-    await userClientService.unlinkUserFromClient(userId, clientId);
+    await userCompanyService.unlinkUserFromCompany(userId, companyId);
 
     res.json({
       success: true,
@@ -352,27 +379,27 @@ const unlinkUser = async (req, res) => {
 };
 
 /**
- * Obtém estatísticas do cliente
+ * Obtém estatísticas da empresa
  */
-const getClientStats = async (req, res) => {
+const getCompanyStats = async (req, res) => {
   try {
-    const { clientId } = req.params;
+    const { companyId } = req.params;
 
     // Verificar se o usuário tem permissão
-    const hasPermission = await userClientService.hasPermission(
+    const hasPermission = await userCompanyService.hasPermission(
       req.user.id, 
-      clientId, 
-      'read_client_users'
+      companyId, 
+      'read_company_users'
     );
 
     if (!hasPermission) {
       return res.status(403).json({
         success: false,
-        message: 'Sem permissão para acessar estatísticas deste cliente'
+        message: 'Sem permissão para acessar estatísticas desta empresa'
       });
     }
 
-    const stats = await whitelabelService.getClientStats(clientId);
+    const stats = await whitelabelService.getCompanyStats(companyId);
 
     res.json({
       success: true,
@@ -389,31 +416,301 @@ const getClientStats = async (req, res) => {
 };
 
 /**
- * Obtém o cliente atual do usuário (baseado no último acesso)
+ * Obtém a empresa atual do usuário (baseado no último acesso)
  */
-const getCurrentClient = async (req, res) => {
+const getCurrentCompany = async (req, res) => {
   try {
     const userId = req.user.id;
 
-    // Buscar o cliente com último acesso mais recente
-    const currentClient = await userClientService.getCurrentClient(userId);
+    // Buscar a empresa com último acesso mais recente
+    const currentCompany = await userCompanyService.getCurrentCompany(userId);
 
-    if (!currentClient) {
+    if (!currentCompany) {
       return res.status(404).json({
         success: false,
-        message: 'Nenhum cliente ativo encontrado para este usuário'
+        message: 'Nenhum empresa ativo encontrado para este usuário'
       });
     }
 
     res.json({
       success: true,
       data: {
-        currentClient
+        currentCompany
       }
     });
 
   } catch (error) {
-    console.error('❌ Erro ao obter cliente atual:', error);
+    console.error('❌ Erro ao obter empresa atual:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro interno do servidor'
+    });
+  }
+};
+
+/**
+ * Atualiza último acesso do usuário em uma empresa
+ */
+const updateCompanyAccess = async (req, res) => {
+  try {
+    const { companyId } = req.params;
+    const userId = req.user.id;
+
+    if (!companyId) {
+      return res.status(400).json({
+        success: false,
+        message: 'ID da empresa é obrigatório'
+      });
+    }
+
+    // Verificar se o usuário está vinculado à empresa
+    const userCompany = await userCompanyService.getUserCompanyLink(userId, companyId);
+    
+    if (!userCompany || userCompany.status !== 'active') {
+      return res.status(403).json({
+        success: false,
+        message: 'Usuário não tem acesso a esta empresa'
+      });
+    }
+
+    // Atualizar último acesso
+    await userCompanyService.updateLastActivity(userId, companyId);
+
+    res.json({
+      success: true,
+      message: 'Último acesso atualizado com sucesso'
+    });
+
+  } catch (error) {
+    console.error('❌ Erro ao atualizar último acesso:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro interno do servidor'
+    });
+  }
+};
+
+/**
+ * Verifica status do usuário por email
+ */
+const checkUserStatus = async (req, res) => {
+  try {
+    const { email, companyAlias } = req.body;
+
+    if (!email || !companyAlias) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email e company alias são obrigatórios'
+      });
+    }
+
+    const result = await whitelabelService.checkUserStatus(email, companyAlias);
+    res.json(result);
+
+  } catch (error) {
+    console.error('❌ Erro ao verificar status do usuário:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro interno do servidor'
+    });
+  }
+};
+
+/**
+ * Registra novo usuário vinculado aa empresa
+ */
+const registerNewUser = async (req, res) => {
+  try {
+    const { name, email, password, companyAlias } = req.body;
+
+    if (!name || !email || !password || !companyAlias) {
+      return res.status(400).json({
+        success: false,
+        message: 'Nome, email, senha e company alias são obrigatórios'
+      });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: 'Senha deve ter pelo menos 6 caracteres'
+      });
+    }
+
+    const result = await whitelabelService.registerNewUserWithCompany(
+      { name, email, password },
+      companyAlias
+    );
+
+    res.status(201).json(result);
+
+  } catch (error) {
+    console.error('❌ Erro ao registrar novo usuário:', error);
+    
+    if (error.message === 'Este email já está em uso') {
+      return res.status(409).json({
+        success: false,
+        message: error.message
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: 'Erro interno do servidor'
+    });
+  }
+};
+
+/**
+ * Vincula usuário existente aa empresa
+ */
+const linkExistingUser = async (req, res) => {
+  try {
+    console.log('🚀 [WhitelabelController] Iniciando linkExistingUser...');
+    console.log('🚀 [WhitelabelController] Body:', req.body);
+    
+    const { userId, password, companyAlias } = req.body;
+
+    if (!userId || !password || !companyAlias) {
+      console.log('❌ [WhitelabelController] Dados obrigatórios faltando');
+      return res.status(400).json({
+        success: false,
+        message: 'UserId, senha e company alias são obrigatórios'
+      });
+    }
+
+    console.log('✅ [WhitelabelController] Dados válidos, chamando serviço...');
+    const result = await whitelabelService.linkExistingUserToCompany(
+      userId,
+      password,
+      companyAlias
+    );
+
+    console.log('📋 [WhitelabelController] Resultado do serviço:', result);
+
+    if (!result.success) {
+      console.log('❌ [WhitelabelController] Falha no serviço, retornando 401');
+      return res.status(401).json(result);
+    }
+
+    console.log('✅ [WhitelabelController] Sucesso, retornando resultado');
+    res.json(result);
+
+  } catch (error) {
+    console.error('❌ [WhitelabelController] Erro ao vincular usuário existente:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro interno do servidor'
+    });
+  }
+};
+
+/**
+ * Completa dados do primeiro acesso do usuário
+ */
+const completeFirstAccess = async (req, res) => {
+  try {
+    const { userId, cpf, phone, birthDate, companyAlias } = req.body;
+
+    if (!userId || !cpf || !phone || !birthDate || !companyAlias) {
+      return res.status(400).json({
+        success: false,
+        message: 'Todos os campos são obrigatórios (userId, cpf, phone, birthDate, companyAlias)'
+      });
+    }
+
+    // Validar CPF (deve ter 11 dígitos)
+    const cleanCpf = cpf.replace(/\D/g, '');
+    if (cleanCpf.length !== 11) {
+      return res.status(400).json({
+        success: false,
+        message: 'CPF deve ter 11 dígitos'
+      });
+    }
+
+    // Validar telefone (deve ter pelo menos 10 dígitos)
+    const cleanPhone = phone.replace(/\D/g, '');
+    if (cleanPhone.length < 10) {
+      return res.status(400).json({
+        success: false,
+        message: 'Telefone deve ter pelo menos 10 dígitos'
+      });
+    }
+
+    // Validar data de nascimento
+    const birth = new Date(birthDate);
+    if (isNaN(birth.getTime())) {
+      return res.status(400).json({
+        success: false,
+        message: 'Data de nascimento inválida'
+      });
+    }
+
+    // Validar idade mínima (18 anos)
+    const today = new Date();
+    const age = today.getFullYear() - birth.getFullYear();
+    if (age < 18) {
+      return res.status(400).json({
+        success: false,
+        message: 'Usuário deve ter pelo menos 18 anos'
+      });
+    }
+
+    const result = await whitelabelService.completeFirstAccess({
+      userId,
+      cpf: cleanCpf,
+      phone: cleanPhone,
+      birthDate,
+      companyAlias
+    });
+
+    res.json(result);
+
+  } catch (error) {
+    console.error('❌ Erro ao completar primeiro acesso:', error);
+    
+    if (error.message === 'Usuário não encontrado') {
+      return res.status(404).json({
+        success: false,
+        message: error.message
+      });
+    }
+    
+    if (error.message === 'Company não encontrado') {
+      return res.status(404).json({
+        success: false,
+        message: error.message
+      });
+    }
+
+    if (error.message.includes('já está em uso')) {
+      return res.status(409).json({
+        success: false,
+        message: error.message
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: 'Erro interno do servidor'
+    });
+  }
+};
+
+/**
+ * Lista empresas disponíveis para whitelabel
+ */
+const getAvailableCompanies = async (req, res) => {
+  try {
+    const companies = await whitelabelService.getAvailableCompanies();
+    
+    res.json({
+      success: true,
+      data: companies
+    });
+
+  } catch (error) {
+    console.error('❌ Erro ao listar empresas disponíveis:', error);
     res.status(500).json({
       success: false,
       message: 'Erro interno do servidor'
@@ -425,12 +722,18 @@ module.exports = {
   initiateLogin,
   confirmLinking,
   authenticateUser,
-  getClientBranding,
-  getClientBrandingByAlias,
-  getUserClients,
-  getClientUsers,
+  getCompanyBranding,
+  getCompanyBrandingByAlias,
+  getUserCompanies,
+  getCompanyUsers,
   updateUserRole,
   unlinkUser,
-  getClientStats,
-  getCurrentClient
+  getCompanyStats,
+  getCurrentCompany,
+  updateCompanyAccess,
+  checkUserStatus,
+  registerNewUser,
+  linkExistingUser,
+  completeFirstAccess,
+  getAvailableCompanies
 };

@@ -15,7 +15,7 @@ const documentController = require('../controllers/document.controller');
  *         id:
  *           type: string
  *           format: uuid
- *         clientId:
+ *         companyId:
  *           type: string
  *           format: uuid
  *         userId:
@@ -205,7 +205,7 @@ router.post('/upload',
  * /api/documents:
  *   get:
  *     summary: Listar documentos
- *     description: Lista documentos do cliente com filtros e paginação
+ *     description: Lista documentos da empresa com filtros e paginação
  *     tags: [Documents]
  *     security:
  *       - bearerAuth: []
@@ -497,7 +497,7 @@ router.get('/:documentId/download',
  * /api/documents/stats:
  *   get:
  *     summary: Estatísticas de documentos
- *     description: Retorna estatísticas dos documentos do cliente
+ *     description: Retorna estatísticas dos documentos da empresa
  *     tags: [Documents]
  *     security:
  *       - bearerAuth: []

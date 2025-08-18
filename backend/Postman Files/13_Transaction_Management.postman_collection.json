@@ -197,7 +197,7 @@
       "response": []
     },
     {
-      "name": "Listar Transações do Cliente",
+      "name": "Listar Transações do Company",
       "request": {
         "method": "GET",
         "header": [

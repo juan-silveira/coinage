@@ -7,14 +7,20 @@ import Button from "@/components/ui/Button";
 import useCacheData from "@/hooks/useCacheData";
 import useTransactions from "@/hooks/useTransactions";
 import useTransactionFilters from "@/hooks/useTransactionFilters";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import useConfig from "@/hooks/useConfig";
 
 const StatementPage = () => {
+  // Hook para gerenciar título da aba com contagem de notificações
+  useDocumentTitle('Extrato', 'Coinage', true);
+  
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(20);
   const [tokenFilter, setTokenFilter] = useState(null);
   const [typeFilter, setTypeFilter] = useState(null);
   const [statusFilter, setStatusFilter] = useState(null);
   const { balances } = useCacheData();
+  const { defaultNetwork } = useConfig();
   
   // Hook para buscar opções de filtro
   const { tokenOptions, typeOptions, statusOptions } = useTransactionFilters();
@@ -24,7 +30,7 @@ const StatementPage = () => {
     page: tokenFilter ? 1 : currentPage, // Se há filtro de token, sempre página 1
     limit: tokenFilter ? 1000 : itemsPerPage, // Se há filtro de token, buscar muito mais dados
     status: statusFilter?.value && statusFilter.value !== "" ? statusFilter.value : undefined,
-    network: balances?.network || 'testnet',
+    network: balances?.network || defaultNetwork,
     transactionType: typeFilter?.value && typeFilter.value !== "" ? typeFilter.value : undefined
     // Não enviar tokenSymbol para o backend - faremos filtro local
   }), [tokenFilter ? 1 : currentPage, tokenFilter ? 1000 : itemsPerPage, statusFilter?.value, balances?.network, typeFilter?.value, tokenFilter?.value]);
@@ -152,7 +158,7 @@ const StatementPage = () => {
 
   // Função para obter URL da blockchain baseada na rede
   const getBlockchainUrl = (txHash) => {
-    const network = balances?.network || 'testnet';
+    const network = balances?.network || defaultNetwork;
     const baseUrl = network === 'mainnet' 
       ? 'https://azorescan.com/tx/' 
       : 'https://floripa.azorescan.com/tx/';
@@ -393,7 +399,7 @@ const StatementPage = () => {
               <thead className="bg-slate-50 dark:bg-slate-800">
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                    Cliente
+                    Company
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                     Token
@@ -422,10 +428,10 @@ const StatementPage = () => {
                       key={transaction.id}
                       className="hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors duration-150"
                     >
-                      {/* Cliente */}
+                      {/* Company */}
                       <td className="px-4 py-3 whitespace-nowrap">
                         <div className="text-sm font-medium text-slate-900 dark:text-white">
-                          {transaction.client?.name || 'N/A'}
+                          {transaction.company?.name || 'N/A'}
                         </div>
                       </td>
                       

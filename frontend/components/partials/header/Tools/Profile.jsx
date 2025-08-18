@@ -12,6 +12,18 @@ import { useAlertContext } from "@/contexts/AlertContext";
 const ProfileLabel = () => {
   const { user } = useAuthStore();
   
+  // Função para formatar nome (primeiro + último)
+  const formatNameForHeader = (fullName) => {
+    if (!fullName) return 'Usuário';
+    
+    const names = fullName.trim().split(' ').filter(name => name.length > 0);
+    if (names.length === 0) return 'Usuário';
+    if (names.length === 1) return names[0];
+    
+    // Retorna primeiro nome + último nome
+    return `${names[0]} ${names[names.length - 1]}`;
+  };
+  
   return (
     <div className="flex items-center">
       <div className="flex-1 ltr:mr-[10px] rtl:ml-[10px]">
@@ -25,7 +37,7 @@ const ProfileLabel = () => {
       </div>
       <div className="flex-none text-slate-600 dark:text-white text-sm font-normal items-center lg:flex hidden overflow-hidden text-ellipsis whitespace-nowrap">
         <span className="overflow-hidden text-ellipsis whitespace-nowrap w-[85px] block">
-          {user?.name || 'Usuário'}
+          {formatNameForHeader(user?.name)}
         </span>
         <span className="text-base inline-block ltr:ml-[10px] rtl:mr-[10px]">
           <Icon icon="heroicons-outline:chevron-down"></Icon>
@@ -52,12 +64,12 @@ const Profile = () => {
   const handleLogout = async () => {
     try {
       await authService.logout();
-      logout();
-      router.push('/login');
+      const companyAlias = logout();
+      router.push(`/login/${companyAlias}`);
     } catch (error) {
       // Mesmo com erro, fazer logout local
-      logout();
-      router.push('/login');
+      const companyAlias = logout();
+      router.push(`/login/${companyAlias}`);
     }
   };
 

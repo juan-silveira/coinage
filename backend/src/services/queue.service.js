@@ -461,7 +461,7 @@ class QueueService {
             data.amount,
             data.gasPayer,
             data.network || 'testnet',
-            { description: 'Mint via fila', clientId: data.clientId, userId: data.userId }
+            { description: 'Mint via fila', companyId: data.companyId, userId: data.userId }
           );
         case 'token_burn':
           return await tokenService.burnFromToken(
@@ -470,7 +470,7 @@ class QueueService {
             data.amount,
             data.gasPayer,
             data.network || 'testnet',
-            { description: 'Burn via fila', clientId: data.clientId, userId: data.userId }
+            { description: 'Burn via fila', companyId: data.companyId, userId: data.userId }
           );
         case 'token_transfer_gasless':
           return await tokenService.transferFromGasless(
@@ -480,7 +480,7 @@ class QueueService {
             data.amount,
             data.gasPayer,
             data.network || 'testnet',
-            { description: 'Transfer via fila', clientId: data.clientId, userId: data.userId }
+            { description: 'Transfer via fila', companyId: data.companyId, userId: data.userId }
           );
         case 'token_register':
           return await tokenService.registerToken(data);
@@ -575,7 +575,7 @@ class QueueService {
         case 'stake_invest':
           // Usar stakeService diretamente para investir
           console.log(`🔄 Processando stake invest: ${data.amount} tokens para ${data.user} no contrato ${data.stakeAddress}`);
-          console.log(`📋 Dados da transação: clientId=${data.clientId}, userId=${data.userId}`);
+          console.log(`📋 Dados da transação: companyId=${data.companyId}, userId=${data.userId}`);
 
           try {
             console.log(`🔍 Dados completos recebidos:`, JSON.stringify(data, null, 2));
@@ -667,12 +667,12 @@ class QueueService {
       gasPayer,
       network = 'testnet',
       description = 'Mint via fila',
-      clientId,
+      companyId,
       userId
     } = data;
 
     console.log(`🔄 Processando mint: ${amount} tokens para ${toAddress} no contrato ${contractAddress}`);
-    console.log(`📋 Dados da transação: clientId=${clientId}, userId=${userId}`);
+    console.log(`📋 Dados da transação: companyId=${companyId}, userId=${userId}`);
 
     try {
       // Executar o mint usando o serviço de tokens
@@ -690,17 +690,17 @@ class QueueService {
       console.log(`✅ Mint processado com sucesso: ${result.data?.transactionHash || 'sem hash'}`);
       
       // Registrar a transação no banco de dados
-      if (result.data?.transactionHash && clientId) {
+      if (result.data?.transactionHash && companyId) {
         try {
           const transactionService = require('./transaction.service');
           
           // O amountWei já vem convertido do token service, não converter novamente
           const amountWei = result.data?.amountWei || amount;
           
-          console.log(`📝 Tentando registrar transação no banco com clientId: ${clientId}`);
+          console.log(`📝 Tentando registrar transação no banco com companyId: ${companyId}`);
           
           await transactionService.recordMintTransaction({
-            clientId,
+            companyId,
             userId,
             contractAddress,
             toAddress,
@@ -718,11 +718,11 @@ class QueueService {
           console.log(`📝 Transação registrada no banco: ${result.data.transactionHash}`);
         } catch (dbError) {
           console.error(`⚠️ Erro ao registrar transação no banco:`, dbError.message);
-          console.error(`📋 Dados que causaram erro:`, { clientId, userId, txHash: result.data?.transactionHash });
+          console.error(`📋 Dados que causaram erro:`, { companyId, userId, txHash: result.data?.transactionHash });
           // Não falhar o processo se o registro no banco falhar
         }
       } else {
-        console.log(`⚠️ Não foi possível registrar no banco: clientId=${clientId}, txHash=${result.data?.transactionHash}`);
+        console.log(`⚠️ Não foi possível registrar no banco: companyId=${companyId}, txHash=${result.data?.transactionHash}`);
       }
       
       return {
@@ -973,12 +973,12 @@ class QueueService {
       gasPayer,
       network = 'testnet',
       description = 'Stake invest via fila',
-      clientId,
+      companyId,
       userId
     } = data;
 
     console.log(`🔄 Processando stake invest: ${amount} tokens para ${user} no contrato ${stakeAddress}`);
-    console.log(`📋 Dados da transação: clientId=${clientId}, userId=${userId}`);
+    console.log(`📋 Dados da transação: companyId=${companyId}, userId=${userId}`);
 
     try {
       // Executar o stake usando o blockchainService diretamente
@@ -1007,7 +1007,7 @@ class QueueService {
         gasLimit: 100000,
         network,
         description,
-        clientId,
+        companyId,
         userId
       };
       console.log(`🔍 Opções da transação:`, txOptions);
@@ -1024,14 +1024,14 @@ class QueueService {
       console.log(`✅ Stake invest processado com sucesso: ${result.data?.transactionHash || 'sem hash'}`);
       
       // Registrar a transação no banco de dados
-      if (result.data?.transactionHash && clientId) {
+      if (result.data?.transactionHash && companyId) {
         try {
           const transactionService = require('./transaction.service');
           
-          console.log(`📝 Tentando registrar transação no banco com clientId: ${clientId}`);
+          console.log(`📝 Tentando registrar transação no banco com companyId: ${companyId}`);
           
           await transactionService.recordStakeTransaction({
-            clientId,
+            companyId,
             userId,
             contractAddress: stakeAddress,
             fromAddress: gasPayer,
@@ -1051,11 +1051,11 @@ class QueueService {
           console.log(`📝 Transação registrada no banco: ${result.data.transactionHash}`);
         } catch (dbError) {
           console.error(`⚠️ Erro ao registrar transação no banco:`, dbError.message);
-          console.error(`📋 Dados que causaram erro:`, { clientId, userId, txHash: result.data?.transactionHash });
+          console.error(`📋 Dados que causaram erro:`, { companyId, userId, txHash: result.data?.transactionHash });
           // Não falhar o processo se o registro no banco falhar
         }
       } else {
-        console.log(`⚠️ Não foi possível registrar no banco: clientId=${clientId}, txHash=${result.data?.transactionHash}`);
+        console.log(`⚠️ Não foi possível registrar no banco: companyId=${companyId}, txHash=${result.data?.transactionHash}`);
       }
       
       return {
@@ -1086,7 +1086,7 @@ class QueueService {
       const stakeService = require('./stake.service');
       
       console.log(`🔄 Processando stake withdraw: ${data.amount} tokens de ${data.user} no contrato ${data.stakeAddress}`);
-      console.log(`📋 Dados da transação: clientId=${data.clientId}, userId=${data.userId}`);
+      console.log(`📋 Dados da transação: companyId=${data.companyId}, userId=${data.userId}`);
 
       const result = await stakeService.writeStakeContract(
         data.stakeAddress || data.address,
@@ -1097,14 +1097,14 @@ class QueueService {
 
       console.log(`✅ Stake withdraw processado com sucesso: ${result.data?.transactionHash || 'sem hash'}`);
 
-      if (result.data?.transactionHash && data.clientId) {
+      if (result.data?.transactionHash && data.companyId) {
         try {
           const transactionService = require('./transaction.service');
 
-          console.log(`📝 Tentando registrar transação no banco com clientId: ${data.clientId}`);
+          console.log(`📝 Tentando registrar transação no banco com companyId: ${data.companyId}`);
 
           await transactionService.recordStakeTransaction({
-            clientId: data.clientId,
+            companyId: data.companyId,
             userId: data.userId,
             contractAddress: data.stakeAddress || data.address,
             fromAddress: data.user,
@@ -1154,7 +1154,7 @@ class QueueService {
       const stakeService = require('./stake.service');
       
       console.log(`🔄 Processando stake claim rewards para ${data.user} no contrato ${data.stakeAddress}`);
-      console.log(`📋 Dados da transação: clientId=${data.clientId}, userId=${data.userId}`);
+      console.log(`📋 Dados da transação: companyId=${data.companyId}, userId=${data.userId}`);
 
       const result = await stakeService.writeStakeContract(
         data.stakeAddress || data.address,
@@ -1165,14 +1165,14 @@ class QueueService {
 
       console.log(`✅ Stake claim rewards processado com sucesso: ${result.data?.transactionHash || 'sem hash'}`);
 
-      if (result.data?.transactionHash && data.clientId) {
+      if (result.data?.transactionHash && data.companyId) {
         try {
           const transactionService = require('./transaction.service');
 
-          console.log(`📝 Tentando registrar transação no banco com clientId: ${data.clientId}`);
+          console.log(`📝 Tentando registrar transação no banco com companyId: ${data.companyId}`);
 
           await transactionService.recordStakeTransaction({
-            clientId: data.clientId,
+            companyId: data.companyId,
             userId: data.userId,
             contractAddress: data.stakeAddress || data.address,
             fromAddress: data.user,
@@ -1221,7 +1221,7 @@ class QueueService {
       const stakeService = require('./stake.service');
       
       console.log(`🔄 Processando stake compound para ${data.user} no contrato ${data.stakeAddress}`);
-      console.log(`📋 Dados da transação: clientId=${data.clientId}, userId=${data.userId}`);
+      console.log(`📋 Dados da transação: companyId=${data.companyId}, userId=${data.userId}`);
 
       const result = await stakeService.writeStakeContract(
         data.stakeAddress || data.address,
@@ -1232,14 +1232,14 @@ class QueueService {
 
       console.log(`✅ Stake compound processado com sucesso: ${result.data?.transactionHash || 'sem hash'}`);
 
-      if (result.data?.transactionHash && data.clientId) {
+      if (result.data?.transactionHash && data.companyId) {
         try {
           const transactionService = require('./transaction.service');
 
-          console.log(`📝 Tentando registrar transação no banco com clientId: ${data.clientId}`);
+          console.log(`📝 Tentando registrar transação no banco com companyId: ${data.companyId}`);
 
           await transactionService.recordStakeTransaction({
-            clientId: data.clientId,
+            companyId: data.companyId,
             userId: data.userId,
             contractAddress: data.stakeAddress || data.address,
             fromAddress: data.user,
@@ -1288,7 +1288,7 @@ class QueueService {
       const stakeService = require('./stake.service');
       
       console.log(`🔄 Processando stake deposit rewards: ${data.amount} tokens no contrato ${data.stakeAddress}`);
-      console.log(`📋 Dados da transação: clientId=${data.clientId}, userId=${data.userId}`);
+      console.log(`📋 Dados da transação: companyId=${data.companyId}, userId=${data.userId}`);
 
       const result = await stakeService.writeStakeContract(
         data.stakeAddress || data.address,
@@ -1299,14 +1299,14 @@ class QueueService {
 
       console.log(`✅ Stake deposit rewards processado com sucesso: ${result.data?.transactionHash || 'sem hash'}`);
 
-      if (result.data?.transactionHash && data.clientId) {
+      if (result.data?.transactionHash && data.companyId) {
         try {
           const transactionService = require('./transaction.service');
 
-          console.log(`📝 Tentando registrar transação no banco com clientId: ${data.clientId}`);
+          console.log(`📝 Tentando registrar transação no banco com companyId: ${data.companyId}`);
 
           await transactionService.recordStakeTransaction({
-            clientId: data.clientId,
+            companyId: data.companyId,
             userId: data.userId,
             contractAddress: data.stakeAddress || data.address,
             fromAddress: data.user || 'admin',
@@ -1355,7 +1355,7 @@ class QueueService {
       const stakeService = require('./stake.service');
       
       console.log(`🔄 Processando stake distribute rewards no contrato ${data.stakeAddress}`);
-      console.log(`📋 Dados da transação: clientId=${data.clientId}, userId=${data.userId}`);
+      console.log(`📋 Dados da transação: companyId=${data.companyId}, userId=${data.userId}`);
 
       const result = await stakeService.writeStakeContract(
         data.stakeAddress || data.address,
@@ -1366,14 +1366,14 @@ class QueueService {
 
       console.log(`✅ Stake distribute rewards processado com sucesso: ${result.data?.transactionHash || 'sem hash'}`);
 
-      if (result.data?.transactionHash && data.clientId) {
+      if (result.data?.transactionHash && data.companyId) {
         try {
           const transactionService = require('./transaction.service');
 
-          console.log(`📝 Tentando registrar transação no banco com clientId: ${data.clientId}`);
+          console.log(`📝 Tentando registrar transação no banco com companyId: ${data.companyId}`);
 
           await transactionService.recordStakeTransaction({
-            clientId: data.clientId,
+            companyId: data.companyId,
             userId: data.userId,
             contractAddress: data.stakeAddress || data.address,
             fromAddress: data.user || 'admin',

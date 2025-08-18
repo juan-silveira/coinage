@@ -1,6 +1,6 @@
 /**
  * Middleware de Rate Limiting
- * Controla o número de requisições por cliente em diferentes janelas de tempo
+ * Controla o número de requisições por empresa em diferentes janelas de tempo
  */
 
 // Armazenamento em memória para rate limiting (em produção, usar Redis)
@@ -20,21 +20,21 @@ const createRateLimiter = (options) => {
     maxRequests = 100,
     windowMs = 15 * 60 * 1000, // 15 minutos padrão
     keyPrefix = 'rate_limit',
-    keyGenerator = (req) => req.client?.id || req.ip,
+    keyGenerator = (req) => req.company?.id || req.ip,
     message = 'Limite de requisições excedido'
   } = options;
 
   return (req, res, next) => {
-    const clientKey = keyGenerator(req);
+    const companyKey = keyGenerator(req);
     
-    if (!clientKey) {
+    if (!companyKey) {
       return res.status(400).json({
         success: false,
-        message: 'Cliente não identificado para rate limiting'
+        message: 'Empresa não identificada para rate limiting'
       });
     }
 
-    const rateLimitKey = `${keyPrefix}:${clientKey}`;
+    const rateLimitKey = `${keyPrefix}:${companyKey}`;
     const currentTime = Date.now();
 
     // Obter ou criar registro de rate limit
@@ -100,49 +100,49 @@ const createRateLimiter = (options) => {
 
 /**
  * Rate limiter específico para transações blockchain
- * 100 transações por minuto por cliente (aumentado para clients grandes)
+ * 100 transações por minuto por empresa (aumentado para companies grandes)
  */
 const transactionRateLimiter = createRateLimiter({
   maxRequests: 100,
   windowMs: 60 * 1000, // 1 minuto
   keyPrefix: 'transaction_rate_limit',
-  keyGenerator: (req) => req.client?.id,
+  keyGenerator: (req) => req.company?.id,
   message: 'Limite de transações blockchain excedido. Máximo 100 transações por minuto.'
 });
 
 /**
  * Rate limiter para API calls gerais
- * 1000 requisições por 15 minutos por cliente (aumentado para clients grandes)
+ * 1000 requisições por 15 minutos por empresa (aumentado para companies grandes)
  */
 const apiRateLimiter = createRateLimiter({
   maxRequests: 1000,
   windowMs: 15 * 60 * 1000, // 15 minutos
   keyPrefix: 'api_rate_limit',
-  keyGenerator: (req) => req.client?.id || req.ip,
+  keyGenerator: (req) => req.company?.id || req.ip,
   message: 'Limite de requisições da API excedido. Máximo 1000 requisições por 15 minutos.'
 });
 
 /**
  * Rate limiter para login
- * 5 tentativas por 15 minutos por IP
+ * 1000 tentativas por 15 minutos por IP (removido para usar sistema baseado em usuário)
  */
 const loginRateLimiter = createRateLimiter({
-  maxRequests: 5,
+  maxRequests: 1000,
   windowMs: 15 * 60 * 1000, // 15 minutos
   keyPrefix: 'login_rate_limit',
   keyGenerator: (req) => req.ip,
-  message: 'Limite de tentativas de login excedido. Máximo 5 tentativas por 15 minutos.'
+  message: 'Limite de tentativas de login excedido. Tente novamente mais tarde.'
 });
 
 /**
  * Rate limiter para geração de API Keys
- * 3 por hora por cliente
+ * 3 por hora por empresa
  */
 const apiKeyRateLimiter = createRateLimiter({
   maxRequests: 3,
   windowMs: 60 * 60 * 1000, // 1 hora
   keyPrefix: 'api_key_rate_limit',
-  keyGenerator: (req) => req.client?.id,
+  keyGenerator: (req) => req.company?.id,
   message: 'Limite de geração de API Keys excedido. Máximo 3 por hora.'
 });
 
@@ -171,6 +171,14 @@ const cleanupRateLimitData = () => {
 setInterval(cleanupRateLimitData, 5 * 60 * 1000);
 
 /**
+ * Função para limpar completamente o rate limit (útil para desenvolvimento)
+ */
+const clearRateLimit = () => {
+  rateLimitStore.clear();
+  console.log('🗑️ Rate limit cache limpo');
+};
+
+/**
  * Função para obter estatísticas de rate limit
  */
 const getRateLimitStats = () => {
@@ -191,6 +199,8 @@ const getRateLimitStats = () => {
   return stats;
 };
 
+// Removido: clearRateLimit() automático que estava causando problemas
+
 module.exports = {
   createRateLimiter,
   transactionRateLimiter,
@@ -198,5 +208,6 @@ module.exports = {
   loginRateLimiter,
   apiKeyRateLimiter,
   cleanupRateLimitData,
-  getRateLimitStats
+  getRateLimitStats,
+  clearRateLimit
 }; 

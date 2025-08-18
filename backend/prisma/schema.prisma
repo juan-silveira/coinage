@@ -8,26 +8,26 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Client {
-  id              String          @id @default(uuid()) @db.Uuid
-  name            String          @db.VarChar(255)
-  isActive        Boolean         @default(true) @map("is_active")
-  rateLimit       Json            @default("{\"requestsPerDay\": 10000, \"requestsPerHour\": 1000, \"requestsPerMinute\": 100}") @map("rate_limit")
-  lastActivityAt  DateTime?       @map("last_activity_at") @db.Timestamptz(6)
-  createdAt       DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt       DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
-  alias           String?         @unique @db.VarChar(50)
-  clientBrandings ClientBranding?
-  documents       Document[]
-  requestLogs     RequestLog[]
-  transactions    Transaction[]
-  userClients     UserClient[]
-  webhooks        Webhook[]
+model Company {
+  id               String           @id @default(uuid()) @db.Uuid
+  name             String           @db.VarChar(255)
+  isActive         Boolean          @default(true) @map("is_active")
+  rateLimit        Json             @default("{\"requestsPerDay\": 10000, \"requestsPerHour\": 1000, \"requestsPerMinute\": 100}") @map("rate_limit")
+  lastActivityAt   DateTime?        @map("last_activity_at") @db.Timestamptz(6)
+  createdAt        DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+  alias            String?          @unique @db.VarChar(50)
+  companyBrandings CompanyBranding?
+  documents        Document[]
+  requestLogs      RequestLog[]
+  transactions     Transaction[]
+  userCompanies    UserCompany[]
+  webhooks         Webhook[]
 
-  @@index([isActive], map: "idx_clients_active")
-  @@index([lastActivityAt], map: "idx_clients_last_activity")
-  @@index([alias], map: "idx_clients_alias")
-  @@map("clients")
+  @@index([isActive], map: "idx_companies_active")
+  @@index([lastActivityAt], map: "idx_companies_last_activity")
+  @@index([alias], map: "idx_companies_alias")
+  @@map("companies")
 }
 
 model User {
@@ -48,18 +48,21 @@ model User {
   isActive             Boolean          @default(true) @map("is_active")
   metadata             Json?
   lastActivityAt       DateTime?        @map("last_activity_at") @db.Timestamptz(6)
+  failedLoginAttempts  Int              @default(0) @map("failed_login_attempts")
+  lastFailedLoginAt    DateTime?        @map("last_failed_login_at") @db.Timestamptz(6)
+  isBlockedLoginAttempts Boolean        @default(false) @map("is_blocked_login_attempts")
   createdAt            DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt            DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
   userPlan             UserPlan         @default(BASIC) @map("user_plan")
   apiKeys              ApiKey[]
-  deployedBrandings    ClientBranding[] @relation("ClientBrandingDeployer")
+  deployedBrandings    CompanyBranding[] @relation("CompanyBrandingDeployer")
   earnings             Earnings[]
   notifications        Notification[]
   requestLogs          RequestLog[]
   transactions         Transaction[]
-  approvedUserClients  UserClient[]     @relation("UserClientApprover")
-  requestedUserClients UserClient[]     @relation("UserClientRequester")
-  userClients          UserClient[]
+  approvedUserCompanies  UserCompany[]     @relation("UserCompanyApprover")
+  requestedUserCompanies UserCompany[]     @relation("UserCompanyRequester")
+  userCompanies          UserCompany[]
   userTwoFactors       UserTwoFactor[]
 
   @@index([email], map: "idx_users_email")
@@ -90,9 +93,9 @@ model ApiKey {
 
 model Transaction {
   id              String            @id @default(uuid()) @db.Uuid
-  clientId        String            @map("client_id") @db.Uuid
+  companyId       String            @map("company_id") @db.Uuid
   userId          String?           @map("user_id") @db.Uuid
-  userClientId    String?           @map("user_client_id") @db.Uuid
+  userCompanyId   String?           @map("user_company_id") @db.Uuid
   requestLogId    String?           @map("request_log_id") @db.Uuid
   contractId      String?           @map("contract_id") @db.Uuid
   network         Network
@@ -121,13 +124,13 @@ model Transaction {
   metadata        Json?
   createdAt       DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt       DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
-  client          Client            @relation(fields: [clientId], references: [id])
+  company         Company           @relation(fields: [companyId], references: [id])
   contract        SmartContract?    @relation(fields: [contractId], references: [id])
   requestLog      RequestLog?       @relation(fields: [requestLogId], references: [id])
-  userClient      UserClient?       @relation(fields: [userClientId], references: [id])
+  userCompany     UserCompany?      @relation(fields: [userCompanyId], references: [id])
   user            User?             @relation(fields: [userId], references: [id])
 
-  @@index([clientId], map: "idx_transactions_client_id")
+  @@index([companyId], map: "idx_transactions_company_id")
   @@index([txHash], map: "idx_transactions_tx_hash")
   @@index([status], map: "idx_transactions_status")
   @@index([network], map: "idx_transactions_network")
@@ -137,16 +140,16 @@ model Transaction {
   @@index([blockNumber], map: "idx_transactions_block_number")
   @@index([createdAt], map: "idx_transactions_created_at")
   @@index([confirmedAt], map: "idx_transactions_confirmed_at")
-  @@index([clientId, status], map: "idx_transactions_client_status")
+  @@index([companyId, status], map: "idx_transactions_company_status")
   @@index([userId], map: "idx_transactions_user_id")
-  @@index([userClientId], map: "idx_transactions_user_client_id")
+  @@index([userCompanyId], map: "idx_transactions_user_company_id")
   @@index([network, status], map: "idx_transactions_network_status")
   @@map("transactions")
 }
 
 model SmartContract {
   id           String        @id @default(uuid()) @db.Uuid
-  clientId     String        @map("client_id") @db.Uuid
+  companyId    String        @map("company_id") @db.Uuid
   name         String        @db.VarChar(255)
   address      String        @unique @db.VarChar(42)
   network      Network
@@ -166,7 +169,7 @@ model SmartContract {
 
 model Stake {
   id        String   @id @default(uuid()) @db.Uuid
-  clientId  String   @map("client_id") @db.Uuid
+  companyId String   @map("company_id") @db.Uuid
   name      String   @db.VarChar(255)
   address   String   @unique @db.VarChar(42)
   network   Network
@@ -184,7 +187,7 @@ model Stake {
 
 model RequestLog {
   id           String        @id @default(uuid()) @db.Uuid
-  clientId     String        @map("client_id") @db.Uuid
+  companyId    String        @map("company_id") @db.Uuid
   userId       String?       @map("user_id") @db.Uuid
   method       String        @db.VarChar(10)
   path         String        @db.VarChar(500)
@@ -196,11 +199,11 @@ model RequestLog {
   responseBody Json?         @map("response_body")
   error        Json?
   createdAt    DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
-  client       Client        @relation(fields: [clientId], references: [id])
+  company      Company       @relation(fields: [companyId], references: [id])
   user         User?         @relation(fields: [userId], references: [id])
   transactions Transaction[]
 
-  @@index([clientId], map: "idx_request_logs_client_id")
+  @@index([companyId], map: "idx_request_logs_company_id")
   @@index([userId], map: "idx_request_logs_user_id")
   @@index([createdAt], map: "idx_request_logs_created_at")
   @@map("request_logs")
@@ -221,7 +224,7 @@ model PasswordReset {
 
 model Webhook {
   id            String    @id @default(uuid()) @db.Uuid
-  clientId      String    @map("client_id") @db.Uuid
+  companyId     String    @map("company_id") @db.Uuid
   name          String    @db.VarChar(100)
   url           String    @db.VarChar(500)
   events        Json      @default("[]") @db.Json
@@ -237,14 +240,14 @@ model Webhook {
   totalErrors   Int       @default(0) @map("total_errors")
   createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
-  client        Client    @relation(fields: [clientId], references: [id])
+  company       Company   @relation(fields: [companyId], references: [id])
 
   @@map("webhooks")
 }
 
 model Document {
   id             String           @id @default(uuid()) @db.Uuid
-  clientId       String           @map("client_id") @db.Uuid
+  companyId      String           @map("company_id") @db.Uuid
   userId         String?          @map("user_id") @db.Uuid
   filename       String           @db.VarChar(255)
   originalName   String           @map("original_name") @db.VarChar(255)
@@ -261,19 +264,19 @@ model Document {
   lastDownloadAt DateTime?        @map("last_download_at") @db.Timestamptz(6)
   createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
-  client         Client           @relation(fields: [clientId], references: [id])
+  company        Company          @relation(fields: [companyId], references: [id])
 
-  @@index([clientId], map: "idx_documents_client_id")
+  @@index([companyId], map: "idx_documents_company_id")
   @@index([category], map: "idx_documents_category")
   @@index([expiresAt], map: "idx_documents_expires_at")
   @@map("documents")
 }
 
-model UserClient {
+model UserCompany {
   id                 String           @id @default(uuid()) @db.Uuid
   userId             String           @map("user_id") @db.Uuid
-  clientId           String           @map("client_id") @db.Uuid
-  status             UserClientStatus @default(pending)
+  companyId          String           @map("company_id") @db.Uuid
+  status             UserCompanyStatus @default(pending)
   role               UserRole         @default(USER)
   linkedAt           DateTime?        @map("linked_at") @db.Timestamptz(6)
   permissions        Json             @default("{}")
@@ -288,20 +291,20 @@ model UserClient {
   updatedAt          DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
   deletedAt          DateTime?        @map("deleted_at") @db.Timestamptz(6)
   transactions       Transaction[]
-  approver           User?            @relation("UserClientApprover", fields: [approvedBy], references: [id])
-  client             Client           @relation(fields: [clientId], references: [id])
-  requester          User?            @relation("UserClientRequester", fields: [requestedBy], references: [id])
+  approver           User?            @relation("UserCompanyApprover", fields: [approvedBy], references: [id])
+  company            Company          @relation(fields: [companyId], references: [id])
+  requester          User?            @relation("UserCompanyRequester", fields: [requestedBy], references: [id])
   user               User             @relation(fields: [userId], references: [id])
 
-  @@unique([userId, clientId])
-  @@index([userId], map: "idx_user_clients_user_id")
-  @@index([clientId], map: "idx_user_clients_client_id")
-  @@index([status], map: "idx_user_clients_status")
-  @@index([role], map: "idx_user_clients_role")
-  @@index([clientId, status], map: "idx_user_clients_client_status")
-  @@index([userId, status], map: "idx_user_clients_user_status")
-  @@index([clientId, role], map: "idx_user_clients_client_role")
-  @@map("user_clients")
+  @@unique([userId, companyId])
+  @@index([userId], map: "idx_user_companies_user_id")
+  @@index([companyId], map: "idx_user_companies_company_id")
+  @@index([status], map: "idx_user_companies_status")
+  @@index([role], map: "idx_user_companies_role")
+  @@index([companyId, status], map: "idx_user_companies_company_status")
+  @@index([userId, status], map: "idx_user_companies_user_status")
+  @@index([companyId, role], map: "idx_user_companies_company_role")
+  @@map("user_companies")
 }
 
 model UserTwoFactor {
@@ -375,9 +378,9 @@ model EmailLog {
   @@map("email_logs")
 }
 
-model ClientBranding {
+model CompanyBranding {
   id                 String      @id @default(uuid()) @db.Uuid
-  clientId           String      @unique @map("client_id") @db.Uuid
+  companyId          String      @unique @map("company_id") @db.Uuid
   primaryColor       String      @default("#007bff") @map("primary_color") @db.VarChar(7)
   secondaryColor     String?     @map("secondary_color") @db.VarChar(7)
   accentColor        String?     @map("accent_color") @db.VarChar(7)
@@ -409,12 +412,12 @@ model ClientBranding {
   createdAt          DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt          DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
   deletedAt          DateTime?   @map("deleted_at") @db.Timestamptz(6)
-  client             Client      @relation(fields: [clientId], references: [id])
-  deployer           User?       @relation("ClientBrandingDeployer", fields: [deployedBy], references: [id])
+  company            Company     @relation(fields: [companyId], references: [id])
+  deployer           User?       @relation("CompanyBrandingDeployer", fields: [deployedBy], references: [id])
 
-  @@index([clientId], map: "idx_client_brandings_client_id")
-  @@index([isActive], map: "idx_client_brandings_is_active")
-  @@map("client_brandings")
+  @@index([companyId], map: "idx_company_brandings_company_id")
+  @@index([isActive], map: "idx_company_brandings_is_active")
+  @@map("company_brandings")
 }
 
 model Notification {
@@ -509,7 +512,7 @@ enum DocumentCategory {
   other
 }
 
-enum UserClientStatus {
+enum UserCompanyStatus {
   pending
   active
   suspended

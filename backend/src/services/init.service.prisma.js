@@ -29,7 +29,7 @@ class InitServicePrisma {
           name: adminUser.name,
           roles: adminUser.roles,
           isFirstAccess: adminUser.isFirstAccess,
-          clientId: adminUser.clientId
+          companyId: adminUser.companyId
         });
       } else {
         console.error('❌ Erro: Usuário admin não foi criado');
@@ -74,12 +74,12 @@ class InitServicePrisma {
           isActive: true
         },
         include: {
-          client: true
+          company: true
         }
       });
       
-      // Verificar se existe pelo menos um client
-      const client = await prisma.client.findFirst({
+      // Verificar se existe pelo menos um company
+      const company = await prisma.company.findFirst({
         where: {
           isActive: true
         }
@@ -89,16 +89,16 @@ class InitServicePrisma {
         success: true,
         data: {
           hasAdminUser: !!adminUser,
-          hasClient: !!client,
+          hasCompany: !!company,
           adminUser: adminUser ? {
             id: adminUser.id,
             email: adminUser.email,
             name: adminUser.name,
             roles: adminUser.roles,
             isFirstAccess: adminUser.isFirstAccess,
-            client: adminUser.client ? {
-              id: adminUser.client.id,
-              name: adminUser.client.name
+            company: adminUser.company ? {
+              id: adminUser.company.id,
+              name: adminUser.company.name
             } : null
           } : null
         }

@@ -13,10 +13,10 @@ const logController = require('../controllers/log.controller');
  *           type: string
  *           format: uuid
  *           description: ID único do log
- *         clientId:
+ *         companyId:
  *           type: string
  *           format: uuid
- *           description: ID do cliente que fez a requisição
+ *           description: ID da empresa que fez a requisição
  *         method:
  *           type: string
  *           enum: [GET, POST, PUT, DELETE, PATCH]
@@ -32,10 +32,10 @@ const logController = require('../controllers/log.controller');
  *           description: Tempo de resposta em milissegundos
  *         ipAddress:
  *           type: string
- *           description: Endereço IP do cliente
+ *           description: Endereço IP da empresa
  *         userAgent:
  *           type: string
- *           description: User-Agent do cliente
+ *           description: User-Agent da empresa
  *         resourceType:
  *           type: string
  *           description: Tipo de recurso acessado
@@ -57,10 +57,10 @@ const logController = require('../controllers/log.controller');
  *           type: string
  *           format: uuid
  *           description: ID único da transação
- *         clientId:
+ *         companyId:
  *           type: string
  *           format: uuid
- *           description: ID do cliente que iniciou a transação
+ *           description: ID da empresa que iniciou a transação
  *         network:
  *           type: string
  *           enum: [mainnet, testnet]
@@ -125,11 +125,11 @@ const logController = require('../controllers/log.controller');
  *           default: 50
  *         description: Limite de itens por página
  *       - in: query
- *         name: clientId
+ *         name: companyId
  *         schema:
  *           type: string
  *           format: uuid
- *         description: Filtrar por cliente
+ *         description: Filtrar por empresa
  *       - in: query
  *         name: resourceType
  *         schema:
@@ -185,11 +185,11 @@ router.get('/requests', logController.listRequestLogs);
  *           default: 50
  *         description: Limite de itens por página
  *       - in: query
- *         name: clientId
+ *         name: companyId
  *         schema:
  *           type: string
  *           format: uuid
- *         description: Filtrar por cliente
+ *         description: Filtrar por empresa
  *       - in: query
  *         name: status
  *         schema:
@@ -248,11 +248,11 @@ router.get('/transactions', logController.listTransactions);
  *           format: date
  *         description: Data de fim
  *       - in: query
- *         name: clientId
+ *         name: companyId
  *         schema:
  *           type: string
  *           format: uuid
- *         description: Filtrar por cliente
+ *         description: Filtrar por empresa
  *       - in: query
  *         name: network
  *         schema:
@@ -455,11 +455,11 @@ router.post('/cleanup', logController.cleanupOldLogs);
  *           format: date
  *         description: Data de fim
  *       - in: query
- *         name: clientId
+ *         name: companyId
  *         schema:
  *           type: string
  *           format: uuid
- *         description: Filtrar por cliente
+ *         description: Filtrar por empresa
  *       - in: query
  *         name: network
  *         schema:
@@ -484,7 +484,7 @@ router.get('/export', logController.exportLogs);
  * @swagger
  * /api/logs/me/requests:
  *   get:
- *     summary: Obtém logs do cliente autenticado
+ *     summary: Obtém logs da empresa autenticado
  *     tags: [Logs]
  *     security:
  *       - ApiKeyAuth: []
@@ -537,7 +537,7 @@ router.get('/me/requests', logController.getMyLogs);
  * @swagger
  * /api/logs/me/transactions:
  *   get:
- *     summary: Obtém transações do cliente autenticado
+ *     summary: Obtém transações da empresa autenticado
  *     tags: [Logs]
  *     security:
  *       - ApiKeyAuth: []
@@ -598,7 +598,7 @@ router.get('/me/transactions', logController.getMyTransactions);
  * @swagger
  * /api/logs/me/stats:
  *   get:
- *     summary: Obtém estatísticas do cliente autenticado
+ *     summary: Obtém estatísticas da empresa autenticado
  *     tags: [Logs]
  *     security:
  *       - ApiKeyAuth: []

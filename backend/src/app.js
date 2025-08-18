@@ -17,7 +17,7 @@ const debugLoginRoutes = require('./routes/debug-login.routes');
 const contractRoutes = require('./routes/contract.routes');
 const tokenRoutes = require('./routes/token.routes');
 const stakeRoutes = require('./routes/stake.routes');
-const clientRoutes = require('./routes/client.routes');
+const companyRoutes = require('./routes/company.routes');
 const logRoutes = require('./routes/log.routes');
 const userRoutes = require('./routes/user.routes');
 const adminRoutes = require('./routes/admin.routes');
@@ -36,10 +36,12 @@ const notificationRoutes = require('./routes/notification.routes');
 const tokenAmountRoutes = require('./routes/tokenAmount.routes');
 const earningsRoutes = require('./routes/earnings.routes');
 const userPlanRoutes = require('./routes/userPlan.routes');
+const configRoutes = require('./routes/config.routes');
+const smartContractRoutes = require('./routes/smartContract.routes');
 
 // Importar serviços
 const contractService = require('./services/contract.service');
-const clientService = require('./services/client.service');
+const companyService = require('./services/company.service');
 const logService = require('./services/log.service');
 const tokenAmountService = require('./services/tokenAmount.service');
 
@@ -55,7 +57,7 @@ const {
 const { authenticateJWT } = require('./middleware/jwt.middleware');
 const { 
   requireApiAdmin, 
-  requireClientAdmin, 
+  requireCompanyAdmin, 
   requireAnyAdmin,
   addUserInfo: addAdminUserInfo,
   logAdminRequest 
@@ -63,7 +65,6 @@ const {
 const { 
   apiRateLimiter, 
   transactionRateLimiter, 
-  loginRateLimiter,
   apiKeyRateLimiter,
   getRateLimitStats 
 } = require('./middleware/rateLimit.middleware');
@@ -133,7 +134,7 @@ app.get('/test-transactions-direto', async (req, res) => {
     const transactions = await prisma.transaction.findMany({
       where: { userId },
       include: {
-        client: {
+        company: {
           select: { id: true, name: true, alias: true }
         }
       },
@@ -155,8 +156,8 @@ app.get('/test-transactions-direto', async (req, res) => {
     const safeTransactions = transactions.map(tx => ({
       id: tx.id,
       userId: tx.userId,
-      clientId: tx.clientId,
-      client: tx.client,
+      companyId: tx.companyId,
+      company: tx.company,
       network: tx.network,
       transactionType: tx.transactionType,
       status: tx.status,
@@ -248,14 +249,18 @@ app.use('/api/debug', testPrismaRoutes);
 app.use('/api/debug', debugLoginRoutes);
 // app.use('/api/debug', debugUserRoutes); // Temporariamente desabilitado
 
-// Rotas de clientes (com autenticação JWT e rate limiting)
-app.use('/api/clients', authenticateJWT, apiRateLimiter, addUserInfo, logAuthenticatedRequest, clientRoutes);
+// Rotas de empresas (com autenticação JWT e rate limiting)
+app.use('/api/companies', authenticateJWT, apiRateLimiter, addUserInfo, logAuthenticatedRequest, companyRoutes);
 
 // Rotas de autenticação (públicas)
 app.use('/api/auth', authRoutes);
 
 // Rotas de recuperação de senha (públicas)
 app.use('/api/password-reset', passwordResetRoutes);
+
+// Rotas de confirmação de email (públicas)
+const emailConfirmationRoutes = require('./routes/emailConfirmation.routes');
+app.use('/api/email-confirmation', emailConfirmationRoutes);
 
 // Rotas de usuários (com autenticação JWT e refresh de cache)
 app.use('/api/users', authenticateJWT, apiRateLimiter, addUserInfo, logAuthenticatedRequest, CacheRefreshMiddleware.refreshAfterWrite, userRoutes);
@@ -314,6 +319,10 @@ app.get('/api/transactions-debug', async (req, res) => {
 // Rotas de transações (com autenticação JWT)
 app.use('/api/transactions', transactionRoutes);
 
+// Rotas de depósitos (com autenticação JWT)
+const depositRoutes = require('./routes/deposit.routes');
+app.use('/api/deposits', depositRoutes);
+
 // Rotas de logs (com autenticação JWT)
 app.use('/api/logs', authenticateJWT, apiRateLimiter, addUserInfo, logAuthenticatedRequest, logRoutes);
 
@@ -351,6 +360,12 @@ app.use('/api/earnings', earningsRoutes);
 
 // Rotas de planos de usuário (públicas para consulta, autenticadas para admin)
 app.use('/api/user-plans', userPlanRoutes);
+
+// Configurações públicas (sem autenticação)
+app.use('/api/config', configRoutes);
+
+// Smart Contract Routes (Public)
+app.use('/api/smart-contracts', smartContractRoutes);
 
 // Middleware de tratamento de erros 404
 app.use('*', (req, res) => {

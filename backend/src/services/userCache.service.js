@@ -176,10 +176,10 @@ class UserCacheService {
               createdAt: true
             }
           },
-          userClients: {
+          userCompanies: {
             where: { status: 'active' },
             include: {
-              client: {
+              company: {
                 select: {
                   id: true,
                   name: true,
@@ -245,7 +245,7 @@ class UserCacheService {
         totalApiKeys: await this.prisma.apiKey.count({
           where: { userId, isActive: true }
         }),
-        totalClients: user.userClients.length,
+        totalCompanies: user.userCompanies.length,
         twoFactorEnabled: user.userTwoFactors.length > 0
       };
 
@@ -411,17 +411,17 @@ class UserCacheService {
    */
   async saveToCache(userId, data) {
     try {
-      if (!redisService.isConnected || !redisService.client) {
+      if (!redisService.isConnected || !redisService.company) {
         console.warn('⚠️ Redis não conectado, ignorando cache');
         return false;
       }
 
       const cacheKey = `user_cache:${userId}`;
-      await redisService.client.setEx(cacheKey, this.CACHE_TTL, JSON.stringify(data));
+      await redisService.company.setEx(cacheKey, this.CACHE_TTL, JSON.stringify(data));
       
       // Salvar também chaves específicas para acesso rápido
-      await redisService.client.setEx(`user_postgres:${userId}`, this.CACHE_TTL, JSON.stringify(data.postgres));
-      await redisService.client.setEx(`user_blockchain:${userId}`, this.CACHE_TTL, JSON.stringify(data.blockchain));
+      await redisService.company.setEx(`user_postgres:${userId}`, this.CACHE_TTL, JSON.stringify(data.postgres));
+      await redisService.company.setEx(`user_blockchain:${userId}`, this.CACHE_TTL, JSON.stringify(data.blockchain));
       
       return true;
     } catch (error) {
@@ -435,7 +435,7 @@ class UserCacheService {
    */
   async getCachedData(userId, dataType = 'all') {
     try {
-      if (!redisService.isConnected || !redisService.client) {
+      if (!redisService.isConnected || !redisService.company) {
         console.warn('⚠️ Redis não conectado, cache indisponível');
         return null;
       }
@@ -452,7 +452,7 @@ class UserCacheService {
           cacheKey = `user_cache:${userId}`;
       }
 
-      const cachedData = await redisService.client.get(cacheKey);
+      const cachedData = await redisService.company.get(cacheKey);
       if (cachedData) {
         return JSON.parse(cachedData);
       }
@@ -469,7 +469,7 @@ class UserCacheService {
    */
   async clearUserCache(userId) {
     try {
-      if (!redisService.isConnected || !redisService.client) {
+      if (!redisService.isConnected || !redisService.company) {
         console.warn('⚠️ Redis não conectado, ignorando limpeza de cache');
         return false;
       }
@@ -481,7 +481,7 @@ class UserCacheService {
       ];
 
       if (cacheKeys.length > 0) {
-        await redisService.client.del(cacheKeys);
+        await redisService.company.del(cacheKeys);
       }
       
       console.log(`🗑️ Cache limpo para usuário: ${userId}`);
@@ -567,13 +567,13 @@ class UserCacheService {
       };
 
       // Teste de escrita e leitura no Redis
-      if (!redisService.isConnected || !redisService.client) {
+      if (!redisService.isConnected || !redisService.company) {
         throw new Error('Redis não está conectado');
       }
       
-      await redisService.client.setEx('test_cache', 60, JSON.stringify(testData));
-      const retrieved = await redisService.client.get('test_cache');
-      await redisService.client.del('test_cache');
+      await redisService.company.setEx('test_cache', 60, JSON.stringify(testData));
+      const retrieved = await redisService.company.get('test_cache');
+      await redisService.company.del('test_cache');
 
       const isWorking = retrieved && JSON.parse(retrieved).test === true;
 

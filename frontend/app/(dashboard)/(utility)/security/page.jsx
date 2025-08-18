@@ -7,8 +7,11 @@ import Button from "@/components/ui/Button";
 import TwoFactorAuthModal from "@/components/partials/security/TwoFactorAuthModal";
 import ChangePasswordModal from "@/components/partials/security/ChangePasswordModal";
 import Link from "next/link";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 const SecurityPage = () => {
+  // Hook para gerenciar título da aba com contagem de notificações
+  useDocumentTitle('Segurança', 'Coinage', true);
   const [show2FAModal, setShow2FAModal] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
 

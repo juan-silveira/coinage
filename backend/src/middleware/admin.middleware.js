@@ -36,7 +36,7 @@ const requireApiAdmin = async (req, res, next) => {
 /**
  * Middleware para verificar se o usuário é CLIENT_ADMIN
  */
-const requireClientAdmin = async (req, res, next) => {
+const requireCompanyAdmin = async (req, res, next) => {
   try {
     if (!req.user) {
       return res.status(401).json({
@@ -46,7 +46,7 @@ const requireClientAdmin = async (req, res, next) => {
       });
     }
 
-    if (!req.user.isClientAdminUser()) {
+    if (!req.user.isCompanyAdminUser()) {
       return res.status(403).json({
         success: false,
         message: 'Acesso negado: permissões de CLIENT_ADMIN necessárias',
@@ -78,7 +78,7 @@ const requireAnyAdmin = async (req, res, next) => {
       });
     }
 
-    if (!req.user.canAccessClientAdminRoutes()) {
+    if (!req.user.canAccessCompanyAdminRoutes()) {
       return res.status(403).json({
         success: false,
         message: 'Acesso negado: permissões de administrador necessárias',
@@ -165,9 +165,9 @@ const checkPermission = (resource, action) => {
 };
 
 /**
- * Middleware para verificar se o usuário pertence ao client específico
+ * Middleware para verificar se o usuário pertence ao company específico
  */
-const requireSameClient = async (req, res, next) => {
+const requireSameCompany = async (req, res, next) => {
   try {
     if (!req.user) {
       return res.status(401).json({
@@ -177,22 +177,22 @@ const requireSameClient = async (req, res, next) => {
       });
     }
 
-    const clientId = req.params.clientId || req.params.id;
+    const companyId = req.params.companyId || req.params.id;
     
-    if (req.user.clientId !== clientId && !req.user.isApiAdminUser()) {
+    if (req.user.companyId !== companyId && !req.user.isApiAdminUser()) {
       return res.status(403).json({
         success: false,
-        message: 'Acesso negado: usuário não pertence ao client especificado',
+        message: 'Acesso negado: usuário não pertence ao company especificado',
         error: 'CLIENT_ACCESS_DENIED'
       });
     }
 
     next();
   } catch (error) {
-    console.error('Erro na verificação de client:', error);
+    console.error('Erro na verificação de company:', error);
     return res.status(500).json({
       success: false,
-      message: 'Erro interno na verificação de client',
+      message: 'Erro interno na verificação de company',
       error: 'CLIENT_CHECK_ERROR'
     });
   }
@@ -208,10 +208,10 @@ const addUserInfo = (req, res, next) => {
       'X-User-ID': req.user.id,
       'X-User-Name': req.user.name,
       'X-User-Email': req.user.email,
-      'X-Client-ID': req.user.clientId,
+      'X-Company-ID': req.user.companyId,
       'X-User-Roles': req.user.roles.join(','),
       'X-User-Is-Api-Admin': req.user.isApiAdminUser(),
-      'X-User-Is-Client-Admin': req.user.isClientAdminUser()
+      'X-User-Is-Company-Admin': req.user.isCompanyAdminUser()
     });
   }
   next();
@@ -230,11 +230,11 @@ const logAdminRequest = (req, res, next) => {
 
 module.exports = {
   requireApiAdmin,
-  requireClientAdmin,
+  requireCompanyAdmin,
   requireAnyAdmin,
   requireApiKeyManagement,
   checkPermission,
-  requireSameClient,
+  requireSameCompany,
   addUserInfo,
   logAdminRequest
 }; 

@@ -14,10 +14,10 @@ class UserService {
   /**
    * Cria um novo usuário
    * @param {Object} userData - Dados do usuário
-   * @param {string} defaultClientId - ID do cliente padrão (opcional, usa Coinage se não fornecido)
+   * @param {string} defaultCompanyId - ID da empresa padrão (opcional, usa Coinage se não fornecido)
    * @returns {Promise<Object>} Usuário criado
    */
-  async createUser(userData, defaultClientId = null) {
+  async createUser(userData, defaultCompanyId = null) {
     try {
       if (!this.prisma) await this.init();
 
@@ -29,7 +29,7 @@ class UserService {
       }
 
       // Hash da senha
-      const hashedPassword = await this.hashPassword(userData.password, userData.email);
+      const hashedPassword = await this.hashPassword(userData.password);
 
       // Criar usuário usando transação para garantir consistência
       const result = await this.prisma.$transaction(async (tx) => {
@@ -50,11 +50,11 @@ class UserService {
           }
         });
 
-        // Se fornecido clientId, criar vinculação automática
-        if (defaultClientId) {
-          const userClientService = require('./userClient.service');
-          // Criar vinculação user-client
-          const userClient = await userClientService.createUserClientLink(user.id, defaultClientId, {
+        // Se fornecido companyId, criar vinculação automática
+        if (defaultCompanyId) {
+          const userCompanyService = require('./userCompany.service');
+          // Criar vinculação user-company
+          const userCompany = await userCompanyService.createUserCompanyLink(user.id, defaultCompanyId, {
             status: 'active',
             role: userData.role || 'USER',
             permissions: {}
@@ -62,13 +62,13 @@ class UserService {
         }
 
         // Buscar usuário com vinculações
-        const userWithClients = await tx.user.findUnique({
+        const userWithCompanies = await tx.user.findUnique({
           where: { id: user.id },
           include: {
-            userClients: {
+            userCompanies: {
               where: { status: 'active' },
               include: {
-                client: {
+                company: {
                   select: { id: true, name: true }
                 }
               }
@@ -76,7 +76,7 @@ class UserService {
           }
         });
 
-        return userWithClients;
+        return userWithCompanies;
       });
 
       // Disparar webhook de usuário criado
@@ -91,8 +91,8 @@ class UserService {
         createdAt: result.createdAt
       };
 
-      if (defaultClientId) {
-        webhookService.triggerWebhooks('user.created', userEventData, defaultClientId)
+      if (defaultCompanyId) {
+        webhookService.triggerWebhooks('user.created', userEventData, defaultCompanyId)
           .then(result => console.log(`📡 Webhook user.created disparado:`, result))
           .catch(error => console.error(`❌ Erro ao disparar webhook user.created:`, error));
       }
@@ -145,9 +145,9 @@ class UserService {
           isActive: true 
         },
         include: {
-          userClients: {
+          userCompanies: {
             include: {
-              client: true
+              company: true
             }
           }
         }
@@ -179,9 +179,9 @@ class UserService {
           cpf: normalizedCpf
         },
         include: {
-          userClients: {
+          userCompanies: {
             include: {
-              client: true
+              company: true
             }
           }
         }
@@ -212,7 +212,7 @@ class UserService {
           isActive: true 
         },
         include: {
-          client: true
+          company: true
         }
       });
 
@@ -237,7 +237,7 @@ class UserService {
       const {
         page = 1,
         limit = 50,
-        clientId,
+        companyId,
         isActive,
         search,
         roles,
@@ -251,7 +251,7 @@ class UserService {
       // Construir filtros
       const where = {};
       
-      if (clientId) where.clientId = clientId;
+      if (companyId) where.companyId = companyId;
       if (typeof isActive === 'boolean') where.isActive = isActive;
       
       if (search) {
@@ -273,7 +273,7 @@ class UserService {
         this.prisma.user.findMany({
           where,
           include: {
-            client: {
+            company: {
               select: { id: true, name: true, isActive: true }
             }
           },
@@ -339,7 +339,7 @@ class UserService {
 
       // Hash da senha se alterada
       if (dataToUpdate.password) {
-        dataToUpdate.password = await this.hashPassword(dataToUpdate.password, currentUser.email);
+        dataToUpdate.password = await this.hashPassword(dataToUpdate.password);
         dataToUpdate.passwordChangedAt = new Date();
       }
 
@@ -409,11 +409,11 @@ class UserService {
         publicKey: user.publicKey,
         roles: user.roles,
         isActive: user.isActive,
-        clientId: user.clientId,
+        companyId: user.companyId,
         deactivatedAt: new Date()
       };
 
-      webhookService.triggerWebhooks('user.deactivated', userEventData, user.clientId)
+      webhookService.triggerWebhooks('user.deactivated', userEventData, user.companyId)
         .then(result => console.log(`📡 Webhook user.deactivated disparado:`, result))
         .catch(error => console.error(`❌ Erro ao disparar webhook user.deactivated:`, error));
 
@@ -437,7 +437,7 @@ class UserService {
         where: { id },
         data: { isActive: true },
         include: {
-          client: true
+          company: true
         }
       });
 
@@ -451,11 +451,11 @@ class UserService {
         publicKey: user.publicKey,
         roles: user.roles,
         isActive: user.isActive,
-        clientId: user.clientId,
+        companyId: user.companyId,
         activatedAt: new Date()
       };
 
-      webhookService.triggerWebhooks('user.activated', userEventData, user.clientId)
+      webhookService.triggerWebhooks('user.activated', userEventData, user.companyId)
         .then(result => console.log(`📡 Webhook user.activated disparado:`, result))
         .catch(error => console.error(`❌ Erro ao disparar webhook user.activated:`, error));
 
@@ -479,25 +479,24 @@ class UserService {
   }
 
   /**
-   * Gera hash da senha usando PBKDF2
+   * Gera hash da senha usando bcrypt
    * @param {string} password - Senha a ser hasheada
-   * @param {string} salt - Salt (usando email como salt)
    * @returns {Promise<string>} Hash da senha
    */
-  async hashPassword(password, salt) {
-    return crypto.pbkdf2Sync(password, salt, 10000, 64, 'sha512').toString('hex');
+  async hashPassword(password) {
+    const bcrypt = require('bcryptjs');
+    return await bcrypt.hash(password, 12);
   }
 
   /**
-   * Verifica se a senha está correta
+   * Verifica se a senha está correta usando bcrypt
    * @param {string} password - Senha a ser verificada
    * @param {string} hashedPassword - Hash armazenado
-   * @param {string} salt - Salt usado (email)
-   * @returns {Promise<boolean>} True se a senha estiver correta
+   * @returns {boolean} True se a senha estiver correta
    */
-  async verifyPassword(password, hashedPassword, salt) {
-    const hash = await this.hashPassword(password, salt);
-    return hash === hashedPassword;
+  verifyPassword(password, hashedPassword) {
+    const bcrypt = require('bcryptjs');
+    return bcrypt.compareSync(password, hashedPassword);
   }
 
   /**
@@ -516,15 +515,15 @@ class UserService {
   }
 
   /**
-   * Busca usuários por cliente
-   * @param {string} clientId - ID do cliente
+   * Busca usuários por empresa
+   * @param {string} companyId - ID da empresa
    * @param {Object} options - Opções de busca
-   * @returns {Promise<Array>} Lista de usuários do cliente
+   * @returns {Promise<Array>} Lista de usuários da empresa
    */
-  async getUsersByClientId(clientId, options = {}) {
+  async getUsersByCompanyId(companyId, options = {}) {
     const searchOptions = {
       ...options,
-      clientId
+      companyId
     };
     
     const result = await this.listUsers(searchOptions);
@@ -550,7 +549,7 @@ class UserService {
 
       if (!user) return null;
 
-      const isValid = await this.verifyPassword(password, user.password, user.email);
+      const isValid = this.verifyPassword(password, user.password);
       
       if (!isValid) return null;
 
@@ -584,6 +583,57 @@ class UserService {
         error: error.message,
         timestamp: new Date().toISOString()
       };
+    }
+  }
+
+  /**
+   * Ativa usuário após confirmação de email
+   * @param {string} userId - ID do usuário
+   * @returns {Promise<Object>} Usuário ativado
+   */
+  async activateUser(userId) {
+    try {
+      if (!this.prisma) await this.init();
+
+      const user = await this.prisma.user.update({
+        where: { id: userId },
+        data: { 
+          isActive: true,
+          emailVerifiedAt: new Date()
+        }
+      });
+
+      return this.sanitizeUser(user);
+    } catch (error) {
+      console.error('❌ Erro ao ativar usuário:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Busca usuário por email
+   * @param {string} email - Email do usuário
+   * @returns {Promise<Object|null>} Usuário encontrado ou null
+   */
+  async getUserByEmail(email) {
+    try {
+      if (!this.prisma) await this.init();
+
+      const user = await this.prisma.user.findUnique({
+        where: { email: email.toLowerCase() },
+        include: {
+          userCompanies: {
+            include: {
+              company: true
+            }
+          }
+        }
+      });
+
+      return user ? this.sanitizeUser(user) : null;
+    } catch (error) {
+      console.error('❌ Erro ao buscar usuário por email:', error);
+      throw error;
     }
   }
 }

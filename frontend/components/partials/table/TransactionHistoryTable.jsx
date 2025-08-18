@@ -4,11 +4,13 @@ import Icon from "@/components/ui/Icon";
 import Card from "@/components/ui/Card";
 import useCacheData from "@/hooks/useCacheData";
 import useTransactions from "@/hooks/useTransactions";
+import useConfig from "@/hooks/useConfig";
 
 const TransactionHistoryTable = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(5);
   const { balances } = useCacheData();
+  const { defaultNetwork } = useConfig();
   
   // Memoizar parâmetros para evitar recriação do objeto
   const transactionParams = useMemo(() => ({
@@ -66,7 +68,7 @@ const TransactionHistoryTable = () => {
 
   // Função para obter URL da blockchain baseada na rede
   const getBlockchainUrl = (txHash) => {
-    const network = balances?.network || 'testnet';
+    const network = balances?.network || defaultNetwork;
     const baseUrl = network === 'mainnet' 
       ? 'https://azorescan.com/tx/' 
       : 'https://floripa.azorescan.com/tx/';
@@ -141,7 +143,7 @@ const TransactionHistoryTable = () => {
               <thead className="bg-slate-50 dark:bg-slate-800">
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                    Cliente
+                    Empresa
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                     Token
@@ -167,10 +169,10 @@ const TransactionHistoryTable = () => {
                   key={transaction.id}
                   className="hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors duration-150"
                 >
-                  {/* Cliente */}
+                  {/* Empresa */}
                   <td className="px-4 py-3 whitespace-nowrap">
                     <div className="text-sm font-medium text-slate-900 dark:text-white">
-                      {transaction.client?.name || 'N/A'}
+                      {transaction.company?.name || 'N/A'}
                     </div>
                   </td>
                   

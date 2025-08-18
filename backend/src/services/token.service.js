@@ -44,7 +44,7 @@ class TokenService {
   /**
    * Dispara webhooks para eventos de token
    */
-  async triggerTokenWebhooks(event, tokenData, clientId, additionalData = {}) {
+  async triggerTokenWebhooks(event, tokenData, companyId, additionalData = {}) {
     try {
       const webhookService = getWebhookService();
       await webhookService.triggerWebhooks(event, {
@@ -57,7 +57,7 @@ class TokenService {
         transactionHash: tokenData.transactionHash,
         timestamp: new Date().toISOString(),
         ...additionalData
-      }, clientId);
+      }, companyId);
     } catch (error) {
       console.error('Erro ao disparar webhooks de token:', error.message);
       // Não falhar a operação principal por erro de webhook
@@ -126,7 +126,7 @@ class TokenService {
    * @param {string} contractAddress - Endereço do contrato do token
    * @param {string} toAddress - Endereço que receberá os tokens
    * @param {string} amount - Quantidade em ETH (será convertida para wei)
-   * @param {string} clientWalletAddress - Endereço da carteira do client que pagará o gás
+   * @param {string} companyWalletAddress - Endereço da carteira do company que pagará o gás
    * @param {string} network - Rede (mainnet ou testnet)
    * @param {Object} options - Opções da transação
    * @returns {Promise<Object>} Resultado da operação
@@ -167,7 +167,7 @@ class TokenService {
       if (result.success) {
         // Registrar transação
         const transaction = await transactionService.recordMintTransaction({
-          clientId: options.clientId,
+          companyId: options.companyId,
           userId: options.userId,
           contractAddress: contractAddress.toLowerCase(),
           fromAddress: gasPayer.toLowerCase(),
@@ -223,7 +223,7 @@ class TokenService {
    * @param {string} contractAddress - Endereço do contrato do token
    * @param {string} fromAddress - Endereço de onde os tokens serão queimados
    * @param {string} amount - Quantidade em ETH (será convertida para wei)
-   * @param {string} clientWalletAddress - Endereço da carteira do client que pagará o gás
+   * @param {string} companyWalletAddress - Endereço da carteira do company que pagará o gás
    * @param {string} network - Rede (mainnet ou testnet)
    * @param {Object} options - Opções da transação
    * @returns {Promise<Object>} Resultado da operação
@@ -242,8 +242,8 @@ class TokenService {
         throw new Error('Endereço do pagador de gás inválido');
       }
 
-      // gasPayer é o endereço do client que paga a transação
-      const clientWalletAddress = gasPayer;
+      // gasPayer é o endereço do company que paga a transação
+      const companyWalletAddress = gasPayer;
 
       // Validar quantidade
       if (!amount || parseFloat(amount) <= 0) {
@@ -259,12 +259,12 @@ class TokenService {
         console.log('🔍 Verificando se gasPayer tem BURNER_ROLE...');
         console.log('🔍 contractService disponível:', !!contractService);
         console.log('🔍 contractService.hasRole disponível:', !!contractService.hasRole);
-        const hasBurnerRoleResult = await contractService.hasRole(contractAddress, 'burner', clientWalletAddress);
+        const hasBurnerRoleResult = await contractService.hasRole(contractAddress, 'burner', companyWalletAddress);
         console.log('🔍 Resultado da verificação BURNER_ROLE:', JSON.stringify(hasBurnerRoleResult));
         
         if (!hasBurnerRoleResult.data.hasRole) {
           console.log('🔍 GasPayer não tem BURNER_ROLE, concedendo...');
-          await contractService.grantRole(contractAddress, 'burner', clientWalletAddress);
+          await contractService.grantRole(contractAddress, 'burner', companyWalletAddress);
           console.log('✅ BURNER_ROLE concedida com sucesso');
         } else {
           console.log('✅ GasPayer já tem BURNER_ROLE');
@@ -281,7 +281,7 @@ class TokenService {
         contractAddress,
         'burnFrom',
         [fromAddress, amountWei],
-        clientWalletAddress,
+        companyWalletAddress,
         {
           network,
           gasLimit: options.gasLimit || 100000,
@@ -292,13 +292,13 @@ class TokenService {
       // Registrar transação na tabela
       try {
         await transactionService.recordBurnTransaction({
-          clientId: options.clientId,
+          companyId: options.companyId,
           userId: options.userId,
           contractAddress,
           fromAddress,
           amount,
           amountWei: ethers.parseUnits(amount.toString(), 18).toString(),
-          gasPayer: clientWalletAddress,
+          gasPayer: companyWalletAddress,
           network,
           txHash: result.data.transactionHash,
           gasUsed: result.data.gasUsed,
@@ -345,7 +345,7 @@ class TokenService {
    * @param {string} fromAddress - Endereço de origem
    * @param {string} toAddress - Endereço de destino
    * @param {string} amount - Quantidade em ETH (será convertida para wei)
-   * @param {string} clientWalletAddress - Endereço da carteira do client que pagará o gás
+   * @param {string} companyWalletAddress - Endereço da carteira do company que pagará o gás
    * @param {string} network - Rede (mainnet ou testnet)
    * @param {Object} options - Opções da transação
    * @returns {Promise<Object>} Resultado da operação
@@ -366,8 +366,8 @@ class TokenService {
         throw new Error('Endereço do pagador de gás inválido');
       }
 
-      // gasPayer é o endereço do client que paga a transação
-      const clientWalletAddress = gasPayer;
+      // gasPayer é o endereço do company que paga a transação
+      const companyWalletAddress = gasPayer;
 
       // Validar quantidade
       if (!amount || parseFloat(amount) <= 0) {
@@ -380,12 +380,12 @@ class TokenService {
       // Verificar se o gasPayer tem TRANSFER_ROLE, se não tiver, conceder
       try {
         console.log('🔍 Verificando se gasPayer tem TRANSFER_ROLE...');
-        const hasTransferRoleResult = await contractService.hasRole(contractAddress, 'transfer', clientWalletAddress);
+        const hasTransferRoleResult = await contractService.hasRole(contractAddress, 'transfer', companyWalletAddress);
         console.log('🔍 Resultado da verificação TRANSFER_ROLE:', JSON.stringify(hasTransferRoleResult));
         
         if (!hasTransferRoleResult.data.hasRole) {
           console.log('🔍 GasPayer não tem TRANSFER_ROLE, concedendo...');
-          await contractService.grantRole(contractAddress, 'transfer', clientWalletAddress);
+          await contractService.grantRole(contractAddress, 'transfer', companyWalletAddress);
           console.log('✅ TRANSFER_ROLE concedida com sucesso');
         } else {
           console.log('✅ GasPayer já tem TRANSFER_ROLE');
@@ -400,7 +400,7 @@ class TokenService {
         contractAddress,
         'transferFromGasless',
         [fromAddress, toAddress, amountWei],
-        clientWalletAddress,
+        companyWalletAddress,
         {
           network,
           gasLimit: options.gasLimit || 100000,
@@ -411,14 +411,14 @@ class TokenService {
       // Registrar transação na tabela
       try {
         await transactionService.recordTransferTransaction({
-          clientId: options.clientId,
+          companyId: options.companyId,
           userId: options.userId,
           contractAddress,
           fromAddress,
           toAddress,
           amount,
           amountWei: ethers.parseUnits(amount.toString(), 18).toString(),
-          gasPayer: clientWalletAddress,
+          gasPayer: companyWalletAddress,
           network,
           txHash: result.data.transactionHash,
           gasUsed: result.data.gasUsed,

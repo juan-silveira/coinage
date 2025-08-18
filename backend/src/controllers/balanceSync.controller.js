@@ -8,7 +8,7 @@ const azorescanService = require('../services/azorescan.service');
  */
 const getCache = async (req, res) => {
   try {
-    const { userId, address } = req.query;
+    const { userId, address, network = 'mainnet' } = req.query;
     
     if (!userId || !address) {
       return res.status(400).json({
@@ -25,7 +25,7 @@ const getCache = async (req, res) => {
       });
     }
 
-    const cache = await balanceSyncService.getCache(userId, address);
+    const cache = await balanceSyncService.getCache(userId, address, network);
     
     res.json({
       success: true,
@@ -49,7 +49,7 @@ const getCache = async (req, res) => {
  */
 const updateCache = async (req, res) => {
   try {
-    const { userId, address, balances, timestamp, source } = req.body;
+    const { userId, address, balances, timestamp, source, network = 'mainnet' } = req.body;
     
     if (!userId || !address || !balances) {
       return res.status(400).json({
@@ -66,7 +66,7 @@ const updateCache = async (req, res) => {
       });
     }
 
-    const result = await balanceSyncService.updateCache(userId, address, balances, timestamp, source);
+    const result = await balanceSyncService.updateCache(userId, address, balances, timestamp, source, network);
     
     res.json({
       success: true,
@@ -91,7 +91,7 @@ const updateCache = async (req, res) => {
  */
 const getHistory = async (req, res) => {
   try {
-    const { userId, address, limit = 50 } = req.query;
+    const { userId, address, limit = 50, network = 'mainnet' } = req.query;
     
     if (!userId || !address) {
       return res.status(400).json({
@@ -108,7 +108,7 @@ const getHistory = async (req, res) => {
       });
     }
 
-    const history = await balanceSyncService.getHistory(userId, address, parseInt(limit));
+    const history = await balanceSyncService.getHistory(userId, address, parseInt(limit), network);
     
     res.json({
       success: true,
@@ -132,7 +132,7 @@ const getHistory = async (req, res) => {
  */
 const clearCache = async (req, res) => {
   try {
-    const { userId, address } = req.query;
+    const { userId, address, network = 'mainnet' } = req.query;
     
     if (!userId || !address) {
       return res.status(400).json({
@@ -149,7 +149,7 @@ const clearCache = async (req, res) => {
       });
     }
 
-    const result = await balanceSyncService.clearCache(userId, address);
+    const result = await balanceSyncService.clearCache(userId, address, network);
     
     res.json({
       success: true,
@@ -215,7 +215,7 @@ const getStatus = async (req, res) => {
  */
 const getFreshBalances = async (req, res) => {
   try {
-    const { address, network = 'testnet' } = req.query;
+    const { address, network = 'mainnet' } = req.query;
     
     if (!address) {
       return res.status(400).json({

@@ -29,7 +29,7 @@ class ContractService {
   /**
    * Dispara webhooks para eventos de contrato
    */
-  async triggerContractWebhooks(event, contract, clientId, additionalData = {}) {
+  async triggerContractWebhooks(event, contract, companyId, additionalData = {}) {
     try {
       const webhookService = getWebhookService();
       await webhookService.triggerWebhooks(event, {
@@ -42,7 +42,7 @@ class ContractService {
         status: contract.status,
         timestamp: contract.createdAt || new Date().toISOString(),
         ...additionalData
-      }, clientId);
+      }, companyId);
     } catch (error) {
       console.error('Erro ao disparar webhooks de contrato:', error.message);
       // Não falhar a operação principal por erro de webhook
@@ -315,8 +315,8 @@ class ContractService {
       await user.updateLastActivity();
 
       // Disparar webhook de contrato implantado
-      if (user.clientId) {
-        await this.triggerContractWebhooks('contract.deployed', contractRecord.data, user.clientId, {
+      if (user.companyId) {
+        await this.triggerContractWebhooks('contract.deployed', contractRecord.data, user.companyId, {
           deployedBy: walletAddress,
           deployedAt: new Date().toISOString(),
           gasLimit: deployOptions.gasLimit
@@ -1123,19 +1123,19 @@ class ContractService {
         }
       }
 
-      // Buscar primeiro cliente disponível
-      console.log('🔍 Buscando cliente disponível...');
-      const firstClient = await global.prisma.client.findFirst();
-      if (!firstClient) {
-        throw new Error('Nenhum cliente encontrado no sistema');
+      // Buscar primeira empresa disponível
+      console.log('🔍 Buscanda empresa disponível...');
+      const firstCompany = await global.prisma.company.findFirst();
+      if (!firstCompany) {
+        throw new Error('Nenhum empresa encontrado no sistema');
       }
-      console.log('✅ Cliente encontrado:', firstClient.id, firstClient.name);
+      console.log('✅ Company encontrado:', firstCompany.id, firstCompany.name);
 
       // Preparar dados do contrato
       const contractToCreate = {
         name: tokenInfo.name || name || 'Token ERC-20', // Garantir que sempre tenha um nome
         address: address.toLowerCase(),
-        clientId: firstClient.id,
+        companyId: firstCompany.id,
         abi: finalABI,
         network,
         metadata: {
@@ -1161,8 +1161,8 @@ class ContractService {
       console.log('✅ Contrato criado com sucesso:', contract.id);
 
       // Disparar webhook de contrato registrado
-      // Nota: clientId seria obtido do contexto da requisição
-      // Por enquanto, vamos disparar sem clientId específico
+      // Nota: companyId seria obtido do contexto da requisição
+      // Por enquanto, vamos disparar sem companyId específico
       try {
         await this.triggerContractWebhooks('contract.registered', contract, null, {
           contractType,

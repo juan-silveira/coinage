@@ -62,7 +62,7 @@ export const appCalenderSlice = createSlice({
       },
       {
         id: uuidv4(),
-        title: "Meeting With Client",
+        title: "Meeting With Company",
         start: new Date(date.getFullYear(), date.getMonth() + 1, -11),
         end: new Date(date.getFullYear(), date.getMonth() + 1, -10),
         allDay: true,

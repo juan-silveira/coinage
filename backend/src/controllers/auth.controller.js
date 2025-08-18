@@ -1,4 +1,4 @@
-// Importar Prisma client
+// Importar Prisma company
 const prismaConfig = require('../config/prisma');
 
 // Função helper para obter Prisma
@@ -27,12 +27,14 @@ const authenticateUser = async (email, password) => {
 };
 
 /**
- * Login do usuário
+ * Login do usuário com controle de tentativas
  */
 const login = async (req, res) => {
+  const prisma = getPrisma();
+  
   try {
     const { email, password } = req.body;
-    const clientIP = req.ip || req.connection.remoteAddress;
+    const companyIP = req.ip || req.connection.remoteAddress;
     const userAgent = req.get('User-Agent');
     
     // Validações básicas
@@ -57,10 +59,62 @@ const login = async (req, res) => {
       });
     }
 
+    // Buscar usuário pelo email primeiro (para verificar tentativas)
+    const existingUser = await prisma.user.findUnique({
+      where: { email }
+    });
+
+    // Verificar se usuário está bloqueado por tentativas excessivas
+    if (existingUser && existingUser.isBlockedLoginAttempts) {
+      return res.status(423).json({
+        success: false,
+        message: 'Conta bloqueada devido a muitas tentativas de login incorretas. Entre em contato com o administrador.',
+        data: {
+          blocked: true,
+          lastFailedAttempt: existingUser.lastFailedLoginAt
+        }
+      });
+    }
+
     // Autenticar usuário
     const user = await authenticateUser(email, password);
     
     if (!user) {
+      // Login falhou - incrementar contador de tentativas se usuário existe
+      if (existingUser) {
+        const newFailedAttempts = existingUser.failedLoginAttempts + 1;
+        const shouldBlock = newFailedAttempts >= 5;
+        
+        await prisma.user.update({
+          where: { id: existingUser.id },
+          data: {
+            failedLoginAttempts: newFailedAttempts,
+            lastFailedLoginAt: new Date(),
+            isBlockedLoginAttempts: shouldBlock
+          }
+        });
+
+        if (shouldBlock) {
+          return res.status(423).json({
+            success: false,
+            message: 'Conta bloqueada devido a 5 tentativas incorretas consecutivas. Entre em contato com o administrador.',
+            data: {
+              blocked: true,
+              attempts: newFailedAttempts
+            }
+          });
+        }
+
+        return res.status(401).json({
+          success: false,
+          message: `Credenciais inválidas. Tentativas restantes: ${5 - newFailedAttempts}`,
+          data: {
+            attemptsRemaining: 5 - newFailedAttempts,
+            totalAttempts: newFailedAttempts
+          }
+        });
+      }
+      
       return res.status(401).json({
         success: false,
         message: 'Credenciais inválidas'
@@ -71,6 +125,18 @@ const login = async (req, res) => {
       return res.status(403).json({
         success: false,
         message: 'Usuário inativo'
+      });
+    }
+
+    // Login bem-sucedido - resetar contador de tentativas falhas
+    if (existingUser && (existingUser.failedLoginAttempts > 0 || existingUser.isBlockedLoginAttempts)) {
+      await prisma.user.update({
+        where: { id: existingUser.id },
+        data: {
+          failedLoginAttempts: 0,
+          lastFailedLoginAt: null,
+          isBlockedLoginAttempts: false
+        }
       });
     }
 
@@ -86,6 +152,20 @@ const login = async (req, res) => {
         success: false,
         message: 'Erro ao buscar dados do usuário'
       });
+    }
+
+    // Atualizar último acesso na empresa principal (Coinage) por padrão
+    try {
+      const userCompanyService = require('../services/userCompany.service');
+      const companyService = require('../services/company.service');
+      
+      // Buscar empresa Coinage
+      const coinageCompany = await companyService.getCompanyByAlias('coinage');
+      if (coinageCompany) {
+        await userCompanyService.updateLastActivity(user.id, coinageCompany.id);
+      }
+    } catch (accessError) {
+      console.warn('⚠️ Erro ao atualizar último acesso:', accessError.message);
     }
 
     // Iniciar cache automático
@@ -123,7 +203,7 @@ const logout = async (req, res) => {
   try {
     const userEmail = req.user?.email;
     const userId = req.user?.id;
-    const clientIP = req.ip || req.connection.remoteAddress;
+    const companyIP = req.ip || req.connection.remoteAddress;
     const userAgent = req.get('User-Agent');
     
     // Adicionar token à blacklist se fornecido
@@ -197,7 +277,7 @@ const changePassword = async (req, res) => {
     }
 
     // Verificar senha atual
-    const isValidPassword = await userService.verifyPassword(currentPassword, user.password, user.email);
+    const isValidPassword = userService.verifyPassword(currentPassword, user.password, user.email);
     
     if (!isValidPassword) {
       return res.status(400).json({
@@ -310,7 +390,7 @@ const generateApiKey = async (req, res) => {
 };
 
 /**
- * Listar API Keys do cliente
+ * Listar API Keys da empresa
  */
 const listApiKeys = async (req, res) => {
   try {
@@ -467,14 +547,14 @@ const editApiKey = async (req, res) => {
 const refreshToken = async (req, res) => {
   try {
     const { refreshToken } = req.body;
-    const clientIP = req.ip || req.connection.remoteAddress;
+    const companyIP = req.ip || req.connection.remoteAddress;
     const userAgent = req.get('User-Agent');
 
     console.log('\ud83d\udd0d [Refresh] Recebida requisição de refresh token:', {
       hasRefreshToken: !!refreshToken,
       tokenLength: refreshToken?.length || 0,
       tokenStart: refreshToken?.substring(0, 20) + '...',
-      clientIP,
+      companyIP,
       userAgent: userAgent?.substring(0, 50)
     });
 
@@ -597,12 +677,115 @@ const getCurrentUser = async (req, res) => {
           permissions: user.permissions,
           roles: user.roles,
           isApiAdmin: user.isApiAdmin,
-          isClientAdmin: user.isClientAdmin
+          isCompanyAdmin: user.isCompanyAdmin
         }
       }
     });
   } catch (error) {
     console.error('Erro ao obter informações do usuário:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro interno do servidor'
+    });
+  }
+};
+
+/**
+ * Registro de novo usuário
+ */
+const register = async (req, res) => {
+  try {
+    const { name, email, password, company_alias } = req.body;
+    
+    // Validações básicas
+    if (!name || !email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Nome, email e senha são obrigatórios'
+      });
+    }
+
+    if (!email.includes('@')) {
+      return res.status(400).json({
+        success: false,
+        message: 'Formato de email inválido'
+      });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: 'Senha deve ter pelo menos 6 caracteres'
+      });
+    }
+
+    const prisma = getPrisma();
+    
+    // Verificar se email já existe
+    const existingUser = await prisma.user.findUnique({
+      where: { email: email.toLowerCase() }
+    });
+
+    if (existingUser) {
+      return res.status(409).json({
+        success: false,
+        message: 'Este email já está em uso'
+      });
+    }
+
+    // Hash da senha
+    const hashedPassword = await bcrypt.hash(password, 12);
+
+    // Criar usuário
+    const user = await prisma.user.create({
+      data: {
+        name,
+        email: email.toLowerCase(),
+        password: hashedPassword,
+        isActive: true,
+        isFirstAccess: true
+      }
+    });
+
+    // Se company_alias foi fornecido, vincular à empresa
+    if (company_alias) {
+      try {
+        const company = await prisma.company.findUnique({
+          where: { alias: company_alias }
+        });
+
+        if (company) {
+          await prisma.userCompany.create({
+            data: {
+              userId: user.id,
+              companyId: company.id,
+              status: 'active',
+              role: 'USER',
+              linkedAt: new Date()
+            }
+          });
+        }
+      } catch (error) {
+        console.warn('⚠️ Erro ao vincular usuário à empresa:', error.message);
+        // Não falhar o registro por erro de vinculação
+      }
+    }
+
+    res.status(201).json({
+      success: true,
+      message: 'Usuário registrado com sucesso',
+      data: {
+        user: {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          isFirstAccess: user.isFirstAccess
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Erro no registro:', error);
     res.status(500).json({
       success: false,
       message: 'Erro interno do servidor'
@@ -654,8 +837,106 @@ const testBlacklist = async (req, res) => {
   }
 };
 
+/**
+ * Desbloquear usuário (função para administradores)
+ */
+const unblockUser = async (req, res) => {
+  const prisma = getPrisma();
+  
+  try {
+    const { email } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email é obrigatório'
+      });
+    }
+
+    // Buscar usuário
+    const user = await prisma.user.findUnique({
+      where: { email }
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Usuário não encontrado'
+      });
+    }
+
+    // Desbloquear usuário
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        failedLoginAttempts: 0,
+        lastFailedLoginAt: null,
+        isBlockedLoginAttempts: false
+      }
+    });
+
+    res.json({
+      success: true,
+      message: `Usuário ${email} desbloqueado com sucesso`,
+      data: {
+        email: user.email,
+        name: user.name,
+        wasBlocked: user.isBlockedLoginAttempts,
+        previousAttempts: user.failedLoginAttempts
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Erro ao desbloquear usuário:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro interno do servidor'
+    });
+  }
+};
+
+/**
+ * Listar usuários bloqueados (função para administradores)
+ */
+const listBlockedUsers = async (req, res) => {
+  const prisma = getPrisma();
+  
+  try {
+    const blockedUsers = await prisma.user.findMany({
+      where: {
+        isBlockedLoginAttempts: true
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        failedLoginAttempts: true,
+        lastFailedLoginAt: true,
+        isBlockedLoginAttempts: true
+      }
+    });
+
+    res.json({
+      success: true,
+      message: `Encontrados ${blockedUsers.length} usuários bloqueados`,
+      data: {
+        blockedUsers,
+        count: blockedUsers.length
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Erro ao listar usuários bloqueados:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro interno do servidor'
+    });
+  }
+};
+
 module.exports = {
   login,
+  register,
   logout,
   changePassword,
   generateApiKey,
@@ -664,5 +945,7 @@ module.exports = {
   editApiKey,
   refreshToken,
   getCurrentUser,
-  testBlacklist
+  testBlacklist,
+  unblockUser,
+  listBlockedUsers
 };

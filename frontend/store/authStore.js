@@ -49,7 +49,7 @@ const useAuthStore = create(
       
       markNotificationAsRead: (id) => set((state) => ({
         notifications: state.notifications.map(n => 
-          n.id === id ? { ...n, isRead: true } : n
+          n === id ? { ...n, isRead: true } : n
         )
       })),
       
@@ -60,6 +60,18 @@ const useAuthStore = create(
           sessionStorage.setItem('showLoginSuccess', 'true');
           sessionStorage.setItem('loginUserName', user.name);
         }
+        
+        // Tentar salvar a company atual da URL para usar no logout
+        try {
+          const currentPath = window.location.pathname;
+          const pathMatch = currentPath.match(/\/(login|register|first-access)\/([^\/\?]+)/);
+          if (pathMatch && pathMatch[2]) {
+            sessionStorage.setItem('currentLoginCompany', pathMatch[2]);
+          }
+        } catch (e) {
+          // Falha silenciosa
+        }
+        
         set({
           user,
           accessToken,
@@ -74,11 +86,58 @@ const useAuthStore = create(
       },
       
       logout: (reason = 'manual') => {
-        // console.error('🚪 [AuthStore] LOGOUT EXECUTADO:', {
-        //   reason,
-        //   timestamp: new Date().toISOString(),
-        //   stackTrace: new Error().stack
-        // });
+        const state = get();
+        let companyAlias = 'coinage'; // fallback padrão
+        
+        // PRIORIDADE 0: Obter do sessionStorage (salvo no login)
+        try {
+          const sessionCompany = sessionStorage.getItem('currentLoginCompany');
+          if (sessionCompany) {
+            companyAlias = sessionCompany;
+          }
+        } catch (e) {
+          // Falha silenciosa
+        }
+        
+        // PRIORIDADE 1: Obter do CompanyContext (company da sessão atual)
+        if (companyAlias === 'coinage') {
+          try {
+            const companyData = localStorage.getItem('company-context-storage');
+            if (companyData) {
+              const parsed = JSON.parse(companyData);
+              if (parsed?.state?.currentCompany?.alias) {
+                companyAlias = parsed.state.currentCompany.alias;
+              }
+            }
+          } catch (e) {
+            // Falha silenciosa
+          }
+        }
+        
+        // PRIORIDADE 2: Se não encontrou no CompanyContext, tentar do usuário
+        if (companyAlias === 'coinage' && state.user?.company_alias) {
+          companyAlias = state.user.company_alias;
+        }
+        
+        // PRIORIDADE 3: Se ainda não encontrou, tentar obter da URL atual
+        if (companyAlias === 'coinage') {
+          try {
+            const currentPath = window.location.pathname;
+            const pathMatch = currentPath.match(/\/(login|register|first-access)\/([^\/\?]+)/);
+            if (pathMatch && pathMatch[2]) {
+              companyAlias = pathMatch[2];
+            }
+          } catch (e) {
+            // Falha silenciosa
+          }
+        }
+        
+        // Limpar informações da sessão
+        try {
+          sessionStorage.removeItem('currentLoginCompany');
+        } catch (e) {
+          // Falha silenciosa
+        }
         
         set({
           user: null,
@@ -94,6 +153,9 @@ const useAuthStore = create(
           balancesLastUpdate: null,
           balancesLoading: false,
         });
+        
+        // Retornar o company_alias para redirecionamento
+        return companyAlias;
       },
       
       updateUser: (userData) =>
@@ -125,11 +187,14 @@ const useAuthStore = create(
     {
       name: 'auth-storage',
       partialize: (state) => ({
-        user: state.user,
-        accessToken: state.accessToken,
-        refreshToken: state.refreshToken,
-        isAuthenticated: state.isAuthenticated,
-        requiresPasswordChange: state.requiresPasswordChange,
+        // REMOVIDO: Dados sensíveis não devem ser persistidos no localStorage
+        // user: state.user,
+        // accessToken: state.accessToken,
+        // refreshToken: state.refreshToken,
+        // isAuthenticated: state.isAuthenticated,
+        // requiresPasswordChange: state.requiresPasswordChange,
+        
+        // APENAS dados não essenciais devem ser persistidos
         maskBalances: state.maskBalances, // persistir preferência de ocultar valores
         // Não persistir cacheLoaded/cacheLoading
       }),

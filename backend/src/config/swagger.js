@@ -6,7 +6,7 @@ const options = {
     info: {
       title: 'Azore Blockchain API',
       version: '2.1.0',
-      description: 'API para interação com a blockchain Azore - Gerenciamento de usuários, contratos inteligentes, stakes, tokens e transações com sistema RBAC (Role-Based Access Control) e sistema de fila RabbitMQ para processamento assíncrono de transações blockchain.\n\n## 🔐 Sistema de Roles\n\n- **API_ADMIN**: Administrador global da plataforma\n- **CLIENT_ADMIN**: Administrador de um client específico\n- **USER**: Usuário comum\n\n## 🆕 Funcionalidades Principais\n\n- Sistema de RBAC (API_ADMIN e CLIENT_ADMIN)\n- Sistema de Fila RabbitMQ para transações blockchain\n- Rate Limiting inteligente por tipo de operação\n- Gerenciamento de API Keys (gerar, revogar, editar)\n- Concessão de roles em contratos (MINTER, BURNER, TRANSFER)\n- Controle granular de acesso por role\n- Monitoramento de filas em tempo real\n- **Sistema de Staking**: Gerenciamento completo de contratos de staking (28 endpoints)\n- **Sistema de Tokens**: Mint, burn, transferências e consultas\n- **Sistema de Logs**: Monitoramento completo de requisições e transações\n\n## ⚠️ Rate Limiting\n\n- **Transações Blockchain**: 10 por minuto por cliente\n- **API Calls Gerais**: 100 por 15 minutos por cliente\n- **Login**: 5 tentativas por 15 minutos por IP\n- **API Keys**: 3 por hora por cliente\n\n## 📊 Total de Endpoints: 139',
+      description: 'API para interação com a blockchain Azore - Gerenciamento de usuários, contratos inteligentes, stakes, tokens e transações com sistema RBAC (Role-Based Access Control) e sistema de fila RabbitMQ para processamento assíncrono de transações blockchain.\n\n## 🔐 Sistema de Roles\n\n- **API_ADMIN**: Administrador global da plataforma\n- **CLIENT_ADMIN**: Administrador de um company específico\n- **USER**: Usuário comum\n\n## 🆕 Funcionalidades Principais\n\n- Sistema de RBAC (API_ADMIN e CLIENT_ADMIN)\n- Sistema de Fila RabbitMQ para transações blockchain\n- Rate Limiting inteligente por tipo de operação\n- Gerenciamento de API Keys (gerar, revogar, editar)\n- Concessão de roles em contratos (MINTER, BURNER, TRANSFER)\n- Controle granular de acesso por role\n- Monitoramento de filas em tempo real\n- **Sistema de Staking**: Gerenciamento completo de contratos de staking (28 endpoints)\n- **Sistema de Tokens**: Mint, burn, transferências e consultas\n- **Sistema de Logs**: Monitoramento completo de requisições e transações\n\n## ⚠️ Rate Limiting\n\n- **Transações Blockchain**: 10 por minuto por empresa\n- **API Calls Gerais**: 100 por 15 minutos por empresa\n- **Login**: 5 tentativas por 15 minutos por IP\n- **API Keys**: 3 por hora por empresa\n\n## 📊 Total de Endpoints: 139',
       contact: {
         name: 'Azore Blockchain Service',
         email: 'support@azore.technology'
@@ -28,7 +28,7 @@ const options = {
           type: 'apiKey',
           in: 'header',
           name: 'X-API-Key',
-          description: 'API Key para autenticação de clientes'
+          description: 'API Key para autenticação de empresas'
         },
         sessionAuth: {
           type: 'apiKey',
@@ -90,26 +90,26 @@ const options = {
             }
           }
         },
-        Client: {
+        Company: {
           type: 'object',
           properties: {
             id: {
               type: 'string',
               format: 'uuid',
-              description: 'ID único do cliente'
+              description: 'ID único da empresa'
             },
             name: {
               type: 'string',
-              description: 'Nome do cliente'
+              description: 'Nome da empresa'
             },
             email: {
               type: 'string',
               format: 'email',
-              description: 'Email do cliente'
+              description: 'Email da empresa'
             },
             apiKey: {
               type: 'string',
-              description: 'API Key do cliente'
+              description: 'API Key da empresa'
             },
             applicationName: {
               type: 'string',
@@ -117,11 +117,11 @@ const options = {
             },
             isApiAdmin: {
               type: 'boolean',
-              description: 'Indica se o cliente tem permissões de API_ADMIN'
+              description: 'Indica se a empresa tem permissões de API_ADMIN'
             },
-            isClientAdmin: {
+            isCompanyAdmin: {
               type: 'boolean',
-              description: 'Indica se o cliente tem permissões de CLIENT_ADMIN'
+              description: 'Indica se a empresa tem permissões de CLIENT_ADMIN'
             },
             roles: {
               type: 'array',
@@ -129,11 +129,11 @@ const options = {
                 type: 'string',
                 enum: ['API_ADMIN', 'CLIENT_ADMIN']
               },
-              description: 'Lista de roles do cliente'
+              description: 'Lista de roles da empresa'
             },
             isActive: {
               type: 'boolean',
-              description: 'Status ativo do cliente'
+              description: 'Status ativo da empresa'
             },
             createdAt: {
               type: 'string',
@@ -222,10 +222,10 @@ const options = {
               type: 'integer',
               description: 'Tempo de resposta em ms'
             },
-            clientId: {
+            companyId: {
               type: 'string',
               format: 'uuid',
-              description: 'ID do cliente que fez a requisição'
+              description: 'ID da empresa que fez a requisição'
             }
           }
         },
@@ -278,10 +278,10 @@ const options = {
               type: 'integer',
               description: 'Número do bloco'
             },
-            clientId: {
+            companyId: {
               type: 'string',
               format: 'uuid',
-              description: 'ID do cliente'
+              description: 'ID da empresa'
             },
             createdAt: {
               type: 'string',
@@ -457,34 +457,34 @@ const options = {
             data: {
               type: 'object',
               properties: {
-                client: {
+                company: {
                   type: 'object',
                   properties: {
                     id: {
                       type: 'string',
                       format: 'uuid',
-                      description: 'ID do cliente'
+                      description: 'ID da empresa'
                     },
                     name: {
                       type: 'string',
-                      description: 'Nome do cliente'
+                      description: 'Nome da empresa'
                     },
                     email: {
                       type: 'string',
-                      description: 'Email do cliente'
+                      description: 'Email da empresa'
                     },
                     roles: {
                       type: 'array',
                       items: {
                         type: 'string'
                       },
-                      description: 'Roles do cliente'
+                      description: 'Roles da empresa'
                     },
                     isApiAdmin: {
                       type: 'boolean',
                       description: 'Indica se é API_ADMIN'
                     },
-                    isClientAdmin: {
+                    isCompanyAdmin: {
                       type: 'boolean',
                       description: 'Indica se é CLIENT_ADMIN'
                     }
@@ -611,8 +611,8 @@ const options = {
         description: 'Rotas administrativas (apenas para API_ADMIN)'
       },
       {
-        name: 'Clients',
-        description: 'Gerenciamento de clientes'
+        name: 'Companies',
+        description: 'Gerenciamento de empresas'
       },
       {
         name: 'Users',

@@ -21,18 +21,18 @@ class JWTService {
       id: user.id,
       email: user.email,
       name: user.name,
-      clientId: user.clientId,
+      companyId: user.companyId,
       roles: user.roles,
       permissions: user.permissions,
       isApiAdmin: user.isApiAdmin,
-      isClientAdmin: user.isClientAdmin,
+      isCompanyAdmin: user.isCompanyAdmin,
       type: 'access'
     };
 
     return jwt.sign(payload, this.secret, {
       expiresIn: this.accessTokenExpiry,
       issuer: 'azore-api',
-      audience: 'azore-client'
+      audience: 'azore-company'
     });
   }
 
@@ -48,7 +48,7 @@ class JWTService {
     return jwt.sign(payload, this.refreshSecret, {
       expiresIn: this.refreshTokenExpiry,
       issuer: 'azore-api',
-      audience: 'azore-client'
+      audience: 'azore-company'
     });
   }
 
@@ -66,7 +66,7 @@ class JWTService {
     return jwt.sign(payload, this.tempSecret, {
       expiresIn: this.tempTokenExpiry,
       issuer: 'azore-api',
-      audience: 'azore-client'
+      audience: 'azore-company'
     });
   }
 
@@ -77,7 +77,7 @@ class JWTService {
     try {
       const decoded = jwt.verify(token, this.tempSecret, {
         issuer: 'azore-api',
-        audience: 'azore-client'
+        audience: 'azore-company'
       });
 
       if (decoded.type !== 'temp_2fa') {
@@ -112,7 +112,7 @@ class JWTService {
     try {
       const decoded = jwt.verify(token, this.secret, {
         issuer: 'azore-api',
-        audience: 'azore-client'
+        audience: 'azore-company'
       });
 
       if (decoded.type !== 'access') {
@@ -132,7 +132,7 @@ class JWTService {
     try {
       const decoded = jwt.verify(token, this.refreshSecret, {
         issuer: 'azore-api',
-        audience: 'azore-client'
+        audience: 'azore-company'
       });
 
       if (decoded.type !== 'refresh') {
@@ -214,7 +214,7 @@ class JWTService {
     return jwt.sign(payload, this.secret, {
       expiresIn: '1h', // 1 hora
       issuer: 'azore-api',
-      audience: 'azore-client'
+      audience: 'azore-company'
     });
   }
 
@@ -225,7 +225,7 @@ class JWTService {
     try {
       const decoded = jwt.verify(token, this.secret, {
         issuer: 'azore-api',
-        audience: 'azore-client'
+        audience: 'azore-company'
       });
 
       if (decoded.type !== 'password-reset') {
@@ -252,7 +252,7 @@ class JWTService {
     return jwt.sign(payload, this.secret, {
       expiresIn: '24h', // 24 horas
       issuer: 'azore-api',
-      audience: 'azore-client'
+      audience: 'azore-company'
     });
   }
 
@@ -263,7 +263,7 @@ class JWTService {
     try {
       const decoded = jwt.verify(token, this.secret, {
         issuer: 'azore-api',
-        audience: 'azore-client'
+        audience: 'azore-company'
       });
 
       if (decoded.type !== 'email-verification') {

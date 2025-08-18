@@ -33,7 +33,7 @@ class QueueMiddleware {
         headers: req.headers,
         timestamp: new Date().toISOString(),
         userId: req.user?.id,
-        clientId: req.client?.id
+        companyId: req.company?.id
       };
 
       // Converter amount de ETH para Wei se necessário

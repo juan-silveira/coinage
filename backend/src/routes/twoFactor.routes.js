@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const twoFactorController = require('../controllers/twoFactor.controller');
 const { authenticateToken } = require('../middleware/jwt.middleware');
-const { apiRateLimiter, loginRateLimiter } = require('../middleware/rateLimit.middleware');
+const { apiRateLimiter } = require('../middleware/rateLimit.middleware');
 // const { requestLogger, performanceLogger } = require('../middleware/logging.middleware');
 
 // Middleware comum
@@ -161,7 +161,7 @@ router.post('/email/setup', apiRateLimiter, twoFactorController.setupEmail2FA);
  *       401:
  *         description: Token inválido
  */
-router.post('/email/send', loginRateLimiter, twoFactorController.sendEmailCode);
+router.post('/email/send', apiRateLimiter, twoFactorController.sendEmailCode);
 
 /**
  * @swagger

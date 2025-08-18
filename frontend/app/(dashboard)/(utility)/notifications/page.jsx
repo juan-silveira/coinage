@@ -12,7 +12,11 @@ import ConfirmationModal from "@/components/ui/ConfirmationModal";
 import NotificationItem from "@/components/partials/app/notifications/NotificationItem";
 import NotificationDetails from "@/components/partials/app/notifications/NotificationDetails";
 import { useNotificationEvents } from "@/contexts/NotificationContext";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+
 const NotificationPage = () => {
+  // Hook para gerenciar título da aba com contagem de notificações
+  useDocumentTitle('Notificações', 'Coinage', true);
   const { isAuthenticated } = useAuthStore();
   const { showSuccess, showError } = useAlertContext();
   const { 
