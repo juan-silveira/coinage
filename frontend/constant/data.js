@@ -119,30 +119,88 @@ export const menuItems = [
 
   {
     isHeadr: true,
-            title: "Configurações da Empresa",
+    title: "Configurações da Empresa",
+    requiredPermissions: ["canViewCompanySettings"],
+  },
+  {
+    title: "Busca por Usuário",
+    isHide: true,
+    icon: "heroicons-outline:search",
+    link: "admin/users",
+    requiredPermissions: ["canViewCompanySettings"],
+  },
+  {
+    title: "Transações da Empresa",
+    isHide: true,
+    icon: "heroicons-outline:credit-card",
+    link: "admin/transactions",
+    requiredPermissions: ["canViewCompanySettings"],
+  },
+  {
+    title: "Gestão do Whitelabel",
+    isHide: true,
+    icon: "heroicons-outline:color-swatch",
+    link: "admin/whitelabel",
+    requiredPermissions: ["canViewCompanySettings"],
+  },
+  {
+    title: "Relatórios da Empresa",
+    isHide: true,
+    icon: "heroicons-outline:chart-bar",
+    link: "admin/reports",
+    requiredPermissions: ["canViewCompanySettings"],
   },
 
   {
     isHeadr: true,
     title: "Configurações do Sistema",
+    requiredPermissions: ["canViewSystemSettings"],
+  },
+  {
+    title: "Gestão de Usuários",
+    isHide: true,
+    icon: "heroicons-outline:users",
+    link: "system/users",
+    requiredPermissions: ["canViewSystemSettings"],
+  },
+  {
+    title: "Gestão de Empresas",
+    isHide: true,
+    icon: "heroicons-outline:building-office",
+    link: "system/companies",
+    requiredPermissions: ["canViewSystemSettings"],
+  },
+  {
+    title: "Logs do Sistema",
+    isHide: true,
+    icon: "heroicons-outline:document-text",
+    link: "system/logs",
+    requiredPermissions: ["canViewSystemSettings"],
+  },
+  {
+    title: "Configurações Globais",
+    isHide: true,
+    icon: "heroicons-outline:cog-6-tooth",
+    link: "system/settings",
+    requiredPermissions: ["canViewSystemSettings"],
   },
 
-  {
-    title: "Projects",
-    icon: "heroicons-outline:document",
-    link: "#",
-    isHide: true,
-    child: [
-      {
-        childtitle: "Projects",
-        childlink: "projects",
-      },
-      {
-        childtitle: "Project Details",
-        childlink: "project-details",
-      },
-    ],
-  },
+  // {
+  //   title: "Projects",
+  //   icon: "heroicons-outline:document",
+  //   link: "#",
+  //   isHide: true,
+  //   child: [
+  //     {
+  //       childtitle: "Projects",
+  //       childlink: "projects",
+  //     },
+  //     {
+  //       childtitle: "Project Details",
+  //       childlink: "project-details",
+  //     },
+  //   ],
+  // },
 ];
 
 export const topMenu = [

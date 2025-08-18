@@ -1,15 +1,32 @@
 import { useRouter, usePathname } from "next/navigation";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { Collapse } from "react-collapse";
 import Icon from "@/components/ui/Icon";
 import { toggleActiveChat } from "@/components/partials/app/chat/store";
 import { useDispatch } from "react-redux";
 import useMobileMenu from "@/hooks/useMobileMenu";
+import usePermissions from "@/hooks/usePermissions";
 import Submenu from "./Submenu";
 const Navmenu = ({ menus }) => {
   const router = useRouter();
   const [activeSubmenu, setActiveSubmenu] = useState(null);
+  const permissions = usePermissions();
+
+  // Filter menus based on user permissions
+  const filteredMenus = useMemo(() => {
+    return menus.filter(item => {
+      // If no permissions required, show item
+      if (!item.requiredPermissions || item.requiredPermissions.length === 0) {
+        return true;
+      }
+      
+      // Check if user has at least one required permission
+      return item.requiredPermissions.some(permission => 
+        permissions.hasPermission(permission)
+      );
+    });
+  }, [menus, permissions]);
 
   const toggleSubmenu = (i) => {
     if (activeSubmenu === i) {
@@ -27,7 +44,7 @@ const Navmenu = ({ menus }) => {
 
   useEffect(() => {
     let submenuIndex = null;
-    menus.map((item, i) => {
+    filteredMenus.map((item, i) => {
       if (!item.child) return;
       if (item.link === locationName) {
         submenuIndex = null;
@@ -50,8 +67,8 @@ const Navmenu = ({ menus }) => {
 
   return (
     <>
-      <ul>
-        {menus.map((item, i) => (
+      <ul className="mb-[100px]">
+        {filteredMenus.map((item, i) => (
           <li
             key={i}
             className={` single-sidebar-menu 
