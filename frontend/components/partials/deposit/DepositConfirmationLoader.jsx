@@ -171,3 +171,4 @@ const DepositConfirmationLoader = ({ transactionId, onCancel }) => {
 
 export default DepositConfirmationLoader;
 
+

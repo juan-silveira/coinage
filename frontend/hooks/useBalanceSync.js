@@ -467,9 +467,9 @@ const useBalanceSync = (onBalanceUpdate = null) => {
       setSyncError(null);
       
       // Buscar balances via API do backend (usando network correto)
-      console.log('🔧 [DEBUG] useBalanceSync usando network:', defaultNetwork);
+      // console.log('🔧 [DEBUG] useBalanceSync usando network:', defaultNetwork);
       const response = await api.get(`/api/balance-sync/fresh?address=${user.publicKey}&network=${defaultNetwork}`);
-      console.log('🔧 [DEBUG] Resposta da API:', response.data);
+      // console.log('🔧 [DEBUG] Resposta da API:', response.data);
       const newBalances = response.data.data;
       const previousBalances = previousBalancesRef.current;
       

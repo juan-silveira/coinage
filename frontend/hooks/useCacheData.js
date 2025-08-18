@@ -294,7 +294,7 @@ const useCacheData = () => {
         updateUser(userData);
 
         if (userData?.publicKey) {
-          console.log('🔧 [DEBUG] useCacheData usando network no getUserBalances:', defaultNetwork);
+          // console.log('🔧 [DEBUG] useCacheData usando network no getUserBalances:', defaultNetwork);
           const balanceResponse = await userService.getUserBalances(userData.publicKey, defaultNetwork);
           
           if (balanceResponse.success) {

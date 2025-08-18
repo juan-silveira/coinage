@@ -36,7 +36,7 @@ const useEarnings = (options = {}) => {
 
   // Função para buscar proventos
   const fetchEarnings = useCallback(async (fetchOptions = {}) => {
-    console.log('🔍 [useEarnings] fetchEarnings chamado', { user: user?.id, email: user?.email });
+    // console.log('🔍 [useEarnings] fetchEarnings chamado', { user: user?.id, email: user?.email });
     
     if (!user?.id) {
       console.warn('⚠️ [useEarnings] Usuário não autenticado');
@@ -59,12 +59,12 @@ const useEarnings = (options = {}) => {
         sortOrder: fetchOptions.sortOrder || sortOrder,
       };
 
-      console.log('🔍 [useEarnings] Fazendo requisição com params:', params);
+      // console.log('🔍 [useEarnings] Fazendo requisição com params:', params);
       const response = await earningsService.getUserEarnings(params);
-      console.log('🔍 [useEarnings] Resposta da API:', response);
+      // console.log('🔍 [useEarnings] Resposta da API:', response);
 
       if (response.success) {
-        console.log('✅ [useEarnings] Earnings carregados:', response.data.earnings?.length || 0);
+        // console.log('✅ [useEarnings] Earnings carregados:', response.data.earnings?.length || 0);
         setEarnings(response.data.earnings);
         setPagination(response.data.pagination);
         setStats(response.data.stats);
@@ -193,7 +193,7 @@ const useEarnings = (options = {}) => {
 
   // Auto-fetch na montagem do componente
   useEffect(() => {
-    console.log('🔍 [useEarnings] useEffect autoFetch', { autoFetch, userId: user?.id, email: user?.email });
+    // console.log('🔍 [useEarnings] useEffect autoFetch', { autoFetch, userId: user?.id, email: user?.email });
     if (autoFetch && user?.id) {
       fetchEarnings();
     }

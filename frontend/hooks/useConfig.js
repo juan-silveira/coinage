@@ -27,8 +27,8 @@ const useConfig = () => {
       
       if (response.success) {
         setConfig(response.data);
-        console.log('✅ [useConfig] Configurações carregadas:', response.data);
-        console.log('🔧 [DEBUG] defaultNetwork configurado:', response.data.defaultNetwork);
+        // console.log('✅ [useConfig] Configurações carregadas:', response.data);
+        // console.log('🔧 [DEBUG] defaultNetwork configurado:', response.data.defaultNetwork);
       } else {
         throw new Error(response.message || 'Erro ao carregar configurações');
       }

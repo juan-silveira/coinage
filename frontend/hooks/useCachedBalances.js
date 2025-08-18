@@ -54,7 +54,7 @@ export const useCachedBalances = () => {
     try {
       setBalancesLoading(true);
       
-      console.log('🔧 [DEBUG] useCachedBalances usando network:', defaultNetwork);
+      // console.log('🔧 [DEBUG] useCachedBalances usando network:', defaultNetwork);
       const response = await userService.getUserBalances(user.publicKey, defaultNetwork);
       
       if (response.success) {
