@@ -9,7 +9,7 @@ export const menuItems = [
     icon: "heroicons-outline:home",
     // isOpen: true,
     isHide: true,
-    link: "dashboard",
+    link: "/dashboard",
     // child: [
     //   {
     //     childtitle: "Analytics Dashboard",
@@ -48,31 +48,31 @@ export const menuItems = [
     title: "Sacar",
     isHide: true,
     icon: "fa6-brands:pix",
-    link: "withdraw",
+    link: "/withdraw",
   },
     {
     title: "Depositar",
     isHide: true,
     icon: "heroicons-outline:arrow-down-on-square",
-    link: "deposit",
+    link: "/deposit",
   },
   {
     title: "Transferir",
     isHide: true,
     icon: "heroicons-outline:switch-horizontal",
-    link: "transfer",
+    link: "/transfer",
   },
   {
     title: "Trocar",
     isHide: true,
     icon: "material-symbols:currency-exchange-rounded",
-    link: "exchange",
+    link: "/exchange",
   },
   {
     title: "Extrato",
     isHide: true,
     icon: "heroicons-outline:banknotes",
-    link: "statement",
+    link: "/statement",
   },
 
   {
@@ -84,7 +84,7 @@ export const menuItems = [
     title: "Meus Investimentos",
     isHide: true,
     icon: "heroicons-outline:trending-up",
-    link: "investments",
+    link: "/investments",
   },
 
   {
@@ -96,25 +96,25 @@ export const menuItems = [
     title: "Dados da Conta",
     isHide: true,
     icon: "heroicons-outline:user-circle",
-    link: "profile",
+    link: "/profile",
   },
   {
     title: "Validação de Documentos",
     isHide: true,
     icon: "heroicons-outline:identification",
-    link: "document-validation",
+    link: "/document-validation",
   },
   {
     title: "Tarifas e Prazos",
     isHide: true,
     icon: "heroicons-outline:currency-dollar",
-    link: "fees",
+    link: "/fees",
   },
   {
     title: "Segurança",
     isHide: true,
     icon: "heroicons-outline:shield-check",
-    link: "security",
+    link: "/security"
   },
 
   {
@@ -126,28 +126,21 @@ export const menuItems = [
     title: "Busca por Usuário",
     isHide: true,
     icon: "heroicons-outline:search",
-    link: "admin/users",
+    link: "/admin/users",
     requiredPermissions: ["canViewCompanySettings"],
   },
   {
     title: "Transações da Empresa",
     isHide: true,
     icon: "heroicons-outline:credit-card",
-    link: "admin/transactions",
-    requiredPermissions: ["canViewCompanySettings"],
-  },
-  {
-    title: "Gestão do Whitelabel",
-    isHide: true,
-    icon: "heroicons-outline:color-swatch",
-    link: "admin/whitelabel",
+    link: "/admin/transactions",
     requiredPermissions: ["canViewCompanySettings"],
   },
   {
     title: "Relatórios da Empresa",
     isHide: true,
     icon: "heroicons-outline:chart-bar",
-    link: "admin/reports",
+    link: "/admin/reports",
     requiredPermissions: ["canViewCompanySettings"],
   },
 
@@ -160,28 +153,42 @@ export const menuItems = [
     title: "Gestão de Usuários",
     isHide: true,
     icon: "heroicons-outline:users",
-    link: "system/users",
+    link: "/system/users",
     requiredPermissions: ["canViewSystemSettings"],
   },
   {
     title: "Gestão de Empresas",
     isHide: true,
     icon: "heroicons-outline:building-office",
-    link: "system/companies",
+    link: "/system/companies",
     requiredPermissions: ["canViewSystemSettings"],
   },
   {
     title: "Logs do Sistema",
     isHide: true,
     icon: "heroicons-outline:document-text",
-    link: "system/logs",
+    link: "/system/logs",
+    requiredPermissions: ["canViewSystemSettings"],
+  },
+  {
+    title: "Validação de Documentos",
+    isHide: true,
+    icon: "heroicons-outline:identification",
+    link: "/admin/documents",
+    requiredPermissions: ["canViewSystemSettings"],
+  },
+  {
+    title: "Gestão do Whitelabel",
+    isHide: true,
+    icon: "heroicons-outline:color-swatch",
+    link: "/admin/whitelabel",
     requiredPermissions: ["canViewSystemSettings"],
   },
   {
     title: "Configurações Globais",
     isHide: true,
     icon: "heroicons-outline:cog-6-tooth",
-    link: "system/settings",
+    link: "/system/settings",
     requiredPermissions: ["canViewSystemSettings"],
   },
 

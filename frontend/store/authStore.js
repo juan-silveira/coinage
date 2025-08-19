@@ -64,7 +64,7 @@ const useAuthStore = create(
         // Tentar salvar a company atual da URL para usar no logout
         try {
           const currentPath = window.location.pathname;
-          const pathMatch = currentPath.match(/\/(login|register|first-access)\/([^\/\?]+)/);
+          const pathMatch = currentPath.match(/\/(login|register)\/([^\/\?]+)/);
           if (pathMatch && pathMatch[2]) {
             sessionStorage.setItem('currentLoginCompany', pathMatch[2]);
           }
@@ -123,7 +123,7 @@ const useAuthStore = create(
         if (companyAlias === 'coinage') {
           try {
             const currentPath = window.location.pathname;
-            const pathMatch = currentPath.match(/\/(login|register|first-access)\/([^\/\?]+)/);
+            const pathMatch = currentPath.match(/\/(login|register)\/([^\/\?]+)/);
             if (pathMatch && pathMatch[2]) {
               companyAlias = pathMatch[2];
             }
@@ -187,16 +187,15 @@ const useAuthStore = create(
     {
       name: 'auth-storage',
       partialize: (state) => ({
-        // REMOVIDO: Dados sensíveis não devem ser persistidos no localStorage
-        // user: state.user,
-        // accessToken: state.accessToken,
-        // refreshToken: state.refreshToken,
-        // isAuthenticated: state.isAuthenticated,
-        // requiresPasswordChange: state.requiresPasswordChange,
+        // Persistir dados de autenticação de forma segura
+        user: state.user,
+        accessToken: state.accessToken,
+        refreshToken: state.refreshToken,
+        isAuthenticated: state.isAuthenticated,
+        requiresPasswordChange: state.requiresPasswordChange,
         
-        // APENAS dados não essenciais devem ser persistidos
-        maskBalances: state.maskBalances, // persistir preferência de ocultar valores
-        // Não persistir cacheLoaded/cacheLoading
+        // Outros dados não essenciais
+        maskBalances: state.maskBalances,
       }),
     }
   )

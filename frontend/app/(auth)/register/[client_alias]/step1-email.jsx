@@ -3,11 +3,14 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { authService } from '@/services/api';
 import { useBranding } from '@/hooks/useBranding';
+import useDarkMode from '@/hooks/useDarkMode';
 import WhitelabelLayout from '@/components/layout/WhitelabelLayout';
 import Button from '@/components/ui/Button';
 import Textinput from '@/components/ui/Textinput';
 import Card from '@/components/ui/Card';
-import { toast } from 'react-toastify';
+import BrandHeader from '@/components/ui/BrandHeader';
+import { useAlertContext } from '@/contexts/AlertContext';
+import { ArrowLeft } from 'lucide-react';
 
 /**
  * Primeiro passo do registro: verificação de email
@@ -15,13 +18,15 @@ import { toast } from 'react-toastify';
 const EmailVerificationStep = ({ companyAlias, onNext }) => {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
-  const { getBrandName, getPrimaryColor } = useBranding();
+  const { getPrimaryColor } = useBranding();
+  const router = useRouter();
+  const { showError } = useAlertContext();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (!email || !email.includes('@')) {
-      toast.error('Por favor, digite um email válido');
+      showError('Por favor, digite um email válido');
       return;
     }
 
@@ -39,23 +44,16 @@ const EmailVerificationStep = ({ companyAlias, onNext }) => {
 
     } catch (error) {
       console.error('Erro ao verificar email:', error);
-      toast.error('Erro ao verificar email. Tente novamente.');
+      showError('Erro ao verificar email. Tente novamente.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
-        <div className="text-center">
-          <h2 className="mt-6 text-3xl font-extrabold text-gray-900 dark:text-white">
-            Acesso {getBrandName()}
-          </h2>
-          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-            Digite seu email para continuar
-          </p>
-        </div>
+    <div className="min-h-screen flex items-center justify-center py-6 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-xl w-full space-y-8">
+        <BrandHeader taglineClassName="text-sm mb-4" className="space-y-2" />
 
         <Card className="mt-8 p-6">
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -71,14 +69,26 @@ const EmailVerificationStep = ({ companyAlias, onNext }) => {
               />
             </div>
 
-            <div>
+            <div className="flex flex-col space-y-3">
               <Button
                 type="submit"
-                className="w-full"
+                className="w-full btn-brand"
+                style={{ backgroundColor: 'var(--brand-primary)' }}
                 isLoading={loading}
-                style={{ backgroundColor: getPrimaryColor() }}
               >
                 Continuar
+              </Button>
+              
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => router.back()}
+                className="w-full btn-outline-brand"
+                style={{ borderColor: getPrimaryColor(), color: getPrimaryColor() }}
+                disabled={loading}
+              >
+                <ArrowLeft size={16} className="mr-2" />
+                Voltar
               </Button>
             </div>
           </form>

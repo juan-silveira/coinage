@@ -14,12 +14,12 @@ class TokenAmountService {
     try {
       console.log('🚀 Inicializando TokenAmountService...');
       
-      // Configurar intervalo para verificar mudanças nos saldos
-      setInterval(() => {
-        this.checkAllUserBalances();
-      }, 5 * 60 * 1000); // Verificar a cada 5 minutos
+      // TEMPORARIAMENTE DESABILITADO - Configurar intervalo para verificar mudanças nos saldos
+      // setInterval(() => {
+      //   this.checkAllUserBalances();
+      // }, 5 * 60 * 1000); // Verificar a cada 5 minutos
       
-      console.log('✅ TokenAmountService inicializado com sucesso');
+      console.log('✅ TokenAmountService inicializado (com loop de verificação DESABILITADO temporariamente)');
     } catch (error) {
       console.error('❌ Erro ao inicializar TokenAmountService:', error);
     }
@@ -34,8 +34,8 @@ class TokenAmountService {
       // e verificar seus saldos atuais vs. anteriores
       console.log('🔍 Verificando mudanças nos saldos dos usuários...');
       
-      // Por enquanto, vamos simular com alguns usuários de teste
-      await this.simulateBalanceChanges();
+      // TEMPORARIAMENTE DESABILITADO - Por enquanto, vamos simular com alguns usuários de teste
+      // await this.simulateBalanceChanges();
       
     } catch (error) {
       console.error('❌ Erro ao verificar saldos dos usuários:', error);

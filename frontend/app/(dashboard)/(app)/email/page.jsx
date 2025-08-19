@@ -13,7 +13,6 @@ import {
   setFilter,
   setSearch,
 } from "@/components/partials/app/email/store";
-import { ToastContainer } from "react-toastify";
 import Badge from "@/components/ui/Badge";
 import useWidth from "@/hooks/useWidth";
 const ComposeEmail = dynamic(
@@ -111,7 +110,6 @@ const EmailPage = () => {
 
   return (
     <>
-      <ToastContainer />
 
       <div className="flex md:space-x-5 app_height overflow-hidden relative rtl:space-x-reverse">
         <div

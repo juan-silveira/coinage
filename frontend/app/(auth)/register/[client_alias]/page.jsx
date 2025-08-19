@@ -14,7 +14,7 @@ import NewUserRegisterStep from './step2-register';
 export default function RegisterWhitelabelPage() {
   const params = useParams();
   const router = useRouter();
-  const companyAlias = params.company_alias;
+  const companyAlias = params.client_alias;
   
   const { loadCompanyBrandingByAlias } = useCompanyContext();
   const { 

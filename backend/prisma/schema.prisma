@@ -63,7 +63,9 @@ model User {
   approvedUserCompanies  UserCompany[]     @relation("UserCompanyApprover")
   requestedUserCompanies UserCompany[]     @relation("UserCompanyRequester")
   userCompanies          UserCompany[]
-  userTwoFactors       UserTwoFactor[]
+  userTwoFactors         UserTwoFactor[]
+  userDocuments          UserDocument[]
+  reviewedDocuments      UserDocument[]    @relation("UserDocumentReviewer")
 
   @@index([email], map: "idx_users_email")
   @@index([cpf], map: "idx_users_cpf")
@@ -270,6 +272,35 @@ model Document {
   @@index([category], map: "idx_documents_category")
   @@index([expiresAt], map: "idx_documents_expires_at")
   @@map("documents")
+}
+
+model UserDocument {
+  id               String             @id @default(uuid()) @db.Uuid
+  userId           String             @map("user_id") @db.Uuid
+  documentType     UserDocumentType   @map("document_type")
+  status           UserDocumentStatus @default(not_sent)
+  s3Url            String?            @map("s3_url") @db.VarChar(500)
+  s3Key            String?            @map("s3_key") @db.VarChar(500)
+  filename         String?            @db.VarChar(255)
+  mimeType         String?            @map("mime_type") @db.VarChar(100)
+  fileSize         BigInt?            @map("file_size")
+  rejectionReason  String?            @map("rejection_reason") @db.Text
+  reviewedBy       String?            @map("reviewed_by") @db.Uuid
+  reviewedAt       DateTime?          @map("reviewed_at") @db.Timestamptz(6)
+  uploadedAt       DateTime?          @map("uploaded_at") @db.Timestamptz(6)
+  createdAt        DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+  
+  user             User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reviewer         User?              @relation("UserDocumentReviewer", fields: [reviewedBy], references: [id])
+
+  @@unique([userId, documentType], name: "user_document_type_unique")
+  @@index([userId], map: "idx_user_documents_user_id")
+  @@index([status], map: "idx_user_documents_status")
+  @@index([documentType], map: "idx_user_documents_type")
+  @@index([reviewedBy], map: "idx_user_documents_reviewer")
+  @@index([status, documentType], map: "idx_user_documents_status_type")
+  @@map("user_documents")
 }
 
 model UserCompany {
@@ -547,4 +578,17 @@ enum FontSize {
   small
   medium
   large
+}
+
+enum UserDocumentType {
+  front     // Frente do documento
+  back      // Verso do documento  
+  selfie    // Selfie com documento
+}
+
+enum UserDocumentStatus {
+  not_sent  // Não enviado
+  pending   // Pendente de avaliação
+  approved  // Aceito
+  rejected  // Rejeitado
 }

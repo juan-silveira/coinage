@@ -808,11 +808,18 @@ class WhitelabelService {
     try {
       if (!this.prisma) await this.init();
 
-      const { userId, cpf, phone, birthDate, companyAlias } = data;
+      const { userId, cpf, phone, birthDate } = data;
 
-      // Buscar usuário
+      // Buscar usuário com sua empresa
       const user = await this.prisma.user.findUnique({
-        where: { id: userId }
+        where: { id: userId },
+        include: {
+          userCompanies: {
+            include: {
+              company: true
+            }
+          }
+        }
       });
 
       if (!user) {
@@ -823,14 +830,13 @@ class WhitelabelService {
         throw new Error('Usuário já completou os dados de primeiro acesso');
       }
 
-      // Buscar empresa
-      const company = await this.prisma.company.findUnique({
-        where: { alias: companyAlias }
-      });
-
-      if (!company) {
-        throw new Error('Empresa não encontrada');
+      // Obter a empresa principal do usuário
+      const userCompany = user.userCompanies?.find(uc => uc.isPrimary) || user.userCompanies?.[0];
+      if (!userCompany?.company) {
+        throw new Error('Usuário não está vinculado a nenhuma empresa');
       }
+
+      const company = userCompany.company;
 
       // Verificar se CPF já está em uso por outro usuário
       const existingUserWithCpf = await this.prisma.user.findFirst({
@@ -870,12 +876,29 @@ class WhitelabelService {
       // Enviar email de boas-vindas (com bypass para desenvolvimento)
       try {
         const emailService = require('./email.service');
-        await emailService.sendWelcomeMessage(user.email, {
-          userName: user.name,
-          companyName: company.name,
-          publicKey,
-          baseUrl: process.env.FRONTEND_URL || 'http://localhost:3000',
-          primaryColor: company.companyBrandings?.primaryColor || '#3B82F6'
+        const template = await emailService.getTemplate('welcome_message');
+        await emailService.sendEmail({
+          templateId: template.id,
+          toEmail: user.email,
+          toName: user.name,
+          subject: template.subject.replace('{{companyName}}', company.name),
+          htmlContent: emailService.replaceTemplateVariables(template.htmlContent, {
+            userName: user.name,
+            companyName: company.name,
+            publicKey,
+            year: new Date().getFullYear()
+          }),
+          textContent: emailService.replaceTemplateVariables(template.textContent || '', {
+            userName: user.name,
+            companyName: company.name,
+            publicKey
+          }),
+          tags: ['welcome', 'first_access'],
+          metadata: {
+            companyId: company.id,
+            companyAlias: company.alias,
+            userId: user.id
+          }
         });
       } catch (emailError) {
         console.warn('⚠️ Erro ao enviar email de boas-vindas:', emailError.message);

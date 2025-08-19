@@ -38,6 +38,7 @@ const earningsRoutes = require('./routes/earnings.routes');
 const userPlanRoutes = require('./routes/userPlan.routes');
 const configRoutes = require('./routes/config.routes');
 const smartContractRoutes = require('./routes/smartContract.routes');
+const userDocumentRoutes = require('./routes/userDocument.routes');
 
 // Importar serviços
 const contractService = require('./services/contract.service');
@@ -366,6 +367,9 @@ app.use('/api/config', configRoutes);
 
 // Smart Contract Routes (Public)
 app.use('/api/smart-contracts', smartContractRoutes);
+
+// User Documents Routes (com autenticação JWT)
+app.use('/api/user-documents', authenticateJWT, apiRateLimiter, addUserInfo, logAuthenticatedRequest, userDocumentRoutes);
 
 // Middleware de tratamento de erros 404
 app.use('*', (req, res) => {

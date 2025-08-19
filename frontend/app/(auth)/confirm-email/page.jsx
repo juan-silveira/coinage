@@ -6,13 +6,14 @@ import { useBranding } from '@/hooks/useBranding';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import WhitelabelLayout from '@/components/layout/WhitelabelLayout';
-import { toast } from 'react-toastify';
+import { useAlertContext } from '@/contexts/AlertContext';
 import { CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
 
 /**
  * Página de confirmação de email
  */
 export default function ConfirmEmailPage() {
+  const { showSuccess, showError, showInfo, showWarning } = useAlertContext();
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get('token');
@@ -68,7 +69,7 @@ export default function ConfirmEmailPage() {
         // Sempre retornar sucesso para demonstração
         setStatus('success');
         setMessage('Email confirmado com sucesso! Sua conta foi ativada.');
-        toast.success('Email confirmado com sucesso!');
+        showSuccess('Email confirmado com sucesso!');
 
         // Simular diferentes resultados baseado no token para demo
         if (token.includes('expired')) {
@@ -83,7 +84,7 @@ export default function ConfirmEmailPage() {
         console.error('Erro na confirmação:', error);
         setStatus('error');
         setMessage('Erro ao confirmar email. Tente novamente.');
-        toast.error('Erro ao confirmar email');
+        showError('Erro ao confirmar email');
       }
     };
 
@@ -103,7 +104,7 @@ export default function ConfirmEmailPage() {
   const handleResendEmail = () => {
     // Implementar reenvio de email
     console.log('🔄 Reenviando email de confirmação...');
-    toast.info('Email de confirmação reenviado com sucesso!');
+    showInfo('Email de confirmação reenviado com sucesso!');
   };
 
   if (!brandingLoaded) {

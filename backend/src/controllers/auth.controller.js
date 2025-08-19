@@ -896,6 +896,63 @@ const unblockUser = async (req, res) => {
 };
 
 /**
+ * Bloquear usuário (função para administradores)
+ */
+const blockUser = async (req, res) => {
+  const prisma = getPrisma();
+  
+  try {
+    const { email } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email é obrigatório'
+      });
+    }
+
+    // Buscar usuário
+    const user = await prisma.user.findUnique({
+      where: { email }
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Usuário não encontrado'
+      });
+    }
+
+    // Bloquear usuário
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        isBlockedLoginAttempts: true,
+        lastFailedLoginAt: new Date()
+      }
+    });
+
+    res.json({
+      success: true,
+      message: `Usuário ${email} bloqueado com sucesso`,
+      data: {
+        email: user.email,
+        name: user.name,
+        wasBlocked: user.isBlockedLoginAttempts,
+        blockedAt: new Date()
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Erro ao bloquear usuário:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro interno do servidor'
+    });
+  }
+};
+
+/**
  * Listar usuários bloqueados (função para administradores)
  */
 const listBlockedUsers = async (req, res) => {
@@ -946,6 +1003,7 @@ module.exports = {
   refreshToken,
   getCurrentUser,
   testBlacklist,
+  blockUser,
   unblockUser,
   listBlockedUsers
 };

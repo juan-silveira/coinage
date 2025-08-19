@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const userController = require('../controllers/user.controller');
+const authMiddleware = require('../middleware/auth.middleware');
+const jwtMiddleware = require('../middleware/jwt.middleware');
 const { userCacheMiddleware, clearUserCacheMiddleware, updateBalancesCacheMiddleware } = require('../middleware/cache.middleware');
 
 /**
@@ -84,7 +86,7 @@ const { userCacheMiddleware, clearUserCacheMiddleware, updateBalancesCacheMiddle
  *       400:
  *         description: Dados inválidos
  */
-router.post('/', userController.createUser);
+router.post('/', jwtMiddleware.authenticateToken, userController.createUser);
 
 
 /**
@@ -147,7 +149,7 @@ router.get('/test/service', userController.testService);
  *       400:
  *         description: Parâmetros inválidos
  */
-router.get('/', userController.listUsers);
+router.get('/', jwtMiddleware.authenticateToken, userController.listUsers);
 
 /**
  * @swagger
@@ -288,7 +290,7 @@ router.get('/address/:address/balances', updateBalancesCacheMiddleware, userCont
  *       404:
  *         description: Usuário não encontrado
  */
-router.get('/:id', userController.getUserById);
+router.get('/:id', jwtMiddleware.authenticateToken, userController.getUserById);
 
 /**
  * @swagger
@@ -373,7 +375,7 @@ router.get('/cpf/:cpf', userController.getUserByCpf);
  *       404:
  *         description: Usuário não encontrado
  */
-router.put('/:id', userController.updateUser);
+router.put('/:id', jwtMiddleware.authenticateToken, userController.updateUser);
 
 /**
  * @swagger
@@ -395,7 +397,7 @@ router.put('/:id', userController.updateUser);
  *       400:
  *         description: Erro ao desativar
  */
-router.post('/:id/deactivate', userController.deactivateUser);
+router.post('/:id/deactivate', jwtMiddleware.authenticateToken, userController.deactivateUser);
 
 /**
  * @swagger
@@ -417,7 +419,51 @@ router.post('/:id/deactivate', userController.deactivateUser);
  *       400:
  *         description: Erro ao reativar
  */
-router.post('/:id/activate', userController.activateUser);
+router.post('/:id/activate', jwtMiddleware.authenticateToken, userController.activateUser);
+
+/**
+ * @swagger
+ * /api/users/{id}/block:
+ *   post:
+ *     summary: Bloqueia um usuário
+ *     tags: [Users]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID do usuário
+ *     responses:
+ *       200:
+ *         description: Usuário bloqueado com sucesso
+ *       400:
+ *         description: Erro ao bloquear
+ */
+router.post('/:id/block', jwtMiddleware.authenticateToken, userController.blockUser);
+
+/**
+ * @swagger
+ * /api/users/{id}/unblock:
+ *   post:
+ *     summary: Desbloqueia um usuário
+ *     tags: [Users]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID do usuário
+ *     responses:
+ *       200:
+ *         description: Usuário desbloqueado com sucesso
+ *       400:
+ *         description: Erro ao desbloquear
+ */
+router.post('/:id/unblock', jwtMiddleware.authenticateToken, userController.unblockUser);
 
 /**
  * @swagger

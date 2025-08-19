@@ -634,4 +634,41 @@ router.post('/link-existing-user', whitelabelController.linkExistingUser);
  */
 router.post('/complete-first-access', whitelabelController.completeFirstAccess);
 
+/**
+ * @swagger
+ * /api/whitelabel/create-first-access-token:
+ *   post:
+ *     summary: Cria token temporário para primeiro acesso
+ *     tags: [Whitelabel]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Token criado com sucesso
+ *       401:
+ *         description: Não autorizado
+ */
+router.post('/create-first-access-token', authenticateToken, whitelabelController.createFirstAccessToken);
+
+/**
+ * @swagger
+ * /api/whitelabel/get-first-access-data/{token}:
+ *   get:
+ *     summary: Obtém dados do usuário usando token de primeiro acesso
+ *     tags: [Whitelabel]
+ *     parameters:
+ *       - in: path
+ *         name: token
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Token de primeiro acesso
+ *     responses:
+ *       200:
+ *         description: Dados obtidos com sucesso
+ *       404:
+ *         description: Token não encontrado ou expirado
+ */
+router.get('/get-first-access-data/:token', whitelabelController.getFirstAccessData);
+
 module.exports = router;

@@ -618,4 +618,40 @@ router.get('/admin/blocked-users', authenticateToken, authController.listBlocked
  */
 router.post('/admin/unblock-user', authenticateToken, authController.unblockUser);
 
+/**
+ * @swagger
+ * /api/auth/admin/block-user:
+ *   post:
+ *     summary: Bloquear usuário
+ *     description: Bloqueia o login de um usuário específico
+ *     tags: [Authentication, Admin]
+ *     security:
+ *       - JWT: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 description: Email do usuário a ser bloqueado
+ *     responses:
+ *       200:
+ *         description: Usuário bloqueado com sucesso
+ *       400:
+ *         description: Dados inválidos
+ *       401:
+ *         description: Token inválido
+ *       404:
+ *         description: Usuário não encontrado
+ *       500:
+ *         description: Erro interno do servidor
+ */
+router.post('/admin/block-user', authenticateToken, authController.blockUser);
+
 module.exports = router; 

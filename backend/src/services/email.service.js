@@ -399,6 +399,30 @@ class EmailService {
         `,
         textContent: 'Olá {{userName}}, clique neste link para redefinir sua senha: {{resetLink}} (expira em {{expiresIn}})'
       }
+      ,
+      'welcome_message': {
+        name: 'welcome_message',
+        subject: 'Bem-vindo ao {{companyName}}',
+        htmlContent: `
+          <h2>Bem-vindo(a), {{userName}}!</h2>
+          <p>Sua conta no <strong>{{companyName}}</strong> foi ativada com sucesso.</p>
+          <p>Esta é a sua <strong>chave pública</strong> (endereço):</p>
+          <p style="font-family: monospace; background: #f4f7fb; padding: 12px; border-radius: 6px; word-break: break-all;">
+            {{publicKey}}
+          </p>
+          <h3>Boas práticas de segurança</h3>
+          <ul>
+            <li>Transferências em blockchain <strong>não podem ser desfeitas</strong>.</li>
+            <li>Nunca compartilhe sua <strong>chave privada</strong> ou seed phrase.</li>
+            <li>Faça backup das suas chaves e ative 2FA quando disponível.</li>
+            <li>Verifique sempre o endereço de destino antes de enviar.</li>
+          </ul>
+          <p>Bom uso!<br>Equipe {{companyName}}</p>
+          <hr>
+          <small>© {{year}} {{companyName}}. Todos os direitos reservados.</small>
+        `,
+        textContent: 'Bem-vindo(a), {{userName}}! Sua conta no {{companyName}} foi ativada. Chave pública: {{publicKey}}. Atenção: transferências não podem ser desfeitas; nunca compartilhe sua chave privada.'
+      }
     };
 
     const templateData = templates[templateName];

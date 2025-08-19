@@ -2,7 +2,6 @@
 
 import { useEffect, useState, Suspense } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { ToastContainer } from "react-toastify";
 import Header from "@/components/partials/header";
 import Sidebar from "@/components/partials/sidebar";
 import Settings from "@/components/partials/settings";
@@ -29,6 +28,7 @@ import useAuthStore from "@/store/authStore";
 import useTokenRenewal from "@/hooks/useTokenRenewal";
 import useErrorBoundary from "@/hooks/useErrorBoundary";
 import useProactiveTokenRefresh from "@/hooks/useProactiveTokenRefresh";
+import useTokenValidation from "@/hooks/useTokenValidation";
 import { NotificationProvider } from "@/contexts/NotificationContext";
 import { AlertProvider, useAlertContext } from "@/contexts/AlertContext";
 import useRealTimeNotifications from "@/hooks/useRealTimeNotifications";
@@ -77,6 +77,9 @@ export default function RootLayout({ children }) {
   const router = useRouter();
   const { isAuthenticated, user, logout } = useAuthStore();
   
+  // Hook de validação de token ao inicializar
+  useTokenValidation();
+  
   // Hook de renovação automática de token
   useTokenRenewal();
   
@@ -118,18 +121,6 @@ export default function RootLayout({ children }) {
               ${navbarType === "floating" ? "has-floating" : ""}
               `}
             >
-              <ToastContainer
-                position="top-right"
-                autoClose={1500}
-                hideProgressBar={false}
-                newestOnTop={false}
-                closeOnClick
-                rtl={isRtl}
-                pauseOnFocusLoss
-                draggable
-                pauseOnHover
-                theme={isDark ? "dark" : "light"}
-              />
               <Header className={width > breakpoints.xl ? switchHeaderClass() : ""} />
               {menuType === "vertical" && width > breakpoints.xl && !menuHidden && (
                 <Sidebar />

@@ -610,12 +610,14 @@ const linkExistingUser = async (req, res) => {
  */
 const completeFirstAccess = async (req, res) => {
   try {
-    const { userId, cpf, phone, birthDate, companyAlias } = req.body;
+    console.log('🔥 FIRST ACCESS CONTROLLER - NEW VERSION RUNNING!');
+    console.log('🔥 Request body:', req.body);
+    const { userId, cpf, phone, birthDate } = req.body;
 
-    if (!userId || !cpf || !phone || !birthDate || !companyAlias) {
+    if (!userId || !cpf || !phone || !birthDate) {
       return res.status(400).json({
         success: false,
-        message: 'Todos os campos são obrigatórios (userId, cpf, phone, birthDate, companyAlias)'
+        message: 'Todos os campos são obrigatórios (userId, cpf, phone, birthDate)'
       });
     }
 
@@ -660,8 +662,7 @@ const completeFirstAccess = async (req, res) => {
       userId,
       cpf: cleanCpf,
       phone: cleanPhone,
-      birthDate,
-      companyAlias
+      birthDate
     });
 
     res.json(result);
@@ -676,8 +677,8 @@ const completeFirstAccess = async (req, res) => {
       });
     }
     
-    if (error.message === 'Company não encontrado') {
-      return res.status(404).json({
+    if (error.message === 'Usuário não está vinculado a nenhuma empresa') {
+      return res.status(400).json({
         success: false,
         message: error.message
       });
@@ -690,6 +691,89 @@ const completeFirstAccess = async (req, res) => {
       });
     }
 
+    res.status(500).json({
+      success: false,
+      message: 'Erro interno do servidor'
+    });
+  }
+};
+
+/**
+ * Cria token temporário para primeiro acesso
+ */
+const createFirstAccessToken = async (req, res) => {
+  try {
+    const user = req.user; // Vem do middleware JWT
+    
+    if (!user || !user.isFirstAccess) {
+      return res.status(400).json({
+        success: false,
+        message: 'Usuário não precisa completar primeiro acesso'
+      });
+    }
+
+    const redisService = require('../services/redis.service');
+    const token = await redisService.createFirstAccessToken({
+      userId: user.id,
+      userName: user.name,
+      email: user.email
+    }, 600); // 10 minutos
+
+    if (!token) {
+      return res.status(500).json({
+        success: false,
+        message: 'Erro ao criar token de primeiro acesso'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: { token }
+    });
+
+  } catch (error) {
+    console.error('❌ Erro ao criar token de primeiro acesso:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro interno do servidor'
+    });
+  }
+};
+
+/**
+ * Obtém dados do usuário usando token de primeiro acesso
+ */
+const getFirstAccessData = async (req, res) => {
+  try {
+    const { token } = req.params;
+    
+    if (!token) {
+      return res.status(400).json({
+        success: false,
+        message: 'Token é obrigatório'
+      });
+    }
+
+    const redisService = require('../services/redis.service');
+    const userData = await redisService.getFirstAccessData(token);
+
+    if (!userData) {
+      return res.status(404).json({
+        success: false,
+        message: 'Token não encontrado ou expirado'
+      });
+    }
+
+    // Consumir o token após o uso
+    await redisService.consumeFirstAccessToken(token);
+
+    res.json({
+      success: true,
+      data: userData
+    });
+
+  } catch (error) {
+    console.error('❌ Erro ao obter dados de primeiro acesso:', error);
     res.status(500).json({
       success: false,
       message: 'Erro interno do servidor'
@@ -735,5 +819,7 @@ module.exports = {
   registerNewUser,
   linkExistingUser,
   completeFirstAccess,
+  createFirstAccessToken,
+  getFirstAccessData,
   getAvailableCompanies
 };
