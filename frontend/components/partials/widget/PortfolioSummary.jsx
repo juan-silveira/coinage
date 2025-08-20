@@ -2,6 +2,7 @@
 import React from "react";
 import useCachedBalances from "@/hooks/useCachedBalances";
 import PortfolioDonutChart from "@/components/partials/widget/chart/portfolio-donut-chart";
+import UserAvatar from "@/components/ui/UserAvatar";
 import useAuthStore from "@/store/authStore";
 import useConfig from "@/hooks/useConfig";
 import {
@@ -160,13 +161,7 @@ const PortfolioSummary = () => {
         <div className="flex items-center justify-center">
           <div className="flex space-x-4 items-center rtl:space-x-reverse">
             <div className="flex-none">
-              <div className="h-20 w-20 rounded-full">
-                <img
-                  src="/assets/images/users/ivan.jpg"
-                  alt=""
-                  className="block w-full h-full object-cover rounded-full"
-                />
-              </div>
+              <UserAvatar size="2xl" className="h-20 w-20" />
             </div>
             <div className="flex-1">
               <h4 className="text-xl font-medium mb-2">

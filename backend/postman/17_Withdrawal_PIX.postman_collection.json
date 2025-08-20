@@ -1,0 +1,483 @@
+{
+  "info": {
+    "name": "💸 Withdrawals PIX (cBRL)",
+    "description": "Endpoints para operações de saque PIX convertendo cBRL (Digital Real) para Real Brasileiro",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": "1.0.0"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "{{base_url}}",
+      "type": "string"
+    },
+    {
+      "key": "access_token",
+      "value": "{{access_token}}",
+      "type": "string"
+    },
+    {
+      "key": "user_id",
+      "value": "{{user_id}}",
+      "type": "string"
+    },
+    {
+      "key": "withdrawal_id",
+      "value": "{{withdrawal_id}}",
+      "type": "string"
+    },
+    {
+      "key": "pix_key",
+      "value": "{{pix_key}}",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "💳 Create PIX Withdrawal",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{access_token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"userId\": \"{{user_id}}\",\n  \"amount\": 50.00,\n  \"pixKey\": \"{{pix_key}}\",\n  \"description\": \"Saque de cBRL para conta corrente\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/withdrawals",
+          "host": ["{{base_url}}"],
+          "path": ["api", "withdrawals"]
+        },
+        "description": "Cria uma nova solicitação de saque PIX"
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 201\", function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "",
+              "pm.test(\"Withdrawal created successfully\", function () {",
+              "    const response = pm.response.json();",
+              "    pm.expect(response).to.have.property('success');",
+              "    pm.expect(response.success).to.be.true;",
+              "    pm.expect(response.data).to.have.property('withdrawal');",
+              "    pm.expect(response.data.withdrawal).to.have.property('id');",
+              "});",
+              "",
+              "pm.test(\"Withdrawal has correct status\", function () {",
+              "    const response = pm.response.json();",
+              "    pm.expect(response.data.withdrawal.status).to.equal('PENDING');",
+              "});",
+              "",
+              "if (pm.response.code === 201) {",
+              "    const response = pm.response.json();",
+              "    pm.environment.set('withdrawal_id', response.data.withdrawal.id);",
+              "    console.log('✅ Withdrawal Created - ID:', response.data.withdrawal.id);",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "🔍 Validate PIX Key",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{access_token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"pixKey\": \"{{pix_key}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/withdrawals/validate-pix",
+          "host": ["{{base_url}}"],
+          "path": ["api", "withdrawals", "validate-pix"]
+        },
+        "description": "Valida se uma chave PIX está no formato correto"
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"PIX validation result provided\", function () {",
+              "    const response = pm.response.json();",
+              "    pm.expect(response).to.have.property('success');",
+              "    pm.expect(response.data).to.have.property('isValid');",
+              "    pm.expect(response.data).to.have.property('keyType');",
+              "});",
+              "",
+              "console.log('✅ PIX Key Valid:', pm.response.json().data?.isValid);",
+              "console.log('✅ PIX Key Type:', pm.response.json().data?.keyType);"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "💰 Calculate Withdrawal Fee",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{access_token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"amount\": 100.00\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/withdrawals/calculate-fee",
+          "host": ["{{base_url}}"],
+          "path": ["api", "withdrawals", "calculate-fee"]
+        },
+        "description": "Calcula a taxa de saque para um determinado valor"
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"Fee calculation provided\", function () {",
+              "    const response = pm.response.json();",
+              "    pm.expect(response).to.have.property('success');",
+              "    pm.expect(response.data).to.have.property('fee');",
+              "    pm.expect(response.data).to.have.property('netAmount');",
+              "    pm.expect(response.data).to.have.property('totalDeducted');",
+              "});",
+              "",
+              "console.log('✅ Withdrawal Fee:', pm.response.json().data?.fee);",
+              "console.log('✅ Net Amount:', pm.response.json().data?.netAmount);"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "📊 Get Withdrawal Status",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{access_token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/withdrawals/{{withdrawal_id}}",
+          "host": ["{{base_url}}"],
+          "path": ["api", "withdrawals", "{{withdrawal_id}}"]
+        },
+        "description": "Verifica o status de um saque específico"
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"Withdrawal info retrieved\", function () {",
+              "    const response = pm.response.json();",
+              "    pm.expect(response).to.have.property('success');",
+              "    pm.expect(response.data).to.have.property('withdrawal');",
+              "    pm.expect(response.data.withdrawal).to.have.property('status');",
+              "});",
+              "",
+              "console.log('✅ Withdrawal Status:', pm.response.json().data?.withdrawal?.status);"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "📋 List User Withdrawals",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{access_token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/withdrawals/user/{{user_id}}?page=1&limit=10",
+          "host": ["{{base_url}}"],
+          "path": ["api", "withdrawals", "user", "{{user_id}}"],
+          "query": [
+            {
+              "key": "page",
+              "value": "1"
+            },
+            {
+              "key": "limit",
+              "value": "10"
+            }
+          ]
+        },
+        "description": "Lista os saques de um usuário com paginação"
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"Withdrawals list retrieved\", function () {",
+              "    const response = pm.response.json();",
+              "    pm.expect(response).to.have.property('success');",
+              "    pm.expect(response.data).to.have.property('withdrawals');",
+              "    pm.expect(response.data.withdrawals).to.be.an('array');",
+              "});",
+              "",
+              "pm.test(\"Pagination info provided\", function () {",
+              "    const response = pm.response.json();",
+              "    pm.expect(response.data).to.have.property('pagination');",
+              "    pm.expect(response.data.pagination).to.have.property('total');",
+              "});",
+              "",
+              "console.log('✅ User Withdrawals Count:', pm.response.json().data?.withdrawals?.length || 0);"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "❌ Cancel Withdrawal",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{access_token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"reason\": \"Cancelado pelo usuário\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/withdrawals/{{withdrawal_id}}/cancel",
+          "host": ["{{base_url}}"],
+          "path": ["api", "withdrawals", "{{withdrawal_id}}", "cancel"]
+        },
+        "description": "Cancela um saque pendente"
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"Withdrawal cancelled successfully\", function () {",
+              "    const response = pm.response.json();",
+              "    pm.expect(response).to.have.property('success');",
+              "    pm.expect(response.success).to.be.true;",
+              "});",
+              "",
+              "console.log('✅ Withdrawal Cancelled - ID:', pm.environment.get('withdrawal_id'));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "🔄 Process Withdrawal (Admin)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{access_token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"status\": \"PROCESSING\",\n  \"pixTransactionId\": \"PIX789456123\",\n  \"processedAt\": \"2024-08-19T17:30:00Z\",\n  \"notes\": \"Processamento iniciado automaticamente\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/withdrawals/{{withdrawal_id}}/process",
+          "host": ["{{base_url}}"],
+          "path": ["api", "withdrawals", "{{withdrawal_id}}", "process"]
+        },
+        "description": "Processa um saque (endpoint administrativo)"
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"Withdrawal processing updated\", function () {",
+              "    const response = pm.response.json();",
+              "    pm.expect(response).to.have.property('success');",
+              "    pm.expect(response.success).to.be.true;",
+              "});",
+              "",
+              "console.log('✅ Withdrawal Processing - Status Updated');"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "🏦 Get Withdrawal Limits",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{access_token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/withdrawals/limits/{{user_id}}",
+          "host": ["{{base_url}}"],
+          "path": ["api", "withdrawals", "limits", "{{user_id}}"]
+        },
+        "description": "Obtém os limites de saque do usuário"
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"Withdrawal limits retrieved\", function () {",
+              "    const response = pm.response.json();",
+              "    pm.expect(response).to.have.property('success');",
+              "    pm.expect(response.data).to.have.property('dailyLimit');",
+              "    pm.expect(response.data).to.have.property('monthlyLimit');",
+              "    pm.expect(response.data).to.have.property('minimumAmount');",
+              "});",
+              "",
+              "console.log('✅ Daily Limit:', pm.response.json().data?.dailyLimit);",
+              "console.log('✅ Monthly Limit:', pm.response.json().data?.monthlyLimit);"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "📊 Withdrawal Statistics",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{access_token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/withdrawals/stats/{{user_id}}?period=30d",
+          "host": ["{{base_url}}"],
+          "path": ["api", "withdrawals", "stats", "{{user_id}}"],
+          "query": [
+            {
+              "key": "period",
+              "value": "30d"
+            }
+          ]
+        },
+        "description": "Obtém estatísticas de saque do usuário"
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"Withdrawal statistics retrieved\", function () {",
+              "    const response = pm.response.json();",
+              "    pm.expect(response).to.have.property('success');",
+              "    pm.expect(response.data).to.have.property('totalAmount');",
+              "    pm.expect(response.data).to.have.property('totalCount');",
+              "    pm.expect(response.data).to.have.property('averageAmount');",
+              "});",
+              "",
+              "console.log('✅ Total Withdrawals:', pm.response.json().data?.totalCount);",
+              "console.log('✅ Total Amount:', pm.response.json().data?.totalAmount);"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    }
+  ]
+}

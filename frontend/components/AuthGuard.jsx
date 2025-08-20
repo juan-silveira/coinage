@@ -5,16 +5,23 @@ import useAuthStore from "@/store/authStore";
 
 const AuthGuard = ({ children }) => {
   const router = useRouter();
-  const { isAuthenticated, requiresPasswordChange } = useAuthStore();
+  const { isAuthenticated, requiresPasswordChange, user } = useAuthStore();
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     // Aguardar um pouco para o Zustand carregar o estado do localStorage
     const timer = setTimeout(() => {
-                      if (!isAuthenticated) {
-                  router.push('/login');
-                  return;
-                }
+      if (!isAuthenticated) {
+        router.push('/login');
+        return;
+      }
+
+      // Verificar se o email foi confirmado (emailConfirmed e isActive = true)
+      if (user && (!user.emailConfirmed || !user.isActive)) {
+        // Redirecionar para página de confirmação de email
+        router.push('/email-confirmation-required');
+        return;
+      }
 
       if (requiresPasswordChange) {
         router.push('/change-password');

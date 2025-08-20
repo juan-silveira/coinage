@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alerta do Sistema</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: linear-gradient(135deg, #ff6b35, #f7931e); color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+        .content { background: #f9f9f9; padding: 30px; }
+        .alert-icon { font-size: 48px; text-align: center; margin-bottom: 20px; }
+        .alert-critical { color: #dc3545; }
+        .alert-warning { color: #ffc107; }
+        .alert-info { color: #17a2b8; }
+        .alert-success { color: #28a745; }
+        .alert-box { padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid; }
+        .alert-box.critical { background: #f8d7da; border-color: #dc3545; color: #721c24; }
+        .alert-box.warning { background: #fff3cd; border-color: #ffc107; color: #856404; }
+        .alert-box.info { background: #d1ecf1; border-color: #17a2b8; color: #0c5460; }
+        .alert-box.success { background: #d4edda; border-color: #28a745; color: #155724; }
+        .timestamp { background: #e9ecef; padding: 10px; border-radius: 4px; font-family: monospace; font-size: 12px; margin: 15px 0; }
+        .footer { background: #333; color: white; padding: 20px; text-align: center; border-radius: 0 0 8px 8px; }
+        .status-indicator { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 8px; }
+        .status-critical { background: #dc3545; }
+        .status-warning { background: #ffc107; }
+        .status-info { background: #17a2b8; }
+        .status-success { background: #28a745; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚨 Alerta do Sistema</h1>
+            <p>{{companyName}}</p>
+        </div>
+        
+        <div class="content">
+            {{#if (eq alertType 'CRITICAL')}}
+                <div class="alert-icon alert-critical">🔴</div>
+                <div class="alert-box critical">
+                    <h3><span class="status-indicator status-critical"></span>Alerta Crítico</h3>
+                    <p>{{message}}</p>
+                </div>
+            {{else if (eq alertType 'WARNING')}}
+                <div class="alert-icon alert-warning">🟡</div>
+                <div class="alert-box warning">
+                    <h3><span class="status-indicator status-warning"></span>Alerta de Atenção</h3>
+                    <p>{{message}}</p>
+                </div>
+            {{else if (eq alertType 'INFO')}}
+                <div class="alert-icon alert-info">🔵</div>
+                <div class="alert-box info">
+                    <h3><span class="status-indicator status-info"></span>Informação do Sistema</h3>
+                    <p>{{message}}</p>
+                </div>
+            {{else if (eq alertType 'SUCCESS')}}
+                <div class="alert-icon alert-success">🟢</div>
+                <div class="alert-box success">
+                    <h3><span class="status-indicator status-success"></span>Sistema Normalizado</h3>
+                    <p>{{message}}</p>
+                </div>
+            {{/if}}
+
+            <div class="timestamp">
+                <strong>Timestamp:</strong> {{timestamp}}<br>
+                <strong>Tipo:</strong> {{alertType}}<br>
+                <strong>Sistema:</strong> {{companyName}}
+            </div>
+
+            {{#if (eq alertType 'CRITICAL')}}
+            <div style="background: #f8d7da; border: 2px solid #dc3545; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                <h3>🚨 Ação Imediata Necessária</h3>
+                <ul>
+                    <li>Verifique suas transações pendentes</li>
+                    <li>Evite realizar operações até nova normalização</li>
+                    <li>Acompanhe nossos canais oficiais para atualizações</li>
+                    <li>Entre em contato com suporte se necessário</li>
+                </ul>
+            </div>
+            {{else if (eq alertType 'WARNING')}}
+            <div style="background: #fff3cd; border: 2px solid #ffc107; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                <h3>⚠️ Atenção Recomendada</h3>
+                <ul>
+                    <li>Monitore suas operações mais de perto</li>
+                    <li>Considere adiar operações não essenciais</li>
+                    <li>Mantenha-se atento aos próximos comunicados</li>
+                </ul>
+            </div>
+            {{else if (eq alertType 'INFO')}}
+            <div style="background: #d1ecf1; border: 2px solid #17a2b8; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                <h3>ℹ️ Informação</h3>
+                <p>Este é um comunicado informativo. Suas operações não são afetadas, mas recomendamos manter-se informado.</p>
+            </div>
+            {{else if (eq alertType 'SUCCESS')}}
+            <div style="background: #d4edda; border: 2px solid #28a745; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                <h3>✅ Situação Resolvida</h3>
+                <p>O problema reportado anteriormente foi resolvido. Todas as funcionalidades estão operando normalmente.</p>
+            </div>
+            {{/if}}
+
+            <h3>📊 Status dos Serviços</h3>
+            <div style="background: white; padding: 20px; border-radius: 8px;">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px;">
+                    <div style="text-align: center;">
+                        <span class="status-indicator status-success"></span>
+                        <strong>API Principal</strong><br>
+                        <small>Operacional</small>
+                    </div>
+                    <div style="text-align: center;">
+                        <span class="status-indicator status-success"></span>
+                        <strong>PIX</strong><br>
+                        <small>Operacional</small>
+                    </div>
+                    <div style="text-align: center;">
+                        <span class="status-indicator status-warning"></span>
+                        <strong>Blockchain</strong><br>
+                        <small>Degradado</small>
+                    </div>
+                    <div style="text-align: center;">
+                        <span class="status-indicator status-success"></span>
+                        <strong>Notificações</strong><br>
+                        <small>Operacional</small>
+                    </div>
+                </div>
+            </div>
+
+            <div style="text-align: center; margin: 30px 0;">
+                <p><strong>📞 Precisa de ajuda?</strong></p>
+                <p>Suporte: suporte@{{companyName}}.com<br>
+                Status em tempo real: status.{{companyName}}.com</p>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>Alerta automático do sistema {{companyName}}</p>
+            <p style="font-size: 12px;">Este email é enviado automaticamente para manter você informado sobre o status dos nossos serviços.</p>
+        </div>
+    </div>
+</body>
+</html>

@@ -12,6 +12,8 @@ const swaggerSpecs = require('./config/swagger');
 const testRoutes = require('./routes/test.routes');
 const testPrismaRoutes = require('./routes/test-prisma.routes');
 const debugLoginRoutes = require('./routes/debug-login.routes');
+const testEmailRoutes = require('./routes/test-email.routes');
+const testSimpleRoutes = require('./routes/test-simple.routes');
 // const debugUserRoutes = require('./routes/debug-user.routes'); // Temporariamente desabilitado
 
 const contractRoutes = require('./routes/contract.routes');
@@ -39,6 +41,12 @@ const userPlanRoutes = require('./routes/userPlan.routes');
 const configRoutes = require('./routes/config.routes');
 const smartContractRoutes = require('./routes/smartContract.routes');
 const userDocumentRoutes = require('./routes/userDocument.routes');
+const userActionsRoutes = require('./routes/userActions.routes');
+const contractTypeRoutes = require('./routes/contractType.routes');
+const workersRoutes = require('./routes/workers.routes');
+// TEMPORARIAMENTE DESABILITADO - cBRL service removido
+// const pixRoutes = require('./routes/pix.routes');
+const profileRoutes = require('./routes/profile.routes');
 
 // Importar serviços
 const contractService = require('./services/contract.service');
@@ -67,8 +75,16 @@ const {
   apiRateLimiter, 
   transactionRateLimiter, 
   apiKeyRateLimiter,
+  loginRateLimiter,
   getRateLimitStats 
 } = require('./middleware/rateLimit.middleware');
+const {
+  performanceMonitoring,
+  errorTracking,
+  loginTracking,
+  databaseErrorTracking,
+  criticalAlertMiddleware
+} = require('./middleware/alerting.middleware');
 // const { 
 //   requestLogger, 
 //   transactionLogger, 
@@ -92,6 +108,13 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Key', 'X-Session-Token']
 }));
+
+// Middleware de Rate Limiting Global
+app.use('/api/', apiRateLimiter);
+
+// Middleware de Alertas e Monitoramento
+app.use(performanceMonitoring);
+app.use(loginTracking);
 
 // Middleware de logging personalizado (antes do morgan)
 // app.use(requestLogger);
@@ -224,6 +247,113 @@ app.get('/', (req, res) => {
   });
 });
 
+// Rota de teste do MailerSend
+app.get('/api/test-mailersend', async (req, res) => {
+  try {
+    console.log('🧪 Testando configuração do MailerSend...');
+    
+    const config = {
+      EMAIL_PROVIDER: process.env.EMAIL_PROVIDER,
+      MAILERSEND_FROM_EMAIL: process.env.MAILERSEND_FROM_EMAIL,
+      MAILERSEND_FROM_NAME: process.env.MAILERSEND_FROM_NAME,
+      hasApiToken: !!process.env.MAILERSEND_API_TOKEN,
+      apiTokenPreview: process.env.MAILERSEND_API_TOKEN ? 
+        `${process.env.MAILERSEND_API_TOKEN.substring(0, 15)}...` : null,
+      DEFAULT_NETWORK: process.env.DEFAULT_NETWORK,
+      NODE_ENV: process.env.NODE_ENV
+    };
+
+    console.log('📧 Configuração MailerSend:', config);
+
+    // Importar e testar EmailService
+    const EmailService = require('./services/email.service');
+    const emailService = new EmailService();
+    
+    console.log('🔍 Provider ativo:', emailService.activeProvider);
+    console.log('🔍 Provider instances:', Object.keys(emailService.providerInstances || {}));
+    
+    const providerEnabled = emailService.providerInstances?.mailersend?.isEnabled();
+    console.log('🔍 MailerSend enabled:', providerEnabled);
+
+    res.json({
+      success: true,
+      message: 'Configuração MailerSend verificada',
+      config,
+      provider: {
+        active: emailService.activeProvider,
+        enabled: providerEnabled,
+        instances: Object.keys(emailService.providerInstances || {})
+      },
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error('❌ Erro ao testar MailerSend:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro ao verificar configuração MailerSend',
+      error: error.message,
+      stack: error.stack
+    });
+  }
+});
+
+// Rota de teste de envio real do MailerSend
+app.post('/api/send-test-email', async (req, res) => {
+  try {
+    const { to = 'test@example.com' } = req.body;
+    
+    console.log('📧 Enviando email de teste para:', to);
+    
+    const EmailService = require('./services/email.service');
+    const emailService = new EmailService();
+    
+    const result = await emailService.sendEmail({
+      to: {
+        email: to,
+        name: 'Test User'
+      },
+      subject: 'Teste MailerSend - Coinage System',
+      htmlContent: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <h1 style="color: #2563eb;">🏦 Coinage - Teste de Email</h1>
+          <div style="background: #f8fafc; padding: 20px; border-radius: 8px; margin: 20px 0;">
+            <p>✅ <strong>MailerSend está funcionando!</strong></p>
+            <p>Este email foi enviado via MailerSend API em ambiente de desenvolvimento/testnet.</p>
+            <p><strong>Configuração:</strong></p>
+            <ul>
+              <li>Provider: ${emailService.activeProvider}</li>
+              <li>Network: ${process.env.DEFAULT_NETWORK}</li>
+              <li>Environment: ${process.env.NODE_ENV}</li>
+            </ul>
+          </div>
+          <p style="color: #6b7280; font-size: 14px;">Data: ${new Date().toLocaleString('pt-BR')}</p>
+        </div>
+      `,
+      textContent: `Coinage - Teste de Email\n\n✅ MailerSend está funcionando!\n\nEste email foi enviado via MailerSend API em ambiente de desenvolvimento/testnet.\n\nProvider: ${emailService.activeProvider}\nNetwork: ${process.env.DEFAULT_NETWORK}\nEnvironment: ${process.env.NODE_ENV}\n\nData: ${new Date().toLocaleString('pt-BR')}`
+    });
+
+    console.log('📧 Resultado do envio:', result);
+
+    res.json({
+      success: true,
+      message: 'Email de teste enviado',
+      result,
+      provider: emailService.activeProvider,
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error('❌ Erro ao enviar email de teste:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro ao enviar email de teste',
+      error: error.message,
+      stack: error.stack
+    });
+  }
+});
+
 // Configuração do Swagger
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpecs, {
   customCss: '.swagger-ui .topbar { display: none }',
@@ -248,20 +378,24 @@ tokenAmountServiceInstance.initialize().catch(error => {
 app.use('/api/test', testRoutes);
 app.use('/api/debug', testPrismaRoutes);
 app.use('/api/debug', debugLoginRoutes);
+
+// Rotas de teste de email
+app.use('/api/test/email', testEmailRoutes);
+app.use('/api/test-simple', testSimpleRoutes);
 // app.use('/api/debug', debugUserRoutes); // Temporariamente desabilitado
 
 // Rotas de empresas (com autenticação JWT e rate limiting)
 app.use('/api/companies', authenticateJWT, apiRateLimiter, addUserInfo, logAuthenticatedRequest, companyRoutes);
 
 // Rotas de autenticação (públicas)
-app.use('/api/auth', authRoutes);
+app.use('/api/auth', loginRateLimiter, authRoutes);
 
 // Rotas de recuperação de senha (públicas)
-app.use('/api/password-reset', passwordResetRoutes);
+app.use('/api/password-reset', loginRateLimiter, passwordResetRoutes);
 
 // Rotas de confirmação de email (públicas)
 const emailConfirmationRoutes = require('./routes/emailConfirmation.routes');
-app.use('/api/email-confirmation', emailConfirmationRoutes);
+app.use('/api/email-confirmation', loginRateLimiter, emailConfirmationRoutes);
 
 // Rotas de usuários (com autenticação JWT e refresh de cache)
 app.use('/api/users', authenticateJWT, apiRateLimiter, addUserInfo, logAuthenticatedRequest, CacheRefreshMiddleware.refreshAfterWrite, userRoutes);
@@ -320,9 +454,14 @@ app.get('/api/transactions-debug', async (req, res) => {
 // Rotas de transações (com autenticação JWT)
 app.use('/api/transactions', transactionRoutes);
 
-// Rotas de depósitos (com autenticação JWT)
+// Rotas de depósitos (com autenticação JWT e email confirmado)
 const depositRoutes = require('./routes/deposit.routes');
-app.use('/api/deposits', depositRoutes);
+const { requireEmailConfirmation } = require('./middleware/emailConfirmed.middleware');
+app.use('/api/deposits', requireEmailConfirmation, depositRoutes);
+
+// Rotas de saques (com autenticação JWT e email confirmado)
+const withdrawRoutes = require('./routes/withdraw.routes');
+app.use('/api/withdrawals', requireEmailConfirmation, withdrawRoutes);
 
 // Rotas de logs (com autenticação JWT)
 app.use('/api/logs', authenticateJWT, apiRateLimiter, addUserInfo, logAuthenticatedRequest, logRoutes);
@@ -338,6 +477,78 @@ app.use('/api/queue', queueRoutes);
 
 // Rotas admin (com autenticação admin)
 app.use('/api/admin', authenticateApiKey, requireApiAdmin, apiRateLimiter, addAdminUserInfo, logAdminRequest, adminRoutes);
+
+// Rota para estatísticas de rate limiting (admin)
+app.get('/api/admin/rate-limit-stats', authenticateApiKey, requireApiAdmin, (req, res) => {
+  try {
+    const stats = getRateLimitStats();
+    res.json({
+      success: true,
+      message: 'Estatísticas de rate limiting obtidas com sucesso',
+      data: stats
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Erro ao obter estatísticas de rate limiting',
+      error: error.message
+    });
+  }
+});
+
+// Rotas para sistema de alertas (admin)
+const alertingService = require('./services/alerting.service');
+
+app.get('/api/admin/alert-stats', authenticateApiKey, requireApiAdmin, (req, res) => {
+  try {
+    const stats = alertingService.getAlertStats();
+    res.json({
+      success: true,
+      message: 'Estatísticas de alertas obtidas com sucesso',
+      data: stats
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Erro ao obter estatísticas de alertas',
+      error: error.message
+    });
+  }
+});
+
+app.post('/api/admin/alert-thresholds', authenticateApiKey, requireApiAdmin, (req, res) => {
+  try {
+    const newThresholds = req.body;
+    alertingService.updateThresholds(newThresholds);
+    res.json({
+      success: true,
+      message: 'Thresholds de alertas atualizados com sucesso',
+      data: alertingService.getAlertStats().thresholds
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Erro ao atualizar thresholds de alertas',
+      error: error.message
+    });
+  }
+});
+
+app.post('/api/admin/reset-alert-counters', authenticateApiKey, requireApiAdmin, (req, res) => {
+  try {
+    alertingService.forceResetCounters();
+    res.json({
+      success: true,
+      message: 'Contadores de alertas resetados com sucesso'
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Erro ao resetar contadores de alertas',
+      error: error.message
+    });
+  }
+});
 
 // Rotas whitelabel (públicas e autenticadas)
 app.use('/api/whitelabel', whitelabelRoutes);
@@ -371,6 +582,21 @@ app.use('/api/smart-contracts', smartContractRoutes);
 // User Documents Routes (com autenticação JWT)
 app.use('/api/user-documents', authenticateJWT, apiRateLimiter, addUserInfo, logAuthenticatedRequest, userDocumentRoutes);
 
+// User Actions Routes
+app.use('/api/user-actions', authenticateJWT, apiRateLimiter, addUserInfo, logAuthenticatedRequest, userActionsRoutes);
+
+// Contract Types Routes
+app.use('/api/contract-types', authenticateJWT, apiRateLimiter, addUserInfo, logAuthenticatedRequest, contractTypeRoutes);
+
+// Workers Routes (Admin only)
+app.use('/api/workers', workersRoutes);
+
+// PIX Routes (cBRL deposits/withdrawals) - TEMPORARIAMENTE DESABILITADO
+// app.use('/api/pix', pixRoutes);
+
+// Rotas do Profile
+app.use('/api/profile', profileRoutes);
+
 // Middleware de tratamento de erros 404
 app.use('*', (req, res) => {
   res.status(404).json({
@@ -381,7 +607,9 @@ app.use('*', (req, res) => {
   });
 });
 
-// Middleware de tratamento de erros global (com logging)
+// Middleware de tratamento de erros global (com logging e alertas)
+app.use(databaseErrorTracking);
+app.use(errorTracking);
 // app.use(errorLogger);
 
 module.exports = app; 

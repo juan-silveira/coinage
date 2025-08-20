@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Depósito Confirmado</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: linear-gradient(135deg, #28a745, #20c997); color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+        .content { background: #f9f9f9; padding: 30px; }
+        .success-icon { font-size: 48px; color: #28a745; text-align: center; margin-bottom: 20px; }
+        .amount-box { background: linear-gradient(135deg, #28a745, #20c997); color: white; padding: 25px; border-radius: 8px; text-align: center; margin: 20px 0; }
+        .amount-value { font-size: 32px; font-weight: bold; margin-bottom: 5px; }
+        .conversion-info { background: #e8f5e8; border-left: 4px solid #28a745; padding: 15px; margin: 20px 0; }
+        .transaction-details { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; }
+        .detail-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee; }
+        .detail-row:last-child { border-bottom: none; }
+        .detail-label { color: #666; }
+        .detail-value { font-weight: bold; color: #333; }
+        .footer { background: #333; color: white; padding: 20px; text-align: center; border-radius: 0 0 8px 8px; }
+        .btn { display: inline-block; background: #28a745; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; margin: 10px 0; }
+        .blockchain-link { background: #17a2b8; }
+        .status-badge { background: #28a745; color: white; padding: 5px 10px; border-radius: 15px; font-size: 12px; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>💰 Depósito Confirmado</h1>
+            <p>{{companyName}}</p>
+        </div>
+        
+        <div class="content">
+            <div class="success-icon">✅</div>
+            
+            <h2>Parabéns, {{userName}}!</h2>
+            <p>Seu depósito PIX foi processado com sucesso e o cBRL já está disponível em sua conta.</p>
+            
+            <div class="amount-box">
+                <div class="amount-value">{{amount}} {{currency}}</div>
+                <p>Convertido para sua conta</p>
+                <span class="status-badge">CONFIRMADO</span>
+            </div>
+
+            <div class="conversion-info">
+                <h3>💱 Informações da Conversão</h3>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div>
+                        <strong>Valor Pago (PIX):</strong><br>
+                        R$ {{originalAmount}}
+                    </div>
+                    <div>
+                        <strong>Recebido (cBRL):</strong><br>
+                        {{amount}} {{currency}}
+                    </div>
+                </div>
+                <p style="margin-top: 15px; font-size: 14px; color: #666;">
+                    Taxa de conversão: 1 BRL = 1 cBRL (sem taxas para depósitos)
+                </p>
+            </div>
+
+            <div class="transaction-details">
+                <h3>📋 Detalhes da Transação</h3>
+                
+                <div class="detail-row">
+                    <span class="detail-label">🆔 ID da Transação:</span>
+                    <span class="detail-value">{{transactionId}}</span>
+                </div>
+                
+                <div class="detail-row">
+                    <span class="detail-label">💳 Método de Pagamento:</span>
+                    <span class="detail-value">PIX</span>
+                </div>
+                
+                <div class="detail-row">
+                    <span class="detail-label">🏦 PIX End-to-End ID:</span>
+                    <span class="detail-value">{{pixEndToEndId}}</span>
+                </div>
+                
+                <div class="detail-row">
+                    <span class="detail-label">⏰ Processado em:</span>
+                    <span class="detail-value">{{processedAt}}</span>
+                </div>
+                
+                {{#if txHash}}
+                <div class="detail-row">
+                    <span class="detail-label">⛓️ Hash Blockchain:</span>
+                    <span class="detail-value">{{txHash}}</span>
+                </div>
+                {{/if}}
+                
+                {{#if blockNumber}}
+                <div class="detail-row">
+                    <span class="detail-label">🧱 Bloco:</span>
+                    <span class="detail-value">#{{blockNumber}}</span>
+                </div>
+                {{/if}}
+            </div>
+
+            <div style="background: #d4edda; border-left: 4px solid #28a745; padding: 15px; margin: 20px 0;">
+                <h4>🚀 O que você pode fazer agora?</h4>
+                <ul>
+                    <li><strong>Verificar saldo:</strong> Acesse sua carteira para ver o saldo atualizado</li>
+                    <li><strong>Fazer transferências:</strong> Envie cBRL para outros usuários</li>
+                    <li><strong>Realizar saques:</strong> Converta cBRL de volta para BRL via PIX</li>
+                    <li><strong>Histórico completo:</strong> Veja todas suas transações no dashboard</li>
+                </ul>
+            </div>
+
+            <div style="text-align: center; margin: 30px 0;">
+                <a href="#" class="btn">Ver Saldo Atualizado</a>
+                {{#if explorerUrl}}
+                <a href="{{explorerUrl}}" class="btn blockchain-link">Ver na Blockchain</a>
+                {{/if}}
+            </div>
+
+            <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0;">
+                <h4>🔒 Segurança</h4>
+                <p><strong>Importante:</strong> Seus cBRL estão protegidos por tecnologia blockchain e criptografia avançada. Mantenha suas credenciais de acesso seguras.</p>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>Depósito processado com sucesso por {{companyName}}</p>
+            <p style="font-size: 12px;">Este email confirma que sua transação foi processada. Guarde-o para seus registros.</p>
+        </div>
+    </div>
+</body>
+</html>

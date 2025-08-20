@@ -174,7 +174,7 @@ const clearCache = async (req, res) => {
  */
 const getStatus = async (req, res) => {
   try {
-    const { userId, address } = req.query;
+    const { userId, address, network = 'mainnet' } = req.query;
     
     if (!userId || !address) {
       return res.status(400).json({
@@ -191,7 +191,7 @@ const getStatus = async (req, res) => {
       });
     }
 
-    const status = await balanceSyncService.getStatus(userId, address);
+    const status = await balanceSyncService.getStatus(userId, address, network);
     
     res.json({
       success: true,

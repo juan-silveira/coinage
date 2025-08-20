@@ -51,39 +51,45 @@ export default function ConfirmEmailPage() {
   // Confirmar email
   useEffect(() => {
     const confirmEmail = async () => {
-      if (!token || !companyAlias) {
+      if (!token) {
         setStatus('error');
-        setMessage('Token ou empresa inválida');
+        setMessage('Token de confirmação inválido ou ausente');
         return;
       }
 
       try {
-        // Simular confirmação (backend ainda não disponível)
-        console.log('🔗 Simulando confirmação de email...');
-        console.log('Token:', token);
-        console.log('Empresa:', companyAlias);
+        console.log('🔗 Confirmando email com token:', token);
+        
+        // Fazer chamada para API de confirmação
+        const response = await fetch(`/api/email-confirmation/confirm?token=${token}&company=${companyAlias || 'default'}`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
 
-        // Simular delay da API
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        const data = await response.json();
 
-        // Sempre retornar sucesso para demonstração
-        setStatus('success');
-        setMessage('Email confirmado com sucesso! Sua conta foi ativada.');
-        showSuccess('Email confirmado com sucesso!');
-
-        // Simular diferentes resultados baseado no token para demo
-        if (token.includes('expired')) {
+        if (response.ok && data.success) {
+          setStatus('success');
+          setMessage(data.message || 'Email confirmado com sucesso! Sua conta foi ativada.');
+          showSuccess('Email confirmado com sucesso!');
+          
+          // Redirecionar para login após 3 segundos
+          setTimeout(() => {
+            handleGoToLogin();
+          }, 3000);
+          
+        } else {
           setStatus('error');
-          setMessage('Token expirado. Por favor, solicite um novo link de confirmação.');
-        } else if (token.includes('invalid')) {
-          setStatus('error');
-          setMessage('Token inválido. Verifique o link ou solicite um novo.');
+          setMessage(data.message || 'Erro ao confirmar email');
+          showError(data.message || 'Erro ao confirmar email');
         }
 
       } catch (error) {
         console.error('Erro na confirmação:', error);
         setStatus('error');
-        setMessage('Erro ao confirmar email. Tente novamente.');
+        setMessage('Erro de conexão. Tente novamente mais tarde.');
         showError('Erro ao confirmar email');
       }
     };
@@ -101,10 +107,48 @@ export default function ConfirmEmailPage() {
     }
   };
 
-  const handleResendEmail = () => {
-    // Implementar reenvio de email
-    console.log('🔄 Reenviando email de confirmação...');
-    showInfo('Email de confirmação reenviado com sucesso!');
+  const handleResendEmail = async () => {
+    try {
+      setStatus('loading');
+      setMessage('Reenviando email de confirmação...');
+      
+      // Para reenviar, precisamos do email do usuário
+      const email = prompt('Digite seu email para reenviar a confirmação:');
+      if (!email) {
+        setStatus('error');
+        setMessage('Email é necessário para reenviar');
+        return;
+      }
+      
+      const response = await fetch('/api/email-confirmation/resend', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          email: email,
+          companyAlias: companyAlias || 'default'
+        })
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        setStatus('success');
+        setMessage('Email de confirmação reenviado com sucesso! Verifique sua caixa de entrada.');
+        showSuccess('Email reenviado com sucesso!');
+      } else {
+        setStatus('error');
+        setMessage(data.message || 'Erro ao reenviar email');
+        showError(data.message || 'Erro ao reenviar email');
+      }
+      
+    } catch (error) {
+      console.error('Erro ao reenviar email:', error);
+      setStatus('error');
+      setMessage('Erro de conexão. Tente novamente mais tarde.');
+      showError('Erro ao reenviar email');
+    }
   };
 
   if (!brandingLoaded) {
@@ -225,16 +269,11 @@ export default function ConfirmEmailPage() {
               </div>
             )}
 
-            {/* Demo info */}
-            <div className="mt-6 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
-              <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                💡 Para demonstração:
-              </h4>
-              <ul className="text-xs text-gray-600 dark:text-gray-400 space-y-1">
-                <li>• Token com "expired": simula token expirado</li>
-                <li>• Token com "invalid": simula token inválido</li>
-                <li>• Outros tokens: simula confirmação bem-sucedida</li>
-              </ul>
+            {/* Suporte */}
+            <div className="mt-6 text-center">
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                Problemas? Entre em contato com <strong>suporte@coinage.com</strong>
+              </p>
             </div>
           </Card>
         </div>

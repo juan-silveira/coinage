@@ -15,6 +15,8 @@ const useAuthStore = create(
       cacheLoading: false, // evita concorrência em carregamentos
       maskBalances: false, // se true, aplica blur nos valores
       notifications: [], // notificações do sistema
+      profilePhotoUrl: null, // URL da foto de perfil
+      profilePhotoTimestamp: null, // timestamp da última atualização da foto
       
       // Cache de balances
       cachedBalances: null,
@@ -54,6 +56,17 @@ const useAuthStore = create(
       })),
       
       clearNotifications: () => set({ notifications: [] }),
+      
+      // Ações para foto de perfil
+      setProfilePhotoUrl: (url) => set({ 
+        profilePhotoUrl: url,
+        profilePhotoTimestamp: Date.now()
+      }),
+      
+      clearProfilePhoto: () => set({ 
+        profilePhotoUrl: null,
+        profilePhotoTimestamp: null 
+      }),
       
       login: (user, accessToken, refreshToken, requiresPasswordChange = false) => {
         if (user && user.name) {
@@ -149,6 +162,8 @@ const useAuthStore = create(
           cacheLoaded: false,
           cacheLoading: false,
           notifications: [], // limpar notificações ao fazer logout
+          profilePhotoUrl: null, // limpar foto de perfil ao fazer logout
+          profilePhotoTimestamp: null,
           cachedBalances: null,
           balancesLastUpdate: null,
           balancesLoading: false,

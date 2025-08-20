@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { earningsService } from '@/services/api';
 import useAuthStore from '@/store/authStore';
-import useConfig from '@/hooks/useConfig';
+import { useConfigContext } from '@/contexts/ConfigContext';
 
 const useEarnings = (options = {}) => {
   const [earnings, setEarnings] = useState([]);
@@ -20,7 +20,8 @@ const useEarnings = (options = {}) => {
   });
 
   const { user } = useAuthStore();
-  const { defaultNetwork } = useConfig();
+  const { config } = useConfigContext();
+  const defaultNetwork = config?.defaultNetwork;
   
   const {
     page = 1,

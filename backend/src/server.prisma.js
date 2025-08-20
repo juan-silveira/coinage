@@ -65,9 +65,21 @@ const startServer = () => {
       // Gradualmente serão migrados para usar Prisma diretamente
     };
     
-    // Redis temporariamente desabilitado
-    console.log('⚠️ Redis: desabilitado temporariamente');
-    console.log('⚠️ UserCacheService: desabilitado temporariamente');
+    // Inicializar Redis
+    try {
+      await redisService.initialize();
+      console.log('✅ Redis: Conectado e inicializado');
+    } catch (error) {
+      console.error('❌ Erro ao conectar Redis:', error.message);
+    }
+    
+    // Inicializar UserCacheService
+    try {
+      await userCacheService.initialize();
+      console.log('✅ UserCacheService: Inicializado');
+    } catch (error) {
+      console.error('❌ Erro ao inicializar UserCacheService:', error.message);
+    }
     
     // Inicializar serviços (alguns podem falhar se dependem de Sequelize, mas não vamos quebrar)
     console.log('🔍 Inicializando serviços...');

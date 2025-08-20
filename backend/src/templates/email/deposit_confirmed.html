@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>Depósito Confirmado - Coinage</title>
+    <style>
+        /* Reset básico */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        /* Estilo base do corpo */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333333;
+            background: linear-gradient(135deg, #374151 0%, #1f2937 50%, #059669 100%);
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            min-height: 100vh;
+        }
+
+        /* Container principal */
+        .email-container {
+            width: 100%;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Header com logos */
+        .header {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 12px 12px 0 0;
+            padding: 20px;
+            text-align: center;
+            margin-bottom: 2px;
+        }
+
+        .logo-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .powered-by {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 12px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .coinage-text {
+            color: #ffffff;
+            font-size: 20px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+
+        /* Card principal branco */
+        .email-card {
+            background: #ffffff;
+            border-radius: 0 0 12px 12px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+        }
+
+        .email-content {
+            padding: 40px 30px;
+        }
+
+        /* Títulos */
+        .email-title {
+            font-size: 28px;
+            font-weight: 700;
+            color: #059669;
+            margin-bottom: 8px;
+            text-align: center;
+        }
+
+        .email-subtitle {
+            font-size: 16px;
+            color: #6b7280;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        /* Status success */
+        .success-banner {
+            background: linear-gradient(135deg, #ecfdf5, #d1fae5);
+            border: 2px solid #10b981;
+            border-radius: 12px;
+            padding: 25px;
+            margin: 30px 0;
+            text-align: center;
+        }
+
+        .success-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+
+        .success-banner h3 {
+            color: #065f46;
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .success-banner p {
+            color: #047857;
+            font-size: 15px;
+            margin: 0;
+        }
+
+        /* Detalhes da transação */
+        .transaction-details {
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 25px;
+            margin: 25px 0;
+        }
+
+        .transaction-header {
+            text-align: center;
+            margin-bottom: 25px;
+        }
+
+        .amount-display {
+            font-size: 36px;
+            font-weight: 800;
+            color: #059669;
+            margin-bottom: 5px;
+        }
+
+        .currency-label {
+            font-size: 14px;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .detail-row:last-child {
+            border-bottom: none;
+        }
+
+        .detail-label {
+            font-weight: 500;
+            color: #64748b;
+            font-size: 14px;
+        }
+
+        .detail-value {
+            font-weight: 600;
+            color: #1e293b;
+            font-size: 14px;
+        }
+
+        .detail-value.highlight {
+            color: #059669;
+            font-size: 16px;
+        }
+
+        /* Transaction ID */
+        .transaction-id {
+            background: #ffffff;
+            border: 2px dashed #d1d5db;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
+            text-align: center;
+        }
+
+        .transaction-id strong {
+            color: #374151;
+            font-size: 14px;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .transaction-id code {
+            background: #f3f4f6;
+            color: #1f2937;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 12px;
+            word-break: break-all;
+        }
+
+        /* Timeline */
+        .timeline {
+            margin: 30px 0;
+        }
+
+        .timeline-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .timeline-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .timeline-icon {
+            width: 24px;
+            height: 24px;
+            background: #10b981;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 12px;
+            font-size: 12px;
+            color: white;
+        }
+
+        .timeline-content {
+            flex: 1;
+        }
+
+        .timeline-title {
+            font-weight: 600;
+            color: #374151;
+            font-size: 14px;
+        }
+
+        .timeline-description {
+            color: #6b7280;
+            font-size: 13px;
+            margin-top: 2px;
+        }
+
+        /* Botões */
+        .button-container {
+            text-align: center;
+            margin: 30px 0;
+        }
+
+        .primary-button {
+            display: inline-block;
+            background: linear-gradient(135deg, #059669, #047857);
+            color: #ffffff;
+            font-weight: 600;
+            font-size: 16px;
+            padding: 14px 32px;
+            border-radius: 8px;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3);
+            margin-right: 10px;
+        }
+
+        .primary-button:hover {
+            background: linear-gradient(135deg, #047857, #065f46);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(5, 150, 105, 0.4);
+        }
+
+        .secondary-button {
+            display: inline-block;
+            background: transparent;
+            color: #059669;
+            font-weight: 500;
+            padding: 12px 24px;
+            border: 2px solid #059669;
+            border-radius: 8px;
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+
+        .secondary-button:hover {
+            background: #059669;
+            color: #ffffff;
+        }
+
+        /* Footer */
+        .footer {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 25px;
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        .footer-text {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .footer-links {
+            margin-top: 15px;
+        }
+
+        .footer-links a {
+            color: rgba(255, 255, 255, 0.8);
+            text-decoration: none;
+            font-size: 12px;
+            margin: 0 8px;
+        }
+
+        /* Responsive */
+        @media only screen and (max-width: 600px) {
+            .email-container {
+                padding: 10px;
+            }
+            
+            .email-content {
+                padding: 25px 20px;
+            }
+            
+            .email-title {
+                font-size: 24px;
+            }
+
+            .amount-display {
+                font-size: 28px;
+            }
+            
+            .detail-row {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 4px;
+                padding: 8px 0;
+            }
+
+            .button-container .primary-button {
+                display: block;
+                margin: 0 0 10px 0;
+            }
+
+            .button-container .secondary-button {
+                display: block;
+                margin: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <!-- Header com logos -->
+        <div class="header">
+            <div class="logo-container">
+                <span class="powered-by">Powered by</span>
+                <div class="coinage-text">🏦 Coinage</div>
+            </div>
+        </div>
+
+        <!-- Card principal -->
+        <div class="email-card">
+            <div class="email-content">
+                <h1 class="email-title">Depósito Confirmado! ✅</h1>
+                <p class="email-subtitle">Sua transação foi processada com sucesso</p>
+
+                <div class="success-banner">
+                    <div class="success-icon">🎉</div>
+                    <h3>Depósito Processado com Sucesso!</h3>
+                    <p>Olá <strong>{{userName}}</strong>, seu depósito foi confirmado e o valor já está disponível em sua conta.</p>
+                </div>
+
+                <div class="transaction-details">
+                    <div class="transaction-header">
+                        <div class="amount-display">R$ {{amount}}</div>
+                        <div class="currency-label">Valor Depositado</div>
+                    </div>
+
+                    <div class="detail-row">
+                        <div class="detail-label">Método de Depósito</div>
+                        <div class="detail-value highlight">{{depositMethod}}</div>
+                    </div>
+
+                    <div class="detail-row">
+                        <div class="detail-label">Data e Hora</div>
+                        <div class="detail-value">{{transactionDate}}</div>
+                    </div>
+
+                    <div class="detail-row">
+                        <div class="detail-label">Status</div>
+                        <div class="detail-value highlight">Confirmado</div>
+                    </div>
+
+                    <div class="detail-row">
+                        <div class="detail-label">Taxa de Processamento</div>
+                        <div class="detail-value">Isento</div>
+                    </div>
+                </div>
+
+                <div class="transaction-id">
+                    <strong>ID da Transação:</strong>
+                    <code>{{transactionId}}</code>
+                </div>
+
+                <div class="timeline">
+                    <div class="timeline-item">
+                        <div class="timeline-icon">✓</div>
+                        <div class="timeline-content">
+                            <div class="timeline-title">PIX Recebido</div>
+                            <div class="timeline-description">Pagamento via PIX detectado e validado</div>
+                        </div>
+                    </div>
+                    <div class="timeline-item">
+                        <div class="timeline-icon">✓</div>
+                        <div class="timeline-content">
+                            <div class="timeline-title">Valor Creditado</div>
+                            <div class="timeline-description">Saldo atualizado em sua conta Coinage</div>
+                        </div>
+                    </div>
+                    <div class="timeline-item">
+                        <div class="timeline-icon">✓</div>
+                        <div class="timeline-content">
+                            <div class="timeline-title">Confirmação Enviada</div>
+                            <div class="timeline-description">Notificação de confirmação processada</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="button-container">
+                    <a href="{{dashboardUrl}}" class="primary-button">Ver Saldo Atual</a>
+                    <a href="{{historyUrl}}" class="secondary-button">Histórico</a>
+                </div>
+
+                <div style="background: #f0f9ff; border: 1px solid #0284c7; border-radius: 8px; padding: 15px; margin-top: 20px; text-align: center;">
+                    <p style="color: #0c4a6e; margin: 0; font-size: 14px;">
+                        💡 <strong>Dica:</strong> Seu saldo foi atualizado automaticamente. Agora você já pode realizar saques, transferências e outras operações!
+                    </p>
+                </div>
+
+                <div style="text-align: center; margin-top: 25px; color: #6b7280; font-size: 13px;">
+                    <p>Este é um email automático de confirmação. Em caso de dúvidas, entre em contato conosco.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <div style="margin-bottom: 15px;">
+                <div class="coinage-text" style="font-size: 16px;">🏦 Coinage</div>
+            </div>
+            <div class="footer-text">
+                Sistema financeiro seguro e confiável<br>
+                Transações protegidas por criptografia avançada
+            </div>
+            <div class="footer-links">
+                <a href="{{dashboardUrl}}">Dashboard</a>
+                <a href="{{supportUrl}}">Suporte</a>
+                <a href="{{securityUrl}}">Segurança</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

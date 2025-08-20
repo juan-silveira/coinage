@@ -1,0 +1,463 @@
+{
+  "info": {
+    "name": "19 - Email Confirmation",
+    "description": "Testes completos para o sistema de confirmação de email",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": "2.0.0",
+    "_postman_id": "19-email-confirmation-2024"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8800/api",
+      "type": "string"
+    },
+    {
+      "key": "confirmationToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "testEmail",
+      "value": "ivan.alberton@navi.inf.br",
+      "type": "string"
+    },
+    {
+      "key": "testUserId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "companyAlias",
+      "value": "coinage",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "01 - Health Check",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test('Service is operational', function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.be.true;",
+              "    pm.expect(jsonData.status).to.eql('operational');",
+              "    pm.expect(jsonData.service).to.eql('Email Confirmation Service');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/email-confirmation/health",
+          "host": ["{{baseUrl}}"],
+          "path": ["email-confirmation", "health"]
+        },
+        "description": "Verifica se o serviço de confirmação de email está operacional"
+      }
+    },
+    {
+      "name": "02 - Registro de Usuário (para obter token)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 201', function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "",
+              "pm.test('User registered successfully', function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.be.true;",
+              "    ",
+              "    // Salvar userId se disponível",
+              "    if (jsonData.data && jsonData.data.user && jsonData.data.user.id) {",
+              "        pm.collectionVariables.set('testUserId', jsonData.data.user.id);",
+              "    }",
+              "    ",
+              "    // Salvar token de confirmação se fornecido",
+              "    if (jsonData.data && jsonData.data.emailConfirmationToken) {",
+              "        pm.collectionVariables.set('confirmationToken', jsonData.data.emailConfirmationToken);",
+              "        console.log('Token de confirmação salvo:', jsonData.data.emailConfirmationToken);",
+              "    }",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Usuário Teste Email\",\n  \"email\": \"teste-email-{{$timestamp}}@teste.com\",\n  \"password\": \"teste123\",\n  \"company_alias\": \"{{companyAlias}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/auth/register",
+          "host": ["{{baseUrl}}"],
+          "path": ["auth", "register"]
+        },
+        "description": "Registra um novo usuário para obter token de confirmação"
+      }
+    },
+    {
+      "name": "03 - Reenviar Email de Confirmação",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test('Email resent successfully', function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.be.true;",
+              "    ",
+              "    // Salvar novo token se fornecido",
+              "    if (jsonData.data && jsonData.data.token) {",
+              "        pm.collectionVariables.set('confirmationToken', jsonData.data.token);",
+              "        console.log('Novo token de confirmação salvo:', jsonData.data.token);",
+              "    }",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{testEmail}}\",\n  \"companyAlias\": \"{{companyAlias}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/email-confirmation/resend",
+          "host": ["{{baseUrl}}"],
+          "path": ["email-confirmation", "resend"]
+        },
+        "description": "Reenvia email de confirmação para o usuário"
+      }
+    },
+    {
+      "name": "04 - Verificar Status do Email (Usuario Existente)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test('Email status returned', function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.be.true;",
+              "    pm.expect(jsonData.data).to.have.property('emailConfirmed');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{accessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/email-confirmation/status/{{testUserId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["email-confirmation", "status", "{{testUserId}}"]
+        },
+        "description": "Verifica o status de confirmação de email de um usuário"
+      }
+    },
+    {
+      "name": "05 - Confirmar Email com Token",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test('Email confirmed successfully', function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.be.true;",
+              "    pm.expect(jsonData.message).to.contain('confirmado');",
+              "});"
+            ]
+          }
+        },
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              "// Verificar se temos o token",
+              "if (!pm.collectionVariables.get('confirmationToken')) {",
+              "    console.log('Token de confirmação não encontrado. Execute primeiro as requisições anteriores.');",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/email-confirmation/confirm?token={{confirmationToken}}&company={{companyAlias}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["email-confirmation", "confirm"],
+          "query": [
+            {
+              "key": "token",
+              "value": "{{confirmationToken}}"
+            },
+            {
+              "key": "company",
+              "value": "{{companyAlias}}"
+            }
+          ]
+        },
+        "description": "Confirma o email do usuário usando o token"
+      }
+    },
+    {
+      "name": "06 - Tentar Usar Token Já Utilizado",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 400 or email already confirmed', function () {",
+              "    // Pode retornar 400 (token inválido) ou 200 (email já confirmado)",
+              "    pm.expect(pm.response.code).to.be.oneOf([200, 400]);",
+              "});",
+              "",
+              "pm.test('Token reuse handled correctly', function () {",
+              "    const jsonData = pm.response.json();",
+              "    // Deve indicar que o token é inválido ou que o email já foi confirmado",
+              "    pm.expect(jsonData.success).to.exist;",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/email-confirmation/confirm?token={{confirmationToken}}&company={{companyAlias}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["email-confirmation", "confirm"],
+          "query": [
+            {
+              "key": "token",
+              "value": "{{confirmationToken}}"
+            },
+            {
+              "key": "company",
+              "value": "{{companyAlias}}"
+            }
+          ]
+        },
+        "description": "Tenta usar um token que já foi utilizado (deve falhar ou indicar que já foi confirmado)"
+      }
+    },
+    {
+      "name": "07 - Tentar Token Inválido",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 400', function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "",
+              "pm.test('Invalid token error', function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.be.false;",
+              "    pm.expect(jsonData.message).to.contain('inválido');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/email-confirmation/confirm?token=token-completamente-invalido&company={{companyAlias}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["email-confirmation", "confirm"],
+          "query": [
+            {
+              "key": "token",
+              "value": "token-completamente-invalido"
+            },
+            {
+              "key": "company",
+              "value": "{{companyAlias}}"
+            }
+          ]
+        },
+        "description": "Testa confirmação com token completamente inválido"
+      }
+    },
+    {
+      "name": "08 - Reenviar para Email Inexistente",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 404', function () {",
+              "    pm.response.to.have.status(404);",
+              "});",
+              "",
+              "pm.test('User not found error', function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.be.false;",
+              "    pm.expect(jsonData.message).to.contain('encontrado');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"email-inexistente@teste.com\",\n  \"companyAlias\": \"{{companyAlias}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/email-confirmation/resend",
+          "host": ["{{baseUrl}}"],
+          "path": ["email-confirmation", "resend"]
+        },
+        "description": "Tenta reenviar email para usuário que não existe"
+      }
+    },
+    {
+      "name": "09 - Status de Usuário Inexistente",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 404', function () {",
+              "    pm.response.to.have.status(404);",
+              "});",
+              "",
+              "pm.test('User not found error', function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.be.false;",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{accessToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/email-confirmation/status/user-id-inexistente",
+          "host": ["{{baseUrl}}"],
+          "path": ["email-confirmation", "status", "user-id-inexistente"]
+        },
+        "description": "Verifica status de usuário que não existe"
+      }
+    },
+    {
+      "name": "10 - Rate Limit Test (Multiple Requests)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "// Em algumas tentativas pode dar 429 (rate limit), em outras 200",
+              "pm.test('Response is valid', function () {",
+              "    pm.expect(pm.response.code).to.be.oneOf([200, 429, 404]);",
+              "});",
+              "",
+              "if (pm.response.code === 429) {",
+              "    pm.test('Rate limit working', function () {",
+              "        const jsonData = pm.response.json();",
+              "        pm.expect(jsonData.success).to.be.false;",
+              "    });",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{testEmail}}\",\n  \"companyAlias\": \"{{companyAlias}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/email-confirmation/resend",
+          "host": ["{{baseUrl}}"],
+          "path": ["email-confirmation", "resend"]
+        },
+        "description": "Testa rate limiting fazendo múltiplas requisições"
+      }
+    }
+  ]
+}

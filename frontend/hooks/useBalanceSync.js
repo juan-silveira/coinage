@@ -4,7 +4,7 @@ import useAuthStore from '@/store/authStore';
 import api from '@/services/api';
 import balanceSyncService from '@/services/balanceSyncService';
 import { useNotificationEvents } from '@/contexts/NotificationContext';
-import useConfig from '@/hooks/useConfig';
+import { useConfigContext } from '@/contexts/ConfigContext';
 
 const SYNC_INTERVAL_MS = 60 * 1000; // 1 minuto
 // REMOVIDO: CACHE_KEY_PREFIX não é mais usado para localStorage
@@ -34,7 +34,11 @@ const useBalanceSync = (onBalanceUpdate = null) => {
   const { notifyNewNotification } = useNotificationEvents();
   
   // Config
-  const { defaultNetwork, currentExplorerUrl } = useConfig();
+  const { config } = useConfigContext();
+  const defaultNetwork = config?.defaultNetwork;
+  const currentExplorerUrl = config?.defaultNetwork === 'mainnet'
+    ? config?.mainnetExplorerUrl
+    : config?.testnetExplorerUrl;
 
   // Refs
   const syncIntervalRef = useRef(null);
@@ -473,36 +477,35 @@ const useBalanceSync = (onBalanceUpdate = null) => {
       const newBalances = response.data.data;
       const previousBalances = previousBalancesRef.current;
       
-      // Detectar mudanças sempre (mesmo na primeira vez)
-      const changes = detectBalanceChanges(newBalances, previousBalances);
+      // Detectar mudanças apenas se há balances anteriores válidos
+      const changes = Object.keys(previousBalances).length > 0 
+        ? detectBalanceChanges(newBalances, previousBalances)
+        : [];
       
-      if (Object.keys(previousBalances).length > 0) {
+      if (Object.keys(previousBalances).length > 0 && changes.length > 0) {
+        setBalanceChanges(prev => {
+          const updated = [...prev, ...changes];
+          return updated;
+        });
         
-        if (changes.length > 0) {
-          setBalanceChanges(prev => {
-            const updated = [...prev, ...changes];
-            return updated;
-          });
-          
-          // Criar notificações para cada mudança (PROTEGIDO)
-          for (const change of changes) {
-            try {
-              await createBalanceNotification(change);
-            } catch (notificationError) {
-              console.error('❌ [BalanceSync] Erro ao criar notificação individual (CONTINUANDO):', notificationError);
-              // Continuar mesmo se uma notificação falhar
-            }
+        // Criar notificações para cada mudança (PROTEGIDO)
+        for (const change of changes) {
+          try {
+            await createBalanceNotification(change);
+          } catch (notificationError) {
+            console.error('❌ [BalanceSync] Erro ao criar notificação individual (CONTINUANDO):', notificationError);
+            // Continuar mesmo se uma notificação falhar
           }
-          
-          // Chamar callback de atualização se fornecido (PROTEGIDO)
-          if (onBalanceUpdate) {
-            try {
-              await onBalanceUpdate(changes, newBalances);
-            } catch (callbackError) {
-              console.error('❌ [BalanceSync] ERRO CRÍTICO no callback (CRASH EVITADO):', callbackError);
-              console.error('❌ [BalanceSync] Stack trace:', callbackError.stack);
-              // Continuar execução mesmo se callback falhar
-            }
+        }
+        
+        // Chamar callback de atualização se fornecido (PROTEGIDO)
+        if (onBalanceUpdate) {
+          try {
+            await onBalanceUpdate(changes, newBalances);
+          } catch (callbackError) {
+            console.error('❌ [BalanceSync] ERRO CRÍTICO no callback (CRASH EVITADO):', callbackError);
+            console.error('❌ [BalanceSync] Stack trace:', callbackError.stack);
+            // Continuar execução mesmo se callback falhar
           }
         }
       }

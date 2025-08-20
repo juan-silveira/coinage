@@ -1,4 +1,5 @@
 const userDocumentService = require('../services/userDocument.service');
+const userActionsService = require('../services/userActions.service');
 
 /**
  * Lista documentos do usuário autenticado
@@ -78,6 +79,23 @@ const uploadUserDocument = async (req, res) => {
     const documentData = await userDocumentService.uploadToMinio(req.file, documentType, userId);
     const document = await userDocumentService.upsertUserDocument(userId, documentType, documentData);
 
+    // Registrar upload de documento
+    await userActionsService.logAction({
+      userId,
+      companyId: req.user?.companyId,
+      action: 'document_uploaded',
+      category: 'profile',
+      details: {
+        documentType,
+        filename: req.file.originalname,
+        size: req.file.size
+      },
+      relatedId: document.id,
+      relatedType: 'user_document',
+      ipAddress: userActionsService.getIpAddress(req),
+      userAgent: req.headers['user-agent']
+    });
+
     res.json({
       success: true,
       message: 'Documento enviado com sucesso',
@@ -140,6 +158,30 @@ const approveDocument = async (req, res) => {
     const reviewerId = req.user.id;
 
     const document = await userDocumentService.approveDocument(documentId, reviewerId);
+
+    // Registrar aprovação de documento
+    await userActionsService.logAdmin(reviewerId, 'document_verified', document.userId, req, {
+      details: {
+        documentId,
+        documentType: document.documentType,
+        action: 'approved'
+      }
+    });
+
+    // Registrar para o usuário titular do documento
+    await userActionsService.logAction({
+      userId: document.userId,
+      companyId: req.user?.companyId,
+      action: 'document_verified',
+      category: 'profile',
+      status: 'success',
+      details: {
+        documentType: document.documentType,
+        reviewedBy: reviewerId
+      },
+      relatedId: documentId,
+      relatedType: 'user_document'
+    });
 
     res.json({
       success: true,

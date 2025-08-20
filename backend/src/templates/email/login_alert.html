@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>Novo Acesso - Coinage</title>
+    <style>
+        /* Reset básico */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        /* Estilo base do corpo */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333333;
+            background: linear-gradient(135deg, #374151 0%, #1f2937 50%, #f59e0b 100%);
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            min-height: 100vh;
+        }
+
+        /* Container principal */
+        .email-container {
+            width: 100%;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Header com logos */
+        .header {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 12px 12px 0 0;
+            padding: 20px;
+            text-align: center;
+            margin-bottom: 2px;
+        }
+
+        .logo-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .powered-by {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 12px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .coinage-text {
+            color: #ffffff;
+            font-size: 20px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+
+        /* Card principal branco */
+        .email-card {
+            background: #ffffff;
+            border-radius: 0 0 12px 12px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+        }
+
+        .email-content {
+            padding: 40px 30px;
+        }
+
+        /* Títulos */
+        .email-title {
+            font-size: 28px;
+            font-weight: 700;
+            color: #f59e0b;
+            margin-bottom: 8px;
+            text-align: center;
+        }
+
+        .email-subtitle {
+            font-size: 16px;
+            color: #6b7280;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        /* Banner de alerta */
+        .alert-banner {
+            background: linear-gradient(135deg, #fffbeb, #fef3c7);
+            border: 2px solid #f59e0b;
+            border-radius: 12px;
+            padding: 25px;
+            margin: 30px 0;
+            text-align: center;
+        }
+
+        .alert-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+
+        .alert-banner h3 {
+            color: #92400e;
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .alert-banner p {
+            color: #b45309;
+            font-size: 15px;
+            margin: 0;
+        }
+
+        /* Detalhes do acesso */
+        .access-details {
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 25px;
+            margin: 25px 0;
+        }
+
+        .detail-section {
+            margin-bottom: 25px;
+        }
+
+        .detail-section:last-child {
+            margin-bottom: 0;
+        }
+
+        .section-title {
+            color: #374151;
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .detail-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .detail-item {
+            background: #ffffff;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .detail-label {
+            font-weight: 500;
+            color: #64748b;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 5px;
+        }
+
+        .detail-value {
+            font-weight: 600;
+            color: #1e293b;
+            font-size: 14px;
+        }
+
+        .detail-value.highlight {
+            color: #f59e0b;
+            font-size: 16px;
+        }
+
+        .detail-value.success {
+            color: #059669;
+        }
+
+        /* Status de segurança */
+        .security-status {
+            background: linear-gradient(135deg, #ecfdf5, #d1fae5);
+            border: 2px solid #10b981;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 25px 0;
+            text-align: center;
+        }
+
+        .security-status.warning {
+            background: linear-gradient(135deg, #fef2f2, #fecaca);
+            border-color: #f87171;
+        }
+
+        .status-icon {
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+
+        .security-status h4 {
+            color: #065f46;
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .security-status.warning h4 {
+            color: #7f1d1d;
+        }
+
+        .security-status p {
+            color: #047857;
+            font-size: 14px;
+            margin: 0;
+        }
+
+        .security-status.warning p {
+            color: #991b1b;
+        }
+
+        /* Mapa de localização (simulado) */
+        .location-info {
+            background: #f1f5f9;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            text-align: center;
+        }
+
+        .location-icon {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+
+        .location-text {
+            color: #475569;
+            font-size: 14px;
+        }
+
+        .location-name {
+            font-weight: 600;
+            color: #1e293b;
+            font-size: 16px;
+        }
+
+        /* Ações recomendadas */
+        .recommended-actions {
+            background: #fff7ed;
+            border: 2px solid #f59e0b;
+            border-radius: 12px;
+            padding: 25px;
+            margin: 25px 0;
+        }
+
+        .recommended-actions h4 {
+            color: #92400e;
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .action-item {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 15px;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.7);
+            border-radius: 8px;
+        }
+
+        .action-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .action-icon {
+            font-size: 18px;
+            margin-right: 12px;
+            margin-top: 2px;
+            flex-shrink: 0;
+        }
+
+        .action-text {
+            color: #92400e;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        /* Botões de ação */
+        .button-container {
+            text-align: center;
+            margin: 30px 0;
+        }
+
+        .primary-button {
+            display: inline-block;
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            color: #ffffff;
+            font-weight: 600;
+            font-size: 16px;
+            padding: 14px 32px;
+            border-radius: 8px;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+            margin-right: 10px;
+        }
+
+        .primary-button:hover {
+            background: linear-gradient(135deg, #d97706, #b45309);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(245, 158, 11, 0.4);
+        }
+
+        .secondary-button {
+            display: inline-block;
+            background: transparent;
+            color: #dc2626;
+            font-weight: 500;
+            padding: 12px 24px;
+            border: 2px solid #dc2626;
+            border-radius: 8px;
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+
+        .secondary-button:hover {
+            background: #dc2626;
+            color: #ffffff;
+        }
+
+        /* Footer */
+        .footer {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 25px;
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        .footer-text {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .footer-links {
+            margin-top: 15px;
+        }
+
+        .footer-links a {
+            color: rgba(255, 255, 255, 0.8);
+            text-decoration: none;
+            font-size: 12px;
+            margin: 0 8px;
+        }
+
+        /* Responsive */
+        @media only screen and (max-width: 600px) {
+            .email-container {
+                padding: 10px;
+            }
+            
+            .email-content {
+                padding: 25px 20px;
+            }
+            
+            .email-title {
+                font-size: 24px;
+            }
+
+            .detail-grid {
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+
+            .detail-item {
+                padding: 12px;
+            }
+
+            .action-item {
+                padding: 10px;
+            }
+
+            .button-container .primary-button {
+                display: block;
+                margin: 0 0 10px 0;
+            }
+
+            .button-container .secondary-button {
+                display: block;
+                margin: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <!-- Header com logos -->
+        <div class="header">
+            <div class="logo-container">
+                <span class="powered-by">Powered by</span>
+                <div class="coinage-text">🏦 Coinage</div>
+            </div>
+        </div>
+
+        <!-- Card principal -->
+        <div class="email-card">
+            <div class="email-content">
+                <h1 class="email-title">Novo Acesso Detectado</h1>
+                <p class="email-subtitle">Alerta de segurança da sua conta</p>
+
+                <div class="alert-banner">
+                    <div class="alert-icon">🔐</div>
+                    <h3>Acesso à Sua Conta</h3>
+                    <p>Olá <strong>{{userName}}</strong>, detectamos um novo acesso à sua conta. Verifique se foi você quem fez o login.</p>
+                </div>
+
+                <div class="access-details">
+                    <div class="detail-section">
+                        <div class="section-title">
+                            Informações do Acesso
+                        </div>
+                        <div class="detail-grid">
+                            <div class="detail-item">
+                                <div class="detail-label">Data e Hora</div>
+                                <div class="detail-value highlight">{{loginDate}}</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Status</div>
+                                <div class="detail-value success">Login Realizado</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="detail-section">
+                        <div class="section-title">
+                            Informações Técnicas
+                        </div>
+                        <div class="detail-grid">
+                            <div class="detail-item">
+                                <div class="detail-label">Endereço IP</div>
+                                <div class="detail-value">{{ipAddress}}</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Navegador</div>
+                                <div class="detail-value">{{browser}}</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Sistema Operacional</div>
+                                <div class="detail-value">{{operatingSystem}}</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Dispositivo</div>
+                                <div class="detail-value">{{deviceType}}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="location-info">
+                        <div class="location-icon">📍</div>
+                        <div class="location-text">Localização aproximada:</div>
+                        <div class="location-name">{{location}}</div>
+                    </div>
+                </div>
+
+                <!-- Status baseado na confiabilidade do login -->
+                {{#if isTrustedDevice}}
+                <div class="security-status">
+                    <div class="status-icon">✅</div>
+                    <h4>Dispositivo Confiável</h4>
+                    <p>Este acesso foi feito de um dispositivo que você já usou antes. Tudo parece normal!</p>
+                </div>
+                {{else}}
+                <div class="security-status warning">
+                    <div class="status-icon">⚠️</div>
+                    <h4>Novo Dispositivo Detectado</h4>
+                    <p>Este é o primeiro acesso deste dispositivo. Se não foi você, tome medidas imediatamente!</p>
+                </div>
+                {{/if}}
+
+                <div class="recommended-actions">
+                    <h4>O que fazer agora?</h4>
+                    
+                    <div class="action-item">
+                        <div class="action-icon">✓</div>
+                        <div class="action-text">
+                            <strong>Verifique se foi você:</strong> Confirme o horário e local do acesso
+                        </div>
+                    </div>
+                    
+                    <div class="action-item">
+                        <div class="action-icon">✓</div>
+                        <div class="action-text">
+                            <strong>Se foi você:</strong> Nenhuma ação necessária
+                        </div>
+                    </div>
+                    
+                    <div class="action-item">
+                        <div class="action-icon">!</div>
+                        <div class="action-text">
+                            <strong>Se NÃO foi você:</strong> Altere sua senha imediatamente
+                        </div>
+                    </div>
+                    
+                    <div class="action-item">
+                        <div class="action-icon">?</div>
+                        <div class="action-text">
+                            <strong>Dúvidas:</strong> Entre em contato com nosso suporte
+                        </div>
+                    </div>
+                </div>
+
+                <div class="button-container">
+                    <a href="{{securityUrl}}" class="primary-button">Verificar Segurança</a>
+                    <a href="{{reportUrl}}" class="secondary-button">Reportar Problema</a>
+                </div>
+
+                <div style="background: #f0f9ff; border: 1px solid #0284c7; border-radius: 8px; padding: 15px; margin: 20px 0; text-align: center;">
+                    <p style="color: #0c4a6e; margin: 0; font-size: 13px; line-height: 1.5;">
+                        <strong>Dica:</strong> Ative a autenticação de dois fatores para maior segurança.
+                    </p>
+                </div>
+
+                <div style="text-align: center; margin-top: 25px; color: #6b7280; font-size: 13px;">
+                    <p>Este é um email automático de segurança. Sempre verifique acessos não autorizados!</p>
+                    <p><strong>📧 Suporte:</strong> <a href="mailto:{{supportEmail}}" style="color: #f59e0b; text-decoration: none;">{{supportEmail}}</a></p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <div style="margin-bottom: 15px;">
+                <div class="coinage-text" style="font-size: 16px;">🏦 Coinage</div>
+            </div>
+            <div class="footer-text">
+                Sistema financeiro seguro e confiável<br>
+                Monitoramento contínuo para sua proteção
+            </div>
+            <div class="footer-links">
+                <a href="{{dashboardUrl}}">Dashboard</a>
+                <a href="{{securityUrl}}">Segurança</a>
+                <a href="{{supportUrl}}">Suporte</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

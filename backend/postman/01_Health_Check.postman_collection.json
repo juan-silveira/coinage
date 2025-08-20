@@ -1,0 +1,186 @@
+{
+  "info": {
+    "name": "🏥 Health Check",
+    "description": "Endpoints de verificação de saúde da API Azore Blockchain",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": "1.0.0"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "{{base_url}}",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "🏥 API Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/health",
+          "host": ["{{base_url}}"],
+          "path": ["health"]
+        },
+        "description": "Verifica se a API está funcionando corretamente"
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"Response has required fields\", function () {",
+              "    const response = pm.response.json();",
+              "    pm.expect(response).to.have.property('status');",
+              "    pm.expect(response).to.have.property('timestamp');",
+              "    pm.expect(response).to.have.property('uptime');",
+              "    pm.expect(response).to.have.property('environment');",
+              "});",
+              "",
+              "pm.test(\"Status is OK\", function () {",
+              "    const response = pm.response.json();",
+              "    pm.expect(response.status).to.eql('OK');",
+              "});",
+              "",
+              "pm.test(\"Uptime is a number\", function () {",
+              "    const response = pm.response.json();",
+              "    pm.expect(typeof response.uptime).to.eql('number');",
+              "});",
+              "",
+              "console.log('✅ API Health Check - Status:', pm.response.json().status);"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "🔍 API Root Endpoints",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/",
+          "host": ["{{base_url}}"],
+          "path": [""]
+        },
+        "description": "Lista os endpoints principais da API"
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"Response has API info\", function () {",
+              "    const response = pm.response.json();",
+              "    pm.expect(response).to.have.property('message');",
+              "    pm.expect(response).to.have.property('version');",
+              "    pm.expect(response).to.have.property('endpoints');",
+              "});",
+              "",
+              "pm.test(\"Has health endpoint\", function () {",
+              "    const response = pm.response.json();",
+              "    pm.expect(response.endpoints).to.have.property('health');",
+              "});",
+              "",
+              "console.log('✅ API Root - Available endpoints:', Object.keys(pm.response.json().endpoints));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "📊 Database Connection Test",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/debug/prisma",
+          "host": ["{{base_url}}"],
+          "path": ["api", "debug", "prisma"]
+        },
+        "description": "Testa a conexão com o banco de dados PostgreSQL"
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"Database connection is working\", function () {",
+              "    const response = pm.response.json();",
+              "    pm.expect(response).to.have.property('success');",
+              "    pm.expect(response.success).to.be.true;",
+              "});",
+              "",
+              "pm.test(\"Has database status\", function () {",
+              "    const response = pm.response.json();",
+              "    pm.expect(response).to.have.property('message');",
+              "});",
+              "",
+              "console.log('✅ Database Connection - Status:', pm.response.json().message);"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "🔧 Test Direct Transactions",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/test-transactions-direto",
+          "host": ["{{base_url}}"],
+          "path": ["test-transactions-direto"]
+        },
+        "description": "Testa endpoint direto de transações sem middleware"
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"Response has transaction data\", function () {",
+              "    const response = pm.response.json();",
+              "    pm.expect(response).to.have.property('success');",
+              "    pm.expect(response).to.have.property('data');",
+              "});",
+              "",
+              "pm.test(\"Has userId and transactions\", function () {",
+              "    const response = pm.response.json();",
+              "    pm.expect(response.data).to.have.property('userId');",
+              "    pm.expect(response.data).to.have.property('transactions');",
+              "});",
+              "",
+              "console.log('✅ Direct Transactions Test - Count:', pm.response.json().data?.count || 0);"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    }
+  ]
+} 

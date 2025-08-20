@@ -2,7 +2,7 @@ import axios from 'axios';
 import useAuthStore from '@/store/authStore';
 
 // Configuração base da API
-const API_BASE_URL = 'http://localhost:8802';
+const API_BASE_URL = 'http://localhost:8800';
 
 // Instância do axios
 const api = axios.create({
@@ -368,7 +368,7 @@ export const userService = {
   },
 
   // Obter saldos do usuário por endereço (usa endpoint fresh que inclui AZE-t nativo)
-  getUserBalances: async (address, network = 'mainnet', forceRefresh = false) => {
+  getUserBalances: async (address, network, forceRefresh = false) => {
     // Usar o novo endpoint que busca dados frescos incluindo AZE-t
     const response = await api.get(`/api/balance-sync/fresh`, {
       params: { 

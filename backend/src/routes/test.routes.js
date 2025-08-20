@@ -51,6 +51,142 @@ router.get('/connection', testController.testConnection);
 
 /**
  * @swagger
+ * /api/test/mailersend:
+ *   get:
+ *     summary: Testa configuração do MailerSend
+ *     tags: [Test]
+ *     responses:
+ *       200:
+ *         description: Configuração verificada
+ */
+router.get('/mailersend', async (req, res) => {
+  try {
+    console.log('🧪 Testando configuração do MailerSend...');
+    
+    const config = {
+      EMAIL_PROVIDER: process.env.EMAIL_PROVIDER,
+      MAILERSEND_FROM_EMAIL: process.env.MAILERSEND_FROM_EMAIL,
+      MAILERSEND_FROM_NAME: process.env.MAILERSEND_FROM_NAME,
+      hasApiToken: !!process.env.MAILERSEND_API_TOKEN,
+      apiTokenPreview: process.env.MAILERSEND_API_TOKEN ? 
+        `${process.env.MAILERSEND_API_TOKEN.substring(0, 15)}...` : null,
+      DEFAULT_NETWORK: process.env.DEFAULT_NETWORK,
+      NODE_ENV: process.env.NODE_ENV
+    };
+
+    console.log('📧 Configuração MailerSend:', config);
+
+    // Importar e testar EmailService
+    const EmailService = require('../services/email.service');
+    const emailService = new EmailService();
+    
+    console.log('🔍 Provider ativo:', emailService.activeProvider);
+    console.log('🔍 Provider instances:', Object.keys(emailService.providerInstances || {}));
+    
+    const providerEnabled = emailService.providerInstances?.mailersend?.isEnabled();
+    console.log('🔍 MailerSend enabled:', providerEnabled);
+
+    res.json({
+      success: true,
+      message: 'Configuração MailerSend verificada',
+      config,
+      provider: {
+        active: emailService.activeProvider,
+        enabled: providerEnabled,
+        instances: Object.keys(emailService.providerInstances || {})
+      },
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error('❌ Erro ao testar MailerSend:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro ao verificar configuração MailerSend',
+      error: error.message,
+      stack: error.stack
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /api/test/send-email:
+ *   post:
+ *     summary: Envia email de teste via MailerSend
+ *     tags: [Test]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               to:
+ *                 type: string
+ *                 format: email
+ *                 example: "test@example.com"
+ *     responses:
+ *       200:
+ *         description: Email enviado com sucesso
+ */
+router.post('/send-email', async (req, res) => {
+  try {
+    const { to = 'test@example.com' } = req.body;
+    
+    console.log('📧 Enviando email de teste para:', to);
+    
+    const EmailService = require('../services/email.service');
+    const emailService = new EmailService();
+    
+    const result = await emailService.sendEmail({
+      to: {
+        email: to,
+        name: 'Test User'
+      },
+      subject: 'Teste MailerSend - Coinage System',
+      htmlContent: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <h1 style="color: #2563eb;">🏦 Coinage - Teste de Email</h1>
+          <div style="background: #f8fafc; padding: 20px; border-radius: 8px; margin: 20px 0;">
+            <p>✅ <strong>MailerSend está funcionando!</strong></p>
+            <p>Este email foi enviado via MailerSend API em ambiente de desenvolvimento/testnet.</p>
+            <p><strong>Configuração:</strong></p>
+            <ul>
+              <li>Provider: ${emailService.activeProvider}</li>
+              <li>Network: ${process.env.DEFAULT_NETWORK}</li>
+              <li>Environment: ${process.env.NODE_ENV}</li>
+            </ul>
+          </div>
+          <p style="color: #6b7280; font-size: 14px;">Data: ${new Date().toLocaleString('pt-BR')}</p>
+        </div>
+      `,
+      textContent: `Coinage - Teste de Email\n\n✅ MailerSend está funcionando!\n\nEste email foi enviado via MailerSend API em ambiente de desenvolvimento/testnet.\n\nProvider: ${emailService.activeProvider}\nNetwork: ${process.env.DEFAULT_NETWORK}\nEnvironment: ${process.env.NODE_ENV}\n\nData: ${new Date().toLocaleString('pt-BR')}`
+    });
+
+    console.log('📧 Resultado do envio:', result);
+
+    res.json({
+      success: true,
+      message: 'Email de teste enviado',
+      result,
+      provider: emailService.activeProvider,
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error('❌ Erro ao enviar email de teste:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro ao enviar email de teste',
+      error: error.message,
+      stack: error.stack
+    });
+  }
+});
+
+/**
+ * @swagger
  * /api/test/network-info:
  *   get:
  *     summary: Obtém informações da rede atual

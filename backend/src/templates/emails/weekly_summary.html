@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resumo Semanal</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+        .content { background: #f9f9f9; padding: 30px; }
+        .period { background: #e3f2fd; padding: 15px; text-align: center; border-radius: 8px; margin-bottom: 20px; }
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 20px 0; }
+        .stat-card { background: white; padding: 20px; border-radius: 8px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .stat-number { font-size: 28px; font-weight: bold; color: #667eea; }
+        .stat-label { font-size: 14px; color: #666; margin-top: 5px; }
+        .balance-card { background: linear-gradient(135deg, #28a745, #20c997); color: white; padding: 20px; border-radius: 8px; text-align: center; margin: 20px 0; }
+        .balance-amount { font-size: 32px; font-weight: bold; }
+        .footer { background: #333; color: white; padding: 20px; text-align: center; border-radius: 0 0 8px 8px; }
+        .btn { display: inline-block; background: #667eea; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; margin: 10px 0; }
+        @media (max-width: 600px) {
+            .stats-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 Resumo Semanal</h1>
+            <p>{{companyName}}</p>
+        </div>
+        
+        <div class="content">
+            <h2>Olá, {{userName}}!</h2>
+            
+            <div class="period">
+                <h3>📅 Período Analisado</h3>
+                <p><strong>{{weekStart}}</strong> até <strong>{{weekEnd}}</strong></p>
+            </div>
+
+            <div class="balance-card">
+                <h3>💰 Saldo Atual</h3>
+                <div class="balance-amount">R$ {{balance}}</div>
+                <p>Seu saldo em cBRL na plataforma</p>
+            </div>
+
+            <h3>📈 Atividade da Semana</h3>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-number">{{totalDeposits}}</div>
+                    <div class="stat-label">💵 Total Depositado</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">{{totalWithdrawals}}</div>
+                    <div class="stat-label">💸 Total Sacado</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">{{transactionCount}}</div>
+                    <div class="stat-label">🔄 Transações</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">7</div>
+                    <div class="stat-label">📆 Dias Ativos</div>
+                </div>
+            </div>
+
+            <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                <h3>💡 Dicas da Semana</h3>
+                <ul style="list-style-type: none; padding: 0;">
+                    <li>🚀 <strong>Meta alcançada:</strong> Você superou sua meta de movimentação semanal!</li>
+                    <li>⚡ <strong>PIX rápido:</strong> Seus saques foram processados em média em 8 minutos</li>
+                    <li>📱 <strong>App mobile:</strong> 73% das suas transações foram feitas pelo celular</li>
+                </ul>
+            </div>
+
+            <div style="text-align: center; margin: 30px 0;">
+                <a href="#" class="btn">Ver Extrato Completo</a>
+            </div>
+
+            <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0;">
+                <h4>🔔 Lembrete</h4>
+                <p>Lembre-se de manter seus documentos sempre atualizados para evitar limitações em sua conta.</p>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>Resumo semanal enviado automaticamente por {{companyName}}</p>
+            <p style="font-size: 12px;">Para cancelar estes resumos, ajuste suas preferências de email na sua conta.</p>
+        </div>
+    </div>
+</body>
+</html>

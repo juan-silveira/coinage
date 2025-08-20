@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Falha no Depósito</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: linear-gradient(135deg, #dc3545, #c82333); color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+        .content { background: #f9f9f9; padding: 30px; }
+        .error-icon { font-size: 48px; color: #dc3545; text-align: center; margin-bottom: 20px; }
+        .error-box { background: #f8d7da; border: 2px solid #dc3545; padding: 20px; border-radius: 8px; margin: 20px 0; color: #721c24; }
+        .amount-box { background: #e9ecef; border-left: 4px solid #6c757d; padding: 20px; text-align: center; margin: 20px 0; }
+        .amount-value { font-size: 28px; font-weight: bold; color: #6c757d; }
+        .failure-details { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; }
+        .detail-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee; }
+        .detail-row:last-child { border-bottom: none; }
+        .detail-label { color: #666; }
+        .detail-value { font-weight: bold; color: #333; }
+        .solution-steps { background: #d1ecf1; border-left: 4px solid #17a2b8; padding: 15px; margin: 20px 0; }
+        .footer { background: #333; color: white; padding: 20px; text-align: center; border-radius: 0 0 8px 8px; }
+        .btn { display: inline-block; background: #17a2b8; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; margin: 10px 0; }
+        .btn-retry { background: #28a745; }
+        .btn-support { background: #dc3545; }
+        .status-badge { background: #dc3545; color: white; padding: 5px 10px; border-radius: 15px; font-size: 12px; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>⚠️ Falha no Depósito</h1>
+            <p>{{companyName}}</p>
+        </div>
+        
+        <div class="content">
+            <div class="error-icon">❌</div>
+            
+            <h2>Olá, {{userName}}</h2>
+            <p>Infelizmente, não foi possível processar seu depósito PIX. Vamos ajudá-lo a resolver esta situação.</p>
+            
+            <div class="amount-box">
+                <div class="amount-value">R$ {{amount}}</div>
+                <p>Valor que tentou depositar</p>
+                <span class="status-badge">FALHOU</span>
+            </div>
+
+            <div class="error-box">
+                <h3>🚨 Motivo da Falha</h3>
+                <p><strong>{{error}}</strong></p>
+                
+                {{#if errorDetails}}
+                <div style="margin-top: 15px; padding: 10px; background: rgba(255,255,255,0.7); border-radius: 4px;">
+                    <small><strong>Detalhes técnicos:</strong> {{errorDetails}}</small>
+                </div>
+                {{/if}}
+            </div>
+
+            <div class="failure-details">
+                <h3>📋 Informações da Tentativa</h3>
+                
+                <div class="detail-row">
+                    <span class="detail-label">🆔 ID da Tentativa:</span>
+                    <span class="detail-value">{{transactionId}}</span>
+                </div>
+                
+                <div class="detail-row">
+                    <span class="detail-label">💳 Método:</span>
+                    <span class="detail-value">PIX</span>
+                </div>
+                
+                <div class="detail-row">
+                    <span class="detail-label">💰 Valor:</span>
+                    <span class="detail-value">R$ {{amount}}</span>
+                </div>
+                
+                <div class="detail-row">
+                    <span class="detail-label">⏰ Tentativa em:</span>
+                    <span class="detail-value">{{attemptedAt}}</span>
+                </div>
+                
+                {{#if pixTransactionId}}
+                <div class="detail-row">
+                    <span class="detail-label">🏦 PIX ID:</span>
+                    <span class="detail-value">{{pixTransactionId}}</span>
+                </div>
+                {{/if}}
+            </div>
+
+            <div class="solution-steps">
+                <h3>🔧 Possíveis Soluções</h3>
+                
+                {{#if (eq errorCode 'INSUFFICIENT_FUNDS')}}
+                <ul>
+                    <li><strong>Verificar saldo:</strong> Confirme se há saldo suficiente em sua conta bancária</li>
+                    <li><strong>Limites PIX:</strong> Verifique se não excedeu seu limite diário PIX</li>
+                    <li><strong>Tentar novamente:</strong> Aguarde alguns minutos e tente novamente</li>
+                </ul>
+                {{else if (eq errorCode 'INVALID_PIX_KEY')}}
+                <ul>
+                    <li><strong>QR Code:</strong> Certifique-se de escanear o QR Code correto</li>
+                    <li><strong>Chave PIX:</strong> Se copiou a chave manualmente, verifique se está correta</li>
+                    <li><strong>Novo QR Code:</strong> Gere um novo QR Code se o atual expirou</li>
+                </ul>
+                {{else if (eq errorCode 'TIMEOUT')}}
+                <ul>
+                    <li><strong>Conexão:</strong> Verifique sua conexão com a internet</li>
+                    <li><strong>App bancário:</strong> Tente usar um aplicativo bancário diferente</li>
+                    <li><strong>Aguardar:</strong> Aguarde 5-10 minutos antes de tentar novamente</li>
+                </ul>
+                {{else}}
+                <ul>
+                    <li><strong>Verificar dados:</strong> Confirme se todos os dados estão corretos</li>
+                    <li><strong>Tentar novamente:</strong> Aguarde alguns minutos e faça uma nova tentativa</li>
+                    <li><strong>Contatar banco:</strong> Entre em contato com seu banco se persistir</li>
+                    <li><strong>Nosso suporte:</strong> Nossa equipe pode ajudar a investigar</li>
+                </ul>
+                {{/if}}
+            </div>
+
+            <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0;">
+                <h4>💰 Seu Dinheiro Está Seguro</h4>
+                <p>Se o PIX foi debitado de sua conta mas o depósito falhou, o valor será estornado automaticamente em até 24 horas pelo sistema PIX.</p>
+            </div>
+
+            <div style="text-align: center; margin: 30px 0;">
+                <a href="#" class="btn btn-retry">Tentar Novo Depósito</a>
+                <a href="mailto:{{supportEmail}}" class="btn btn-support">Contatar Suporte</a>
+            </div>
+
+            <div style="background: #e8f5e8; border-left: 4px solid #28a745; padding: 15px; margin: 20px 0;">
+                <h4>📞 Precisa de Ajuda?</h4>
+                <p>Nossa equipe de suporte está disponível para ajudá-lo:</p>
+                <ul>
+                    <li><strong>Email:</strong> {{supportEmail}}</li>
+                    <li><strong>WhatsApp:</strong> (11) 99999-9999</li>
+                    <li><strong>Chat:</strong> Disponível no app 24/7</li>
+                    <li><strong>Tempo de resposta:</strong> Até 2 horas</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>Estamos aqui para ajudar - {{companyName}}</p>
+            <p style="font-size: 12px;">Se o problema persistir, nossa equipe de suporte investigará pessoalmente seu caso.</p>
+        </div>
+    </div>
+</body>
+</html>

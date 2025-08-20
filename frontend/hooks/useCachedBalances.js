@@ -2,7 +2,7 @@ import { useCallback, useEffect } from 'react';
 import useAuthStore from '@/store/authStore';
 import { userService } from '@/services/api';
 import UserPlanService from '@/services/userPlanService';
-import useConfig from '@/hooks/useConfig';
+import { useConfigContext } from '@/contexts/ConfigContext';
 
 // Função para obter o intervalo baseado no plano do usuário
 const getCacheDurationMs = (userPlan = 'BASIC') => {
@@ -26,7 +26,8 @@ export const useCachedBalances = () => {
     clearCachedBalances
   } = useAuthStore();
   
-  const { defaultNetwork } = useConfig();
+  const { config } = useConfigContext();
+  const defaultNetwork = config?.defaultNetwork;
 
   // Verificar se o cache é válido
   const isCacheValid = useCallback(() => {
@@ -41,7 +42,7 @@ export const useCachedBalances = () => {
 
   // Carregar balances da API
   const loadBalances = useCallback(async (force = false) => {
-    if (!isAuthenticated || !user?.publicKey) return;
+    if (!isAuthenticated || !user?.publicKey || !defaultNetwork) return;
     
     // Se o cache é válido e não é força, retorna o cache
     if (!force && isCacheValid()) {
@@ -66,7 +67,7 @@ export const useCachedBalances = () => {
     } catch (error) {
       return cachedBalances; // Retorna cache anterior se houver erro
     }
-  }, [isAuthenticated, user?.publicKey, isCacheValid, cachedBalances, balancesLoading, setCachedBalances, setBalancesLoading]);
+  }, [isAuthenticated, user?.publicKey, defaultNetwork, isCacheValid, cachedBalances, balancesLoading, setCachedBalances, setBalancesLoading]);
 
   // Carregar dados iniciais (sem incluir loadBalances na dependência)
   useEffect(() => {

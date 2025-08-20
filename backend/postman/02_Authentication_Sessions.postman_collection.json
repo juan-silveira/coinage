@@ -39,17 +39,64 @@
   ],
   "item": [
     {
-      "name": "Login",
+      "name": "📝 User Register",
       "request": {
         "method": "POST",
         "header": [
           {
             "key": "Content-Type",
             "value": "application/json"
-          },
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"João da Silva\",\n  \"email\": \"joao@exemplo.com\",\n  \"password\": \"MinhaSenh@123\",\n  \"confirmPassword\": \"MinhaSenh@123\",\n  \"companyAlias\": \"default\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/auth/register",
+          "host": ["{{base_url}}"],
+          "path": ["api", "auth", "register"]
+        },
+        "description": "Registra um novo usuário no sistema"
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 201\", function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "",
+              "pm.test(\"User created successfully\", function () {",
+              "    const response = pm.response.json();",
+              "    pm.expect(response).to.have.property('success');",
+              "    pm.expect(response.success).to.be.true;",
+              "    pm.expect(response.data).to.have.property('user');",
+              "    pm.expect(response.data.user).to.have.property('email');",
+              "});",
+              "",
+              "pm.test(\"User starts inactive (needs email confirmation)\", function () {",
+              "    const response = pm.response.json();",
+              "    pm.expect(response.data.user.isActive).to.be.false;",
+              "});",
+              "",
+              "console.log('✅ User Registered - Email:', pm.response.json().data?.user?.email);"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "🔓 User Login",
+      "request": {
+        "method": "POST",
+        "header": [
           {
-            "key": "X-API-Key",
-            "value": "{{api_key}}"
+            "key": "Content-Type",
+            "value": "application/json"
           }
         ],
         "body": {
@@ -60,7 +107,8 @@
           "raw": "{{base_url}}/api/auth/login",
           "host": ["{{base_url}}"],
           "path": ["api", "auth", "login"]
-        }
+        },
+        "description": "Autentica usuário e retorna JWT tokens"
       },
       "response": [],
       "event": [
@@ -72,12 +120,21 @@
               "    pm.response.to.have.status(200);",
               "});",
               "",
+              "pm.test(\"Login successful\", function () {",
+              "    const response = pm.response.json();",
+              "    pm.expect(response).to.have.property('success');",
+              "    pm.expect(response.success).to.be.true;",
+              "    pm.expect(response.data).to.have.property('accessToken');",
+              "    pm.expect(response.data).to.have.property('refreshToken');",
+              "});",
+              "",
               "if (pm.response.code === 200) {",
               "    const response = pm.response.json();",
               "    if (response.data && response.data.accessToken) {",
               "        pm.environment.set(\"access_token\", response.data.accessToken);",
               "        pm.environment.set(\"refresh_token\", response.data.refreshToken);",
-              "        console.log(\"JWT tokens saved to environment\");",
+              "        console.log(\"✅ JWT tokens saved to environment\");",
+              "        console.log(\"✅ User:\", response.data.user?.name);",
               "    }",
               "}"
             ],
@@ -87,7 +144,7 @@
       ]
     },
     {
-      "name": "Logout",
+      "name": "🚪 User Logout",
       "request": {
         "method": "POST",
         "header": [
@@ -105,7 +162,7 @@
       "response": []
     },
     {
-      "name": "Get Current User",
+      "name": "👤 Get Current User",
       "request": {
         "method": "GET",
         "header": [
@@ -123,7 +180,7 @@
       "response": []
     },
     {
-      "name": "Refresh Token",
+      "name": "🔄 Refresh JWT Token",
       "request": {
         "method": "POST",
         "header": [
@@ -166,7 +223,7 @@
       ]
     },
     {
-      "name": "Change Password",
+      "name": "🔑 Change Password",
       "request": {
         "method": "POST",
         "header": [
@@ -192,7 +249,7 @@
       "response": []
     },
     {
-      "name": "Generate API Key",
+      "name": "🔐 Generate API Key",
       "request": {
         "method": "POST",
         "header": [
@@ -239,7 +296,7 @@
       ]
     },
     {
-      "name": "List API Keys",
+      "name": "📋 List API Keys",
       "request": {
         "method": "GET",
         "header": [
@@ -257,7 +314,7 @@
       "response": []
     },
     {
-      "name": "Revoke API Key",
+      "name": "❌ Revoke API Key",
       "request": {
         "method": "POST",
         "header": [
@@ -275,7 +332,7 @@
       "response": []
     },
     {
-      "name": "Edit API Key",
+      "name": "✏️ Edit API Key",
       "request": {
         "method": "PUT",
         "header": [

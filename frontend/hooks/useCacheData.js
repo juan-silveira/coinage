@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { userService } from '@/services/api';
 import useAuthStore from '@/store/authStore';
 import api from '@/services/api';
-import useConfig from '@/hooks/useConfig';
+import { useConfigContext } from '@/contexts/ConfigContext';
 
 // Tempo de atualização configurável (padrão: 5 minutos)
 // Futuramente pode ser personalizado por usuário (ex: premium = 1 minuto)
@@ -24,7 +24,8 @@ const triggerNotificationRefresh = () => {
 };
 
 const useCacheData = () => {
-  const { defaultNetwork } = useConfig();
+  const { config } = useConfigContext();
+  const defaultNetwork = config?.defaultNetwork;
   
   // Helper para retornar balances vazios com network correta
   const getEmptyBalances = useCallback(() => ({

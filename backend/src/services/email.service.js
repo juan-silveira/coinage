@@ -1,13 +1,66 @@
 const prismaConfig = require('../config/prisma');
+const emailTemplateService = require('./emailTemplate.service');
 const axios = require('axios');
+
+// Provedores de email - MailerSend ativado para testes
+const MailerSendProvider = require('./providers/mailersend.provider');
+// const MandrillProvider = require('./providers/mandrill.provider'); // Mantido desabilitado
 
 class EmailService {
   constructor() {
     this.prisma = null;
-    this.mandrillApiKey = process.env.MANDRILL_API_KEY;
-    this.mandrillBaseUrl = 'https://mandrillapp.com/api/1.0';
-    this.fromEmail = process.env.FROM_EMAIL || 'noreply@coinage.com';
-    this.fromName = process.env.FROM_NAME || 'Coinage';
+    this.provider = process.env.EMAIL_PROVIDER || 'mock';
+    this.fromEmail = process.env.EMAIL_FROM_ADDRESS || 'noreply@coinage.com';
+    this.fromName = process.env.EMAIL_FROM_NAME || 'Coinage';
+    
+    // Inicializar provedores
+    this.providerInstances = {
+      mailersend: new MailerSendProvider(),
+      // mandrill: new MandrillProvider() // Mantido desabilitado
+    };
+
+    // Configurações legacy para compatibilidade
+    this.providers = {
+      mandrill: {
+        apiKey: process.env.EMAIL_API_KEY || process.env.MANDRILL_API_KEY,
+        baseUrl: 'https://mandrillapp.com/api/1.0'
+      },
+      mailersend: {
+        apiKey: process.env.EMAIL_API_KEY || process.env.MAILERSEND_API_TOKEN,
+        baseUrl: 'https://api.mailersend.com/v1'
+      },
+      mock: {
+        enabled: true
+      }
+    };
+
+    // Definir provedor preferido com fallback
+    this.activeProvider = this.determineActiveProvider();
+  }
+
+  /**
+   * Determina qual provedor usar com base na configuração e disponibilidade
+   */
+  determineActiveProvider() {
+    const requestedProvider = this.provider.toLowerCase();
+    
+    // Se um provedor específico foi solicitado e está configurado
+    if (requestedProvider !== 'mock' && this.providerInstances[requestedProvider]?.isEnabled()) {
+      console.log(`✅ Usando provedor de email: ${requestedProvider}`);
+      return requestedProvider;
+    }
+
+    // Fallback: buscar primeiro provedor disponível
+    for (const [name, instance] of Object.entries(this.providerInstances)) {
+      if (instance.isEnabled()) {
+        console.log(`✅ Fallback para provedor de email: ${name}`);
+        return name;
+      }
+    }
+
+    // Se nenhum provedor real estiver configurado, usar mock
+    console.warn('⚠️ Nenhum provedor de email configurado, usando modo mock');
+    return 'mock';
   }
 
   async init() {
@@ -15,28 +68,105 @@ class EmailService {
   }
 
   /**
-   * Envia email usando Mandrill
+   * Envia email usando template
+   * @param {string} templateName - Nome do template
+   * @param {string} to - Email destinatário
+   * @param {Object} data - Dados para o template
+   * @param {Object} options - Opções adicionais
+   * @returns {Promise<Object>} Resultado do envio
+   */
+  async sendTemplateEmail(templateName, to, data, options = {}) {
+    try {
+      console.log(`📧 Sending template email: ${templateName} to ${to}`);
+      
+      // 1. Obter template processado
+      const template = await emailTemplateService.getTemplate(templateName, data, options.companyId);
+      
+      // 2. Preparar dados do email
+      const emailData = {
+        templateName,
+        to,
+        toName: data.userName || data.name || to.split('@')[0],
+        subject: template.subject,
+        html: template.html,
+        text: template.text,
+        category: template.category,
+        ...options
+      };
+      
+      // 3. Enviar baseado no provedor
+      return await this.sendEmail(emailData);
+      
+    } catch (error) {
+      console.error(`❌ Error sending template email ${templateName}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Envia email baseado no provedor configurado
    * @param {Object} emailData - Dados do email
    * @returns {Promise<Object>} Resultado do envio
    */
   async sendEmail(emailData) {
     try {
-      if (!this.mandrillApiKey) {
-        console.warn('⚠️ MANDRILL_API_KEY não configurada, simulando envio de email');
-        return this.simulateEmailSend(emailData);
+      // Usar nova implementação com provedores
+      return await this.sendEmailWithProvider(emailData);
+    } catch (error) {
+      console.error('❌ Error sending email:', error);
+      
+      // Fallback para implementação legada se nova falhar
+      console.warn('🔄 Tentando implementação legada...');
+      return await this.sendEmailLegacy(emailData);
+    }
+  }
+
+  /**
+   * Implementação legada para compatibilidade
+   * @param {Object} emailData - Dados do email
+   * @returns {Promise<Object>} Resultado do envio
+   */
+  async sendEmailLegacy(emailData) {
+    try {
+      switch (this.provider) {
+        case 'mandrill':
+          return await this.sendWithMandrill(emailData);
+        case 'mailersend':
+          return await this.sendWithMailerSend(emailData);
+        case 'mock':
+        default:
+          return await this.sendMockEmail(emailData);
+      }
+    } catch (error) {
+      console.error('❌ Error in legacy email sending:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Envia email usando Mandrill
+   * @param {Object} emailData - Dados do email
+   * @returns {Promise<Object>} Resultado do envio
+   */
+  async sendWithMandrill(emailData) {
+    try {
+      const config = this.providers.mandrill;
+      if (!config.apiKey) {
+        console.warn('⚠️ Mandrill API key not configured, using mock');
+        return this.sendMockEmail(emailData);
       }
 
       const payload = {
-        key: this.mandrillApiKey,
+        key: config.apiKey,
         message: {
-          html: emailData.htmlContent,
-          text: emailData.textContent,
+          html: emailData.html || emailData.htmlContent,
+          text: emailData.text || emailData.textContent,
           subject: emailData.subject,
           from_email: emailData.fromEmail || this.fromEmail,
           from_name: emailData.fromName || this.fromName,
           to: [
             {
-              email: emailData.toEmail,
+              email: emailData.to || emailData.toEmail,
               name: emailData.toName,
               type: 'to'
             }
@@ -44,7 +174,7 @@ class EmailService {
           headers: {
             'Reply-To': emailData.replyTo || this.fromEmail
           },
-          tags: emailData.tags || [],
+          tags: emailData.tags || [emailData.category || emailData.templateName],
           metadata: emailData.metadata || {},
           track_opens: true,
           track_clicks: true
@@ -99,6 +229,105 @@ class EmailService {
         errorMessage: error.message,
         metadata: { error: error.message }
       });
+
+      throw error;
+    }
+  }
+
+  /**
+   * Enviar email usando provedor real configurado
+   * @param {Object} emailData - Dados do email
+   * @returns {Promise<Object>} Resultado do envio
+   */
+  async sendEmailWithProvider(emailData) {
+    try {
+      if (this.activeProvider === 'mock') {
+        return await this.simulateEmailSend(emailData);
+      }
+
+      const provider = this.providerInstances[this.activeProvider];
+      if (!provider) {
+        throw new Error(`Provedor ${this.activeProvider} não encontrado`);
+      }
+
+      console.log(`📧 Enviando email via ${this.activeProvider}:`, {
+        to: emailData.toEmail,
+        subject: emailData.subject
+      });
+
+      // Preparar dados para o provedor
+      const providerData = {
+        to: {
+          email: emailData.toEmail,
+          name: emailData.toName || ''
+        },
+        subject: emailData.subject,
+        htmlContent: emailData.htmlContent,
+        textContent: emailData.textContent,
+        from: {
+          email: emailData.fromEmail || this.fromEmail,
+          name: emailData.fromName || this.fromName
+        },
+        replyTo: {
+          email: emailData.replyToEmail || this.fromEmail
+        },
+        attachments: emailData.attachments || []
+      };
+
+      const result = await provider.sendEmail(providerData);
+
+      if (result.success) {
+        // Registrar sucesso
+        await this.logEmail({
+          templateId: emailData.templateId,
+          toEmail: emailData.toEmail,
+          fromEmail: emailData.fromEmail || this.fromEmail,
+          subject: emailData.subject,
+          status: 'sent',
+          sentAt: new Date(),
+          providerId: result.messageId,
+          provider: this.activeProvider,
+          metadata: { 
+            provider: result.provider,
+            messageId: result.messageId,
+            status: result.status 
+          }
+        });
+
+        return {
+          success: true,
+          providerId: result.messageId,
+          status: result.status || 'sent',
+          provider: this.activeProvider
+        };
+      } else {
+        // Registrar falha
+        await this.logEmail({
+          templateId: emailData.templateId,
+          toEmail: emailData.toEmail,
+          fromEmail: emailData.fromEmail || this.fromEmail,
+          subject: emailData.subject,
+          status: 'failed',
+          errorMessage: result.error,
+          provider: this.activeProvider,
+          metadata: { 
+            provider: result.provider,
+            error: result.error,
+            details: result.details 
+          }
+        });
+
+        throw new Error(`Falha no envio via ${this.activeProvider}: ${result.error}`);
+      }
+
+    } catch (error) {
+      console.error(`❌ Erro ao enviar via ${this.activeProvider}:`, error);
+
+      // Tentar fallback para mock se não estiver usando
+      if (this.activeProvider !== 'mock') {
+        console.warn('🔄 Tentando fallback para modo mock...');
+        return await this.simulateEmailSend(emailData);
+      }
 
       throw error;
     }
@@ -719,6 +948,53 @@ class EmailService {
       };
     }
   }
+
+  /**
+   * Validar configuração dos provedores de email
+   * @returns {Promise<Object>} Status da validação
+   */
+  async validateProviders() {
+    const results = {};
+    
+    for (const [name, provider] of Object.entries(this.providerInstances)) {
+      try {
+        results[name] = await provider.validateConfiguration();
+      } catch (error) {
+        results[name] = {
+          valid: false,
+          error: error.message,
+          provider: name
+        };
+      }
+    }
+
+    return {
+      activeProvider: this.activeProvider,
+      providers: results,
+      hasValidProvider: Object.values(results).some(r => r.valid)
+    };
+  }
+
+  /**
+   * Obter status dos provedores de email
+   * @returns {Object} Status atual
+   */
+  getProvidersStatus() {
+    const status = {};
+    
+    for (const [name, provider] of Object.entries(this.providerInstances)) {
+      status[name] = {
+        enabled: provider.isEnabled(),
+        isActive: this.activeProvider === name
+      };
+    }
+
+    return {
+      activeProvider: this.activeProvider,
+      providers: status,
+      fallbackToMock: this.activeProvider === 'mock'
+    };
+  }
 }
 
-module.exports = new EmailService();
+module.exports = EmailService;

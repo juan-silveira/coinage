@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Icon from "@/components/ui/Icon";
+import UserAvatar from "@/components/ui/UserAvatar";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useChatMessages } from "@/hooks/useChatMessages";
 import { Menu, Transition } from "@headlessui/react";
@@ -101,11 +102,7 @@ const MobileFooter = () => {
       <Menu as="div" className="relative">
         <Menu.Button className="relative bg-white bg-no-repeat backdrop-filter backdrop-blur-[40px] rounded-full footer-bg dark:bg-slate-700 h-[65px] w-[65px] z-[-1] -mt-[40px] flex justify-center items-center">
           <div className="h-[50px] w-[50px] rounded-full relative left-[0px] top-[0px] custom-dropshadow">
-            <img
-              src="/assets/images/users/ivan.jpg"
-              alt=""
-              className="w-full h-full rounded-full border-2 border-slate-100"
-            />
+            <UserAvatar size="3xl" className="!w-[50px] !h-[50px] border-2 border-slate-100" />
           </div>
         </Menu.Button>
         

@@ -23,6 +23,7 @@ model Company {
   transactions     Transaction[]
   userCompanies    UserCompany[]
   webhooks         Webhook[]
+  userActions      UserAction[]
 
   @@index([isActive], map: "idx_companies_active")
   @@index([lastActivityAt], map: "idx_companies_last_activity")
@@ -46,6 +47,10 @@ model User {
   sessionExpiresAt     DateTime?        @map("session_expires_at") @db.Timestamptz(6)
   sessionTimeout       Int              @default(600) @map("session_timeout")
   isActive             Boolean          @default(true) @map("is_active")
+  emailConfirmed       Boolean          @default(false) @map("email_confirmed")
+  profilePicture       String?          @map("profile_picture")
+  balance              Decimal          @default(0) @db.Decimal(15, 2)
+  blockchainAddress    String?          @map("blockchain_address") @db.VarChar(42)
   metadata             Json?
   lastActivityAt       DateTime?        @map("last_activity_at") @db.Timestamptz(6)
   failedLoginAttempts  Int              @default(0) @map("failed_login_attempts")
@@ -66,10 +71,13 @@ model User {
   userTwoFactors         UserTwoFactor[]
   userDocuments          UserDocument[]
   reviewedDocuments      UserDocument[]    @relation("UserDocumentReviewer")
+  userActions            UserAction[]
+  withdrawals            Withdrawal[]
 
   @@index([email], map: "idx_users_email")
   @@index([cpf], map: "idx_users_cpf")
   @@index([isActive], map: "idx_users_active")
+  @@index([emailConfirmed], map: "idx_users_email_confirmed")
   @@index([lastActivityAt], map: "idx_users_last_activity")
   @@index([userPlan], map: "idx_users_user_plan")
   @@map("users")
@@ -149,23 +157,47 @@ model Transaction {
   @@map("transactions")
 }
 
+model ContractType {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String   @unique @db.VarChar(50)
+  description String?  @db.Text
+  category    ContractCategory
+  abiPath     String   @map("abi_path") @db.VarChar(255)
+  version     String   @default("1.0.0") @db.VarChar(20)
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  contracts   SmartContract[]
+
+  @@index([name], map: "idx_contract_types_name")
+  @@index([category], map: "idx_contract_types_category")
+  @@index([isActive], map: "idx_contract_types_active")
+  @@map("contract_types")
+}
+
 model SmartContract {
-  id           String        @id @default(uuid()) @db.Uuid
-  companyId    String        @map("company_id") @db.Uuid
-  name         String        @db.VarChar(255)
-  address      String        @unique @db.VarChar(42)
-  network      Network
-  abi          Json
-  bytecode     String?
-  isActive     Boolean       @default(true) @map("is_active")
-  metadata     Json?
-  createdAt    DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt    DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
-  transactions Transaction[]
+  id             String        @id @default(uuid()) @db.Uuid
+  companyId      String        @map("company_id") @db.Uuid
+  contractTypeId String?       @map("contract_type_id") @db.Uuid
+  name           String        @db.VarChar(255)
+  address        String        @unique @db.VarChar(42)
+  network        Network
+  abi            Json?
+  bytecode       String?
+  isActive       Boolean       @default(true) @map("is_active")
+  metadata       Json?
+  deployedAt     DateTime?     @map("deployed_at") @db.Timestamptz(6)
+  deployedBy     String?       @map("deployed_by") @db.Uuid
+  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+  contractType   ContractType? @relation(fields: [contractTypeId], references: [id])
+  transactions   Transaction[]
 
   @@index([address], map: "idx_smart_contracts_address")
   @@index([network], map: "idx_smart_contracts_network")
   @@index([isActive], map: "idx_smart_contracts_active")
+  @@index([contractTypeId], map: "idx_smart_contracts_contract_type")
+  @@index([deployedBy], map: "idx_smart_contracts_deployed_by")
   @@map("smart_contracts")
 }
 
@@ -474,6 +506,32 @@ model Notification {
   @@map("notifications")
 }
 
+model Withdrawal {
+  id                String    @id @default(uuid()) @db.Uuid
+  userId            String    @map("user_id") @db.Uuid
+  amount            Decimal   @db.Decimal(15, 2)
+  fee               Decimal   @db.Decimal(15, 2)
+  netAmount         Decimal   @map("net_amount") @db.Decimal(15, 2)
+  pixKey            String    @map("pix_key") @db.VarChar(255)
+  pixKeyType        String    @map("pix_key_type") @db.VarChar(20)
+  status            WithdrawalStatus @default(PENDING)
+  burnTxHash        String?   @map("burn_tx_hash") @db.VarChar(66)
+  pixTransactionId  String?   @map("pix_transaction_id") @db.VarChar(255)
+  pixEndToEndId     String?   @map("pix_end_to_end_id") @db.VarChar(32)
+  errorMessage      String?   @map("error_message") @db.Text
+  metadata          Json?
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  completedAt       DateTime? @map("completed_at") @db.Timestamptz(6)
+  user              User      @relation(fields: [userId], references: [id])
+
+  @@index([userId], map: "idx_withdrawals_user_id")
+  @@index([status], map: "idx_withdrawals_status")
+  @@index([createdAt], map: "idx_withdrawals_created")
+  @@index([pixTransactionId], map: "idx_withdrawals_pix_transaction")
+  @@map("withdrawals")
+}
+
 model Earnings {
   id               String   @id @default(uuid()) @db.Uuid
   userId           String   @map("user_id") @db.Uuid
@@ -495,6 +553,41 @@ model Earnings {
   @@index([distributionDate], map: "idx_earnings_distribution_date")
   @@index([isActive], map: "idx_earnings_active")
   @@map("earnings")
+}
+
+model UserAction {
+  id               String             @id @default(uuid()) @db.Uuid
+  userId           String             @map("user_id") @db.Uuid
+  companyId        String?            @map("company_id") @db.Uuid
+  action           UserActionType     
+  category         UserActionCategory
+  status           UserActionStatus   @default(success)
+  details          Json?              
+  metadata         Json?              
+  relatedId        String?            @map("related_id") @db.Uuid
+  relatedType      String?            @map("related_type") @db.VarChar(50)
+  ipAddress        String?            @map("ip_address") @db.VarChar(45)
+  userAgent        String?            @map("user_agent") @db.Text
+  deviceInfo       Json?              @map("device_info")
+  location         Json?              
+  errorMessage     String?            @map("error_message") @db.Text
+  errorCode        String?            @map("error_code") @db.VarChar(50)
+  duration         Int?               
+  performedAt      DateTime           @default(now()) @map("performed_at") @db.Timestamptz(6)
+  user             User               @relation(fields: [userId], references: [id])
+  company          Company?           @relation(fields: [companyId], references: [id])
+
+  @@index([userId], map: "idx_user_actions_user_id")
+  @@index([companyId], map: "idx_user_actions_company_id")
+  @@index([action], map: "idx_user_actions_action")
+  @@index([category], map: "idx_user_actions_category")
+  @@index([status], map: "idx_user_actions_status")
+  @@index([performedAt], map: "idx_user_actions_performed_at")
+  @@index([relatedId], map: "idx_user_actions_related_id")
+  @@index([userId, performedAt], map: "idx_user_actions_user_performed")
+  @@index([userId, category], map: "idx_user_actions_user_category")
+  @@index([userId, action, status], map: "idx_user_actions_user_action_status")
+  @@map("user_actions")
 }
 
 enum Network {
@@ -520,6 +613,14 @@ enum TransactionStatus {
   confirmed
   failed
   cancelled
+}
+
+enum WithdrawalStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
 }
 
 enum UserRole {
@@ -591,4 +692,92 @@ enum UserDocumentStatus {
   pending   // Pendente de avaliação
   approved  // Aceito
   rejected  // Rejeitado
+}
+
+enum UserActionType {
+  // Auth
+  login
+  logout
+  login_failed
+  password_reset
+  password_changed
+  two_factor_enabled
+  two_factor_disabled
+  two_factor_verified
+  
+  // Profile
+  profile_updated
+  profile_viewed
+  document_uploaded
+  document_verified
+  
+  // Financial
+  deposit_initiated
+  deposit_confirmed
+  deposit_failed
+  withdrawal_initiated
+  withdrawal_approved
+  withdrawal_completed
+  withdrawal_failed
+  transfer_sent
+  transfer_received
+  transfer_failed
+  
+  // Blockchain
+  transaction_sent
+  transaction_confirmed
+  transaction_failed
+  contract_interaction
+  token_swap
+  stake_created
+  stake_withdrawn
+  reward_claimed
+  
+  // Security
+  api_key_created
+  api_key_deleted
+  suspicious_activity
+  account_locked
+  account_unlocked
+  
+  // System
+  notification_sent
+  email_sent
+  webhook_triggered
+  cache_cleared
+  
+  // Admin
+  user_created
+  user_updated
+  user_deleted
+  permission_granted
+  permission_revoked
+}
+
+enum UserActionCategory {
+  authentication
+  profile
+  financial
+  blockchain
+  security
+  system
+  admin
+}
+
+enum UserActionStatus {
+  success
+  failed
+  pending
+  cancelled
+}
+
+enum ContractCategory {
+  token       // ERC-20, ERC-777, tokens customizados
+  nft         // ERC-721, ERC-1155, NFTs
+  defi        // Staking, lending, AMM
+  escrow      // Contratos de custódia
+  governance  // DAOs, voting
+  bridge      // Cross-chain bridges
+  oracle      // Price feeds, data oracles
+  other       // Outros tipos
 }

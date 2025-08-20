@@ -6,6 +6,7 @@ const getPrisma = () => prismaConfig.getPrisma();
 
 // Importar serviços
 const userService = require('../services/user.service');
+const userActionsService = require('../services/userActions.service');
 const { validatePassword } = require('../utils/passwordValidation');
 
 /**
@@ -35,6 +36,17 @@ const createUser = async (req, res) => {
     }
 
     const user = await userService.createUser(userData, companyId);
+
+    // Registrar ação administrativa de criação de usuário
+    await userActionsService.logAdmin(req.user.id, 'user_created', user.id, req, {
+      details: {
+        newUser: {
+          name: user.name,
+          email: user.email,
+          userPlan: user.userPlan
+        }
+      }
+    });
 
     res.status(201).json({
       success: true,

@@ -15,6 +15,7 @@ export const metadata = {
 import ThemeProvider from "./theme-provider"
 import { AlertProvider } from "@/contexts/AlertContext";
 import { CompanyProvider } from "@/contexts/CompanyContext";
+import { ConfigProvider } from "@/contexts/ConfigContext";
 
 export default function RootLayout({ children }) {
   return (
@@ -22,11 +23,13 @@ export default function RootLayout({ children }) {
       <html lang="pt-BR">
         <body className="font-inter  custom-tippy dashcode-app">
           <ThemeProvider>
-            <AlertProvider>
-              <CompanyProvider>
-                {children}
-              </CompanyProvider>
-            </AlertProvider>
+            <ConfigProvider>
+              <AlertProvider>
+                <CompanyProvider>
+                  {children}
+                </CompanyProvider>
+              </AlertProvider>
+            </ConfigProvider>
           </ThemeProvider>
         </body>
       </html>
