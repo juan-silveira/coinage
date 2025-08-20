@@ -268,7 +268,7 @@ const profile = () => {
               </ul>
             </Card>
           </div>
-          <div className="lg:col-span-8 col-span-12">
+          <div className="lg:col-span-7 col-span-12">
             <Card title="Saldos Atuais">
               {loading ? (
                 <div className="space-y-4">
@@ -284,89 +284,6 @@ const profile = () => {
                 </div>
               ) : (
                 <BalancesTable balances={balances} />
-              )}
-            </Card>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-12 gap-6">
-          <div className="col-span-12">
-            <Card title="Distribuições de Earnings Recebidas">
-              {earningsLoading ? (
-                <div className="space-y-4">
-                  {[...Array(5)].map((_, i) => (
-                    <div key={i} className="animate-pulse flex space-x-4">
-                      <div className="rounded-full bg-slate-300 dark:bg-slate-600 h-10 w-10"></div>
-                      <div className="flex-1 space-y-2 py-1">
-                        <div className="h-4 bg-slate-300 dark:bg-slate-600 rounded w-3/4"></div>
-                        <div className="h-3 bg-slate-300 dark:bg-slate-600 rounded w-1/2"></div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : earnings && earnings.length > 0 ? (
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
-                    <thead className="bg-slate-50 dark:bg-slate-800">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                          Token
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                          Quantidade
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                          Valor (USD)
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                          Data
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                          Network
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white dark:bg-slate-900 divide-y divide-slate-200 dark:divide-slate-700">
-                      {earnings.map((earning) => (
-                        <tr key={earning.id}>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900 dark:text-slate-100">
-                            {earning.tokenSymbol}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 dark:text-slate-400">
-                            {parseFloat(earning.amount).toLocaleString('pt-BR', { 
-                              minimumFractionDigits: 2, 
-                              maximumFractionDigits: 8 
-                            })}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 dark:text-slate-400">
-                            ${parseFloat(earning.quote).toLocaleString('en-US', { 
-                              minimumFractionDigits: 2, 
-                              maximumFractionDigits: 2 
-                            })}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 dark:text-slate-400">
-                            {new Date(earning.distributionDate).toLocaleString('pt-BR')}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                              earning.network === 'mainnet' 
-                                ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                                : 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
-                            }`}>
-                              {earning.network}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <div className="text-center py-8">
-                  <div className="text-slate-400 dark:text-slate-500">
-                    Nenhuma distribuição de earnings encontrada.
-                  </div>
-                </div>
               )}
             </Card>
           </div>

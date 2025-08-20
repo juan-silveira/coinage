@@ -1,7 +1,8 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import useAuthStore from '@/store/authStore';
-import api from '@/services/api';
+import imageStorageService from '@/services/imageStorage.service';
+import ClientOnly from './ClientOnly';
 
 const UserAvatar = ({ 
   size = 'md', 
@@ -34,26 +35,38 @@ const UserAvatar = ({
     '3xl': 'w-5 h-5'
   };
 
-  // Load profile photo on mount and when timestamp changes
+  // Load profile photo from local storage
   useEffect(() => {
     const loadProfilePhoto = async () => {
+      if (!user?.id) return;
+
       try {
-        const response = await api.get('/api/profile/photo');
-        if (response.data.success && response.data.data.url) {
-          setProfilePhotoUrl(response.data.data.url);
-        } else {
+        // First try to get from local storage
+        const localImage = await imageStorageService.getProfileImage(user.id);
+        if (localImage && localImage.dataUrl) {
+          setProfilePhotoUrl(localImage.dataUrl);
+          return;
+        }
+
+        // If no local image and URL is set, keep existing URL
+        // This handles cases where image was set before local storage implementation
+        if (profilePhotoUrl && !profilePhotoUrl.startsWith('data:')) {
+          // Keep existing URL but don't make new requests to avoid CORS
+          console.log('Using existing photo URL');
+        } else if (!profilePhotoUrl) {
           setProfilePhotoUrl(null);
         }
       } catch (error) {
-        console.log('No profile photo found or error loading:', error);
+        console.log('Error loading profile photo from local storage:', error);
         setProfilePhotoUrl(null);
       }
     };
 
-    if (user) {
+    // Load when user is available and we haven't loaded yet
+    if (user?.id && !profilePhotoUrl) {
       loadProfilePhoto();
     }
-  }, [user, profilePhotoTimestamp, setProfilePhotoUrl]);
+  }, [user?.id, setProfilePhotoUrl]); // Removed profilePhotoTimestamp to prevent loops
 
   // Reset image loaded state when photo URL changes
   useEffect(() => {
@@ -90,32 +103,41 @@ const UserAvatar = ({
   `.trim();
 
   return (
-    <div className={avatarClasses} onClick={clickable && onClick ? onClick : undefined}>
-      {profilePhotoUrl && !imageLoaded && (
-        <div className="absolute inset-0 bg-gray-200 dark:bg-gray-700 animate-pulse" />
-      )}
-      
-      {profilePhotoUrl ? (
-        <img
-          src={profilePhotoUrl}
-          alt={`${user?.name || 'User'} profile`}
-          className="w-full h-full object-cover"
-          onLoad={handleImageLoad}
-          onError={handleImageError}
-          style={{ display: imageLoaded ? 'block' : 'none' }}
-        />
-      ) : null}
-      
-      {(!profilePhotoUrl || !imageLoaded) && (
-        <span className={`${imageLoaded ? 'opacity-0' : 'opacity-100'} transition-opacity`}>
-          {getUserInitials()}
-        </span>
-      )}
+    <ClientOnly fallback={
+      <div className={avatarClasses}>
+        <span>{getUserInitials()}</span>
+        {showOnlineStatus && (
+          <div className={`absolute bottom-0 right-0 ${dotSizes[size]} bg-green-500 border-2 border-white dark:border-gray-800 rounded-full`} />
+        )}
+      </div>
+    }>
+      <div className={avatarClasses} onClick={clickable && onClick ? onClick : undefined}>
+        {profilePhotoUrl && !imageLoaded && (
+          <div className="absolute inset-0 bg-gray-200 dark:bg-gray-700 animate-pulse" />
+        )}
+        
+        {profilePhotoUrl ? (
+          <img
+            src={profilePhotoUrl}
+            alt={`${user?.name || 'User'} profile`}
+            className="w-full h-full object-cover"
+            onLoad={handleImageLoad}
+            onError={handleImageError}
+            style={{ display: imageLoaded ? 'block' : 'none' }}
+          />
+        ) : null}
+        
+        {(!profilePhotoUrl || !imageLoaded) && (
+          <span className={`${imageLoaded ? 'opacity-0' : 'opacity-100'} transition-opacity`}>
+            {getUserInitials()}
+          </span>
+        )}
 
-      {showOnlineStatus && (
-        <div className={`absolute bottom-0 right-0 ${dotSizes[size]} bg-green-500 border-2 border-white dark:border-gray-800 rounded-full`} />
-      )}
-    </div>
+        {showOnlineStatus && (
+          <div className={`absolute bottom-0 right-0 ${dotSizes[size]} bg-green-500 border-2 border-white dark:border-gray-800 rounded-full`} />
+        )}
+      </div>
+    </ClientOnly>
   );
 };
 

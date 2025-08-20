@@ -1,7 +1,8 @@
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  webpack(config) {
+  reactStrictMode: false, // Temporarily disable for hydration debugging
+  webpack(config, { isServer }) {
     // Grab the existing rule that handles SVG imports
     const fileLoaderRule = config.module.rules.find((rule) =>
       rule.test?.test?.(".svg")
@@ -25,6 +26,16 @@ const nextConfig = {
 
     // Modify the file loader rule to ignore *.svg, since we have it handled now.
     fileLoaderRule.exclude = /\.svg$/i;
+
+    // Ensure modules that use browser APIs only run on client side
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        path: false,
+        crypto: false,
+      };
+    }
 
     return config;
   },

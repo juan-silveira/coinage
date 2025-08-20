@@ -330,6 +330,46 @@ class RedisService {
   }
 
   /**
+   * Verifica se um token está na blacklist
+   */
+  async isBlacklisted(token) {
+    try {
+      const key = `blacklist:${token}`;
+      const result = await this.get(key);
+      return result === 'true';
+    } catch (error) {
+      console.error('❌ Error checking blacklist:', error.message);
+      return false; // Em caso de erro, assumir que não está na blacklist
+    }
+  }
+
+  /**
+   * Adiciona um token à blacklist
+   */
+  async addToBlacklist(token, expiresInSeconds = 86400) {
+    try {
+      const key = `blacklist:${token}`;
+      return await this.set(key, 'true', { EX: expiresInSeconds });
+    } catch (error) {
+      console.error('❌ Error adding to blacklist:', error.message);
+      return false;
+    }
+  }
+
+  /**
+   * Remove um token da blacklist
+   */
+  async removeFromBlacklist(token) {
+    try {
+      const key = `blacklist:${token}`;
+      return await this.del(key);
+    } catch (error) {
+      console.error('❌ Error removing from blacklist:', error.message);
+      return false;
+    }
+  }
+
+  /**
    * Obtém estatísticas do cache
    */
   getStats() {

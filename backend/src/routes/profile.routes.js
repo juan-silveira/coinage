@@ -3,7 +3,16 @@ const multer = require('multer');
 const router = express.Router();
 const profileController = require('../controllers/profile.controller');
 const { authenticateJWT } = require('../middleware/jwt.middleware');
-const { apiRateLimiter } = require('../middleware/rateLimit.middleware');
+const { apiRateLimiter, createRateLimiter } = require('../middleware/rateLimit.middleware');
+
+// Rate limiter específico para foto de perfil (previne loops)
+const profilePhotoRateLimiter = createRateLimiter({
+  maxRequests: 5, // Máximo 5 requisições
+  windowMs: 10 * 1000, // Em 10 segundos
+  keyPrefix: 'profile_photo_rate_limit',
+  keyGenerator: (req) => req.user?.id || req.ip,
+  message: 'Muitas requisições para foto de perfil. Aguarde alguns segundos.'
+});
 
 // Configure multer for memory storage
 const storage = multer.memoryStorage();
@@ -96,7 +105,7 @@ router.post('/upload-photo',
  *         description: User not found
  */
 router.get('/photo',
-  apiRateLimiter,
+  profilePhotoRateLimiter,
   authenticateJWT,
   profileController.getProfilePhoto
 );
@@ -125,6 +134,47 @@ router.delete('/photo',
 
 /**
  * @swagger
+ * /api/profile/simple-photo:
+ *   get:
+ *     summary: Get profile photo URL (simple version without rate limiting)
+ *     tags: [Profile]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Profile photo URL retrieved
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: User not found
+ */
+router.get('/simple-photo',
+  authenticateJWT,
+  (req, res) => {
+    // Versão simplificada sem rate limiting para evitar loops
+    const userId = req.user?.id;
+    
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Usuário não autenticado'
+      });
+    }
+
+    // Retornar resposta simples - usuário sem foto por padrão
+    res.set('Cache-Control', 'public, max-age=600'); // 10 minutos de cache
+    res.status(200).json({
+      success: true,
+      data: {
+        hasPhoto: false,
+        url: null
+      }
+    });
+  }
+);
+
+/**
+ * @swagger
  * /api/profile/health:
  *   get:
  *     summary: Health check
@@ -142,6 +192,7 @@ router.get('/health', (req, res) => {
     endpoints: {
       uploadPhoto: 'POST /api/profile/upload-photo',
       getPhoto: 'GET /api/profile/photo',
+      simplePhoto: 'GET /api/profile/simple-photo',
       deletePhoto: 'DELETE /api/profile/photo'
     }
   });

@@ -397,11 +397,19 @@ class BlockchainQueueService {
         throw new Error(`PIX payment not approved: ${pixStatus.status}`);
       }
 
-      // 2. Mint cBRL tokens na blockchain Azore
+      // 2. Mint tokens na blockchain Azore
+      // Usar token service genérico para mint
+      const tokenService = require('./token.service');
+      const mintResult = await tokenService.mintTokens(
+        depositData.tokenContract, // contrato do token
+        blockchainAddress,
+        amount,
+        depositData.network || 'testnet'
+      );
       
-      // TEMPORARIAMENTE DESABILITADO - cBRL service removido
-      const mintResult = { success: false, error: 'cBRL service temporarily disabled' };
-      // await cBRLService.mintTokens(blockchainAddress, amount, {
+      if (!mintResult.success) {
+        throw new Error(`Failed to mint tokens: ${mintResult.error}`);
+      }
       //   depositId,
       //   pixPaymentId: pixData.paymentId,
       //   pixEndToEndId: pixStatus.endToEndId,
@@ -508,13 +516,16 @@ class BlockchainQueueService {
 
   async processMint(data) {
     try {
-      // Usar serviço cBRL para mint
+      // Mint genérico para qualquer token ERC20
+      const tokenService = require('./token.service');
       
-      const result = // await cBRLService.mintTokens(
+      const result = await tokenService.mintTokens(
+        data.contractAddress,
         data.toAddress,
         data.amount,
-        data.metadata || {}
+        data.network || 'testnet'
       );
+      
       return result;
     } catch (error) {
       return { success: false, error: error.message };
@@ -523,13 +534,16 @@ class BlockchainQueueService {
 
   async processBurn(data) {
     try {
-      // Usar serviço cBRL para burn
+      // Burn genérico para qualquer token ERC20
+      const tokenService = require('./token.service');
       
-      const result = // await cBRLService.burnTokensFrom(
+      const result = await tokenService.burnTokensFrom(
+        data.contractAddress,
         data.fromAddress || data.toAddress,
         data.amount,
-        data.metadata || {}
+        data.network || 'testnet'
       );
+      
       return result;
     } catch (error) {
       return { success: false, error: error.message };
@@ -571,20 +585,27 @@ class BlockchainQueueService {
       
       console.log(`🔄 Processing cBRL withdrawal: ${withdrawalId}`);
 
-      // 1. Verificar saldo do usuário
+      // 1. Verificar saldo do token
+      const tokenService = require('./token.service');
+      const tokenContract = data.tokenContract || process.env.DEFAULT_TOKEN_CONTRACT;
       
-      const balanceResult = // await cBRLService.getBalance(blockchainAddress);
+      const balanceResult = await tokenService.getTokenBalance(
+        tokenContract,
+        blockchainAddress,
+        data.network || 'testnet'
+      );
       
-      if (!balanceResult.success || parseFloat(balanceResult.balance) < parseFloat(amount)) {
-        throw new Error(`Insufficient cBRL balance: ${balanceResult.balance} < ${amount}`);
+      if (!balanceResult.success || parseFloat(balanceResult.data.balance) < parseFloat(amount)) {
+        throw new Error(`Insufficient token balance: ${balanceResult.data?.balance || 0} < ${amount}`);
       }
 
-      // 2. Queimar tokens cBRL
-      const burnResult = // await cBRLService.burnTokensFrom(blockchainAddress, amount, {
-        withdrawalId,
-        pixKey: pixKey,
-        userId
-      });
+      // 2. Queimar tokens (burn)
+      const burnResult = await tokenService.burnTokensFrom(
+        tokenContract,
+        blockchainAddress,
+        amount,
+        data.network || 'testnet'
+      );
       
       if (!burnResult.success) {
         throw new Error(`Failed to burn cBRL tokens: ${burnResult.error}`);
@@ -603,10 +624,14 @@ class BlockchainQueueService {
       if (!pixResult.success) {
         // Se PIX falhar, tentar reverter o burn (mint novamente)
         console.error('PIX failed, attempting to mint tokens back');
-        const revertResult = // await cBRLService.mintTokens(blockchainAddress, amount, {
-          originalWithdrawalId: withdrawalId,
-          reason: 'pix_failed_revert'
-        });
+        // Reverter mint em caso de erro
+        const tokenService = require('./token.service');
+        const revertResult = await tokenService.mintTokens(
+          tokenContract,
+          blockchainAddress,
+          amount,
+          data.network || 'testnet'
+        );
         
         if (revertResult.success) {
           console.log(`✅ Tokens reverted due to PIX failure: ${revertResult.txHash}`);

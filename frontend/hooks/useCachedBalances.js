@@ -33,12 +33,18 @@ export const useCachedBalances = () => {
   const isCacheValid = useCallback(() => {
     if (!cachedBalances || !balancesLastUpdate) return false;
     
+    // CRÍTICO: Verificar se o cache é do usuário atual (evitar cross-user contamination)
+    if (cachedBalances.userId && cachedBalances.userId !== user?.id) {
+      console.warn('⚠️ [CachedBalances] Cache de outro usuário detectado, invalidando');
+      return false;
+    }
+    
     // Usar o intervalo baseado no plano do usuário
     const userPlan = user?.userPlan || 'BASIC';
     const cacheDuration = getCacheDurationMs(userPlan);
     
     return (Date.now() - balancesLastUpdate) < cacheDuration;
-  }, [cachedBalances, balancesLastUpdate, user?.userPlan]);
+  }, [cachedBalances, balancesLastUpdate, user?.userPlan, user?.id]);
 
   // Carregar balances da API
   const loadBalances = useCallback(async (force = false) => {
@@ -59,8 +65,14 @@ export const useCachedBalances = () => {
       const response = await userService.getUserBalances(user.publicKey, defaultNetwork);
       
       if (response.success) {
-        setCachedBalances(response.data);
-        return response.data;
+        // CRÍTICO: Adicionar userId aos dados do cache para validação futura
+        const balancesWithUserId = {
+          ...response.data,
+          userId: user.id, // Adicionar ID do usuário atual
+          loadedAt: new Date().toISOString() // timestamp de quando foi carregado
+        };
+        setCachedBalances(balancesWithUserId);
+        return balancesWithUserId;
       } else {
         return cachedBalances; // Retorna cache anterior se houver erro
       }
@@ -71,13 +83,19 @@ export const useCachedBalances = () => {
 
   // Carregar dados iniciais (sem incluir loadBalances na dependência)
   useEffect(() => {
-    if (isAuthenticated && user?.publicKey) {
+    if (isAuthenticated && user?.publicKey && user?.id) {
+      // CRÍTICO: Verificar se há cache de outro usuário e limpar se necessário
+      if (cachedBalances?.userId && cachedBalances.userId !== user.id) {
+        console.warn('⚠️ [CachedBalances] Detectado cache de outro usuário, limpando...');
+        clearCachedBalances();
+      }
+      
       loadBalances();
     } else {
       clearCachedBalances();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated, user?.publicKey]);
+  }, [isAuthenticated, user?.publicKey, user?.id]);
 
   // Auto-refresh baseado no plano do usuário
   useEffect(() => {

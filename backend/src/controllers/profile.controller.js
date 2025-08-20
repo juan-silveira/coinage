@@ -1,5 +1,5 @@
 const prismaConfig = require('../config/prisma');
-const minIOService = require('../services/minio.service');
+const localStorageService = require('../services/localStorage.service');
 const userActionsService = require('../services/userActions.service');
 
 class ProfileController {
@@ -116,20 +116,20 @@ class ProfileController {
       // Delete old profile picture if it exists
       if (currentUser.profilePicture) {
         try {
-          await minIOService.deleteProfilePicture(currentUser.profilePicture);
+          await localStorageService.deleteProfilePicture(currentUser.profilePicture);
         } catch (deleteError) {
           console.warn('⚠️ Warning: Could not delete old profile picture:', deleteError.message);
         }
       }
 
       // Upload new profile picture
-      const uploadResult = await minIOService.uploadProfilePicture(file, userId);
+      const uploadResult = await localStorageService.uploadProfilePicture(file, userId);
 
       // Update user's profile picture in database
       const updatedUser = await this.prisma.user.update({
         where: { id: userId },
         data: {
-          profilePicture: uploadResult.fileName
+          profilePicture: uploadResult.key
         },
         select: {
           id: true,
@@ -144,7 +144,7 @@ class ProfileController {
         status: 'success',
         details: {
           action: 'profile_photo_uploaded',
-          fileName: uploadResult.fileName,
+          fileName: uploadResult.key,
           fileSize: uploadResult.size,
           mimeType: uploadResult.mimeType,
           uploadedAt: new Date().toISOString()
@@ -155,7 +155,7 @@ class ProfileController {
         success: true,
         message: 'Foto de perfil atualizada com sucesso!',
         data: {
-          profilePicture: uploadResult.fileName,
+          profilePicture: uploadResult.key,
           url: uploadResult.url,
           user: updatedUser
         }
@@ -245,11 +245,18 @@ class ProfileController {
       
       if (user.profilePicture) {
         try {
-          photoUrl = await minIOService.getProfilePictureUrl(user.profilePicture);
+          photoUrl = localStorageService.getPublicUrl('profile-pictures', user.profilePicture);
         } catch (error) {
           console.warn('⚠️ Warning: Could not get profile picture URL:', error.message);
         }
       }
+
+      // Adicionar headers de cache para evitar requisições excessivas
+      res.set({
+        'Cache-Control': 'public, max-age=300', // 5 minutos de cache
+        'ETag': `"profile-${userId}-${user.profilePicture || 'null'}"`,
+        'Last-Modified': new Date().toUTCString()
+      });
 
       res.status(200).json({
         success: true,
@@ -318,8 +325,8 @@ class ProfileController {
         });
       }
 
-      // Delete from MinIO
-      await minIOService.deleteProfilePicture(user.profilePicture);
+      // Delete from local storage
+      await localStorageService.deleteProfilePicture(user.profilePicture);
 
       // Update user record
       await this.prisma.user.update({

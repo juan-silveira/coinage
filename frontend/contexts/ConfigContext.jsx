@@ -1,6 +1,7 @@
 "use client";
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { configService } from '@/services/api';
+import ClientOnly from '@/components/ui/ClientOnly';
 
 const ConfigContext = createContext();
 
@@ -36,7 +37,7 @@ export function ConfigProvider({ children }) {
   // NÃO renderizar filhos até configuração estar carregada
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center min-h-screen" suppressHydrationWarning>
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
           <p>Carregando configurações...</p>
@@ -47,7 +48,7 @@ export function ConfigProvider({ children }) {
 
   if (error || !config) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center min-h-screen" suppressHydrationWarning>
         <div className="text-center">
           <p className="text-red-500 mb-4">Erro ao carregar configurações do servidor</p>
           <p className="text-sm text-gray-500">{error}</p>
@@ -64,7 +65,16 @@ export function ConfigProvider({ children }) {
 
   return (
     <ConfigContext.Provider value={{ config, loading: false, error: null }}>
-      {children}
+      <ClientOnly fallback={
+        <div className="flex items-center justify-center min-h-screen" suppressHydrationWarning>
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+            <p>Carregando configurações...</p>
+          </div>
+        </div>
+      }>
+        {children}
+      </ClientOnly>
     </ConfigContext.Provider>
   );
 }

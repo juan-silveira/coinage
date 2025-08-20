@@ -179,7 +179,7 @@ export default function RootLayout({ children }) {
                     >
                       <Suspense fallback={<Loading />}>
                         <DashboardContent>
-                          <Breadcrumbs />
+                          {/* <Breadcrumbs /> */}
                           {children}
                         </DashboardContent>
                       </Suspense>

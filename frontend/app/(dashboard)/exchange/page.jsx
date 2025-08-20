@@ -2,287 +2,386 @@
 import React, { useState, useEffect } from 'react';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
-import Textinput from '@/components/ui/Textinput';
-import Select from '@/components/ui/Select';
+import Icon from '@/components/ui/Icon';
 import { useAlertContext } from '@/contexts/AlertContext';
-import { ArrowUpDown, RefreshCw, TrendingUp, TrendingDown } from 'lucide-react';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
+import BuyTab from '@/components/partials/exchange/BuyTab';
+import SellTab from '@/components/partials/exchange/SellTab';
 
 const ExchangePage = () => {
-  const { showSuccess, showError, showInfo, showWarning } = useAlertContext();
-  const [formData, setFormData] = useState({
-    fromCurrency: 'BRL',
-    toCurrency: 'BTC',
-    fromAmount: '',
-    toAmount: ''
-  });
+  useDocumentTitle('Exchange - Comprar e Vender', 'Coinage', true);
+  
+  const { showSuccess, showError } = useAlertContext();
+  
+  // State management
+  const [activeTab, setActiveTab] = useState('buy');
   const [loading, setLoading] = useState(false);
-  const [exchangeRate, setExchangeRate] = useState(null);
-  const [marketData, setMarketData] = useState([]);
+  const [openDropdown, setOpenDropdown] = useState(null);
+  
+  // Form data
+  const [buyData, setBuyData] = useState({
+    payAmount: '',
+    payCurrency: 'PIX',
+    receiveCurrency: 'PCN'
+  });
+  
+  const [sellData, setSellData] = useState({
+    payAmount: '',
+    payCurrency: 'PCN',
+    receiveCurrency: 'PIX'
+  });
+  
+  const [orders, setOrders] = useState([]);
+  const [orderFilters, setOrderFilters] = useState({
+    status: 'all',
+    type: 'all'
+  });
 
-  const currencies = [
-    { value: 'BRL', label: 'Real Brasileiro (BRL)', symbol: 'R$' },
-    { value: 'BTC', label: 'Bitcoin (BTC)', symbol: '₿' },
-    { value: 'ETH', label: 'Ethereum (ETH)', symbol: 'Ξ' },
-    { value: 'USDT', label: 'Tether (USDT)', symbol: '$' },
-    { value: 'ADA', label: 'Cardano (ADA)', symbol: 'ADA' },
-    { value: 'DOT', label: 'Polkadot (DOT)', symbol: 'DOT' }
+  // Currency data
+  const fiatCurrencies = [
+    { code: 'cBRL', name: 'Coinager Real Brasileiro', icon: '/assets/images/currencies/cBRL.png', balance: 1250.75 },
+    { code: 'PIX', name: 'Transferência Bancária (PIX)', icon: 'pix', balance: null },
+    // { code: 'USDT', name: 'Dólar Americano', icon: '/assets/images/currencies/USDT.png', balance: 0 }
   ];
+  
+  const cryptoCurrencies = [
+    { code: 'CNT', name: 'Coinage Token', icon: '/assets/images/currencies/CNT.png', balance: 12.00125, price_brl: 1.0, price_usd: 0.18 },
+    { code: 'PCN', name: 'Pratique Coin', icon: '/assets/images/currencies/PCN.png', balance: 1002.451234, price_brl: 1.0, price_usd: 0.18 },
+    { code: 'MJD', name: 'Meu Jurídico Digital', icon: '/assets/images/currencies/MJD.png', balance: 100.0, price_brl: 15.0, price_usd: 2.7 },
+    { code: 'IMB', name: 'Imobiliária', icon: '/assets/images/currencies/IMB.png', balance: 111.0, price_brl: 10.0, price_usd: 1.8 }
+  ];
+  
+  
+  // Fee configuration
+  const feeConfig = {
+    buy: { percentage: 1, fixed: 0 },
+    sell: { percentage: 3.5, fixed: 0 },
+    pix: { percentage: 0.5, fixed: 0 }
+  };
 
-  // Simular dados de mercado
+  // Calculate amounts
+  const calculateBuyAmount = (payAmount) => {
+    const crypto = cryptoCurrencies.find(c => c.code === buyData.receiveCurrency);
+    if (!crypto) return { receiveAmount: 0, fee: 0, price: 0 };
+    
+    const priceKey = buyData.payCurrency === 'USD' ? 'price_usd' : 'price_brl';
+    const price = crypto[priceKey] || 0;
+    const fee = (payAmount * feeConfig.buy.percentage) / 100;
+    const netAmount = payAmount - fee;
+    const receiveAmount = price > 0 ? netAmount / price : 0;
+    
+    return { receiveAmount, fee, price, netAmount, payAmount };
+  };
+  
+  const calculateSellAmount = (sellAmount) => {
+    const crypto = cryptoCurrencies.find(c => c.code === sellData.payCurrency);
+    if (!crypto) return { receiveAmount: 0, fee: 0, price: 0 };
+    
+    const priceKey = sellData.receiveCurrency === 'USD' ? 'price_usd' : 'price_brl';
+    const price = crypto[priceKey] || 0;
+    const grossAmount = sellAmount * price;
+    const fee = (grossAmount * feeConfig.sell.percentage) / 100;
+    const receiveAmount = grossAmount - fee;
+    
+    return { receiveAmount, fee, price, grossAmount, sellAmount };
+  };
+  
+  // Load mock orders
   useEffect(() => {
-    setMarketData([
-      { symbol: 'BTC/BRL', price: 'R$ 312.450,00', change: '+2.34%', trend: 'up' },
-      { symbol: 'ETH/BRL', price: 'R$ 18.920,00', change: '+1.87%', trend: 'up' },
-      { symbol: 'USDT/BRL', price: 'R$ 5,23', change: '-0.12%', trend: 'down' },
-      { symbol: 'ADA/BRL', price: 'R$ 2,45', change: '+5.67%', trend: 'up' },
-      { symbol: 'DOT/BRL', price: 'R$ 45,30', change: '+3.21%', trend: 'up' }
+    setOrders([
+      { id: 1, type: 'buy', pair: 'CNT/BRL', amount: 100, price: 1.0, total: 100, status: 'completed' },
+      { id: 2, type: 'sell', pair: 'MJD/BRL', amount: 10, price: 15.0, total: 150, status: 'pending' },
+      { id: 3, type: 'buy', pair: 'PCN/BRL', amount: 500, price: 1.0, total: 500, status: 'completed' }
     ]);
+  }, []);
 
-    // Simular taxa de câmbio
-    if (formData.fromCurrency && formData.toCurrency) {
-      setExchangeRate({
-        rate: 0.0000032,
-        fee: 0.5,
-        total: 0.5
-      });
-    }
-  }, [formData.fromCurrency, formData.toCurrency]);
-
-  const handleSubmit = async (e) => {
+  const handleBuySubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-
+    
     try {
-      // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 2000));
-      showSuccess('Troca realizada com sucesso!');
-      setFormData({
-        fromCurrency: 'BRL',
-        toCurrency: 'BTC',
-        fromAmount: '',
-        toAmount: ''
-      });
+      showSuccess(`Compra de ${buyData.receiveCurrency} realizada com sucesso!`);
+      setBuyData(prev => ({ ...prev, payAmount: '' }));
     } catch (error) {
-      showError('Erro ao processar troca. Tente novamente.');
+      showError('Erro ao processar compra. Tente novamente.');
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  const handleSellSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    
+    try {
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      showSuccess(`Venda de ${sellData.payCurrency} realizada com sucesso!`);
+      setSellData(prev => ({ ...prev, payAmount: '' }));
+    } catch (error) {
+      showError('Erro ao processar venda. Tente novamente.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleInputChange = (field, value) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
-
-    // Calcular conversão automática
-    if (field === 'fromAmount' && value && exchangeRate) {
-      const converted = (parseFloat(value) * exchangeRate.rate).toFixed(8);
-      setFormData(prev => ({
-        ...prev,
-        toAmount: converted
-      }));
+  // Helper functions
+  const handleDropdownToggle = (dropdownName) => {
+    setOpenDropdown(openDropdown === dropdownName ? null : dropdownName);
+  };
+  
+  const handleCurrencySelect = (section, field, currency) => {
+    if (section === 'buy') {
+      setBuyData(prev => ({ ...prev, [field]: currency.code }));
+    } else {
+      setSellData(prev => ({ ...prev, [field]: currency.code }));
+    }
+    setOpenDropdown(null);
+  };
+  
+  
+  const handleMaxSell = () => {
+    const crypto = cryptoCurrencies.find(c => c.code === sellData.payCurrency);
+    if (crypto && crypto.balance > 0) {
+      setSellData(prev => ({ ...prev, payAmount: crypto.balance.toString() }));
     }
   };
-
-  const swapCurrencies = () => {
-    setFormData(prev => ({
-      ...prev,
-      fromCurrency: prev.toCurrency,
-      toCurrency: prev.fromCurrency,
-      fromAmount: prev.toAmount,
-      toAmount: prev.fromAmount
-    }));
+  
+  const formatNumber = (num, decimals = 6) => {
+    if (num === 0) return '0';
+    if (num < 0.01) return num.toFixed(decimals);
+    return num.toFixed(num < 1 ? 4 : 2);
   };
-
-  const getCurrencySymbol = (currency) => {
-    return currencies.find(c => c.value === currency)?.symbol || '';
+  
+  const getAvailableBalance = (currencyCode) => {
+    const crypto = cryptoCurrencies.find(c => c.code === currencyCode);
+    return crypto ? crypto.balance : 0;
   };
+  
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (openDropdown && !event.target.closest('.relative')) {
+        setOpenDropdown(null);
+      }
+    };
+    
+    if (openDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [openDropdown]);
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
-          Trocar Moedas
-        </h1>
+      {/* Header */}
+
+      <div className="text-2xl font-medium text-gray-900 dark:text-white mb-4">
+        Comprar e Vender
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Formulário de Troca */}
-        <div className="lg:col-span-2">
-          <Card title="Nova Troca" icon="material-symbols:currency-exchange-rounded">
-            <form onSubmit={handleSubmit} className="space-y-6">
-              {/* De */}
-              <div className="space-y-4">
-                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Você paga
-                </label>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <Select
-                    options={currencies}
-                    value={formData.fromCurrency}
-                    onChange={(value) => handleInputChange('fromCurrency', value)}
-                    placeholder="Selecione a moeda"
-                  />
-                  <Textinput
-                    type="number"
-                    placeholder="0.00"
-                    value={formData.fromAmount}
-                    onChange={(e) => handleInputChange('fromAmount', e.target.value)}
-                    step="0.00000001"
-                    prefix={getCurrencySymbol(formData.fromCurrency)}
-                  />
-                </div>
-              </div>
-
-              {/* Botão de Troca */}
-              <div className="flex justify-center">
-                <Button
-                  type="button"
-                  onClick={swapCurrencies}
-                  className="rounded-full w-12 h-12 p-0 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600"
-                >
-                  <ArrowUpDown size={20} className="text-gray-600 dark:text-gray-300" />
-                </Button>
-              </div>
-
-              {/* Para */}
-              <div className="space-y-4">
-                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Você recebe
-                </label>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <Select
-                    options={currencies}
-                    value={formData.toCurrency}
-                    onChange={(value) => handleInputChange('toCurrency', value)}
-                    placeholder="Selecione a moeda"
-                  />
-                  <Textinput
-                    type="number"
-                    placeholder="0.00"
-                    value={formData.toAmount}
-                    onChange={(e) => handleInputChange('toAmount', e.target.value)}
-                    step="0.00000001"
-                    prefix={getCurrencySymbol(formData.toCurrency)}
-                    readOnly
-                  />
-                </div>
-              </div>
-
-              {/* Taxa de Câmbio */}
-              {exchangeRate && (
-                <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium">Taxa de Câmbio</span>
-                    <RefreshCw size={16} className="text-gray-400 cursor-pointer hover:text-gray-600" />
-                  </div>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-gray-600 dark:text-gray-400">
-                        1 {formData.fromCurrency} = {exchangeRate.rate.toFixed(8)} {formData.toCurrency}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600 dark:text-gray-400">Taxa:</span>
-                      <span>{exchangeRate.fee}%</span>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              <Button
-                type="submit"
-                className="w-full btn-brand"
-                isLoading={loading}
-                disabled={!formData.fromAmount || !formData.fromCurrency || !formData.toCurrency}
+      {/* Exchange Interface */}
+      <div className="flex justify-center">
+        <div className="w-full max-w-md">
+          {/* Tabs */}
+          <ul className="flex" role="tablist">
+            <li className="flex-1">
+              <button
+                className={`w-full px-5 py-3 text-sm font-semibold border-none shadow-sm transition-colors ${
+                  activeTab === 'buy'
+                    ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400'
+                    : 'bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-slate-600'
+                } rounded-tl-lg`}
+                onClick={() => setActiveTab('buy')}
               >
-                Trocar Agora
-              </Button>
-            </form>
-          </Card>
+                Comprar
+              </button>
+            </li>
+            <li className="flex-1">
+              <button
+                className={`w-full px-5 py-3 text-sm font-semibold border-none shadow-sm transition-colors ${
+                  activeTab === 'sell'
+                    ? 'bg-white dark:bg-slate-800 text-red-600 dark:text-red-400'
+                    : 'bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-slate-600'
+                } rounded-tr-lg`}
+                onClick={() => setActiveTab('sell')}
+              >
+                Vender
+              </button>
+            </li>
+          </ul>
+
+          {/* Tab Content */}
+          <div className="bg-white dark:bg-slate-800 shadow-sm rounded-b-lg rounded-tr-lg">
+            {activeTab === 'buy' ? (
+              <BuyTab
+                buyData={buyData}
+                setBuyData={setBuyData}
+                fiatCurrencies={fiatCurrencies}
+                cryptoCurrencies={cryptoCurrencies}
+                calculateBuyAmount={calculateBuyAmount}
+                formatNumber={formatNumber}
+                loading={loading}
+                onSubmit={handleBuySubmit}
+                openDropdown={openDropdown}
+                onDropdownToggle={handleDropdownToggle}
+                onCurrencySelect={handleCurrencySelect}
+              />
+            ) : (
+              <SellTab
+                sellData={sellData}
+                setSellData={setSellData}
+                fiatCurrencies={fiatCurrencies}
+                cryptoCurrencies={cryptoCurrencies}
+                calculateSellAmount={calculateSellAmount}
+                formatNumber={formatNumber}
+                getAvailableBalance={getAvailableBalance}
+                onMaxSell={handleMaxSell}
+                loading={loading}
+                onSubmit={handleSellSubmit}
+                openDropdown={openDropdown}
+                onDropdownToggle={handleDropdownToggle}
+                onCurrencySelect={handleCurrencySelect}
+              />
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Orders Section */}
+      <div className="mt-8">
+        <div className="flex items-center mb-4">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Minhas Ordens</h3>
+          <div className="ml-3 bg-blue-600 h-0.5 w-16"></div>
         </div>
 
-        {/* Sidebar */}
-        <div className="space-y-6">
-          {/* Saldos */}
-          <Card title="Seus Saldos">
-            <div className="space-y-3">
-              <div className="flex justify-between items-center py-2 border-b">
-                <div className="flex items-center">
-                  <div className="w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center text-white text-xs font-bold mr-3">
-                    ₿
-                  </div>
-                  <span className="text-sm font-medium">Bitcoin</span>
-                </div>
-                <span className="text-sm">0.00123 BTC</span>
-              </div>
-              <div className="flex justify-between items-center py-2 border-b">
-                <div className="flex items-center">
-                  <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white text-xs font-bold mr-3">
-                    Ξ
-                  </div>
-                  <span className="text-sm font-medium">Ethereum</span>
-                </div>
-                <span className="text-sm">0.45 ETH</span>
-              </div>
-              <div className="flex justify-between items-center py-2">
-                <div className="flex items-center">
-                  <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center text-white text-xs font-bold mr-3">
-                    R$
-                  </div>
-                  <span className="text-sm font-medium">Real</span>
-                </div>
-                <span className="text-sm">R$ 1.234,56</span>
+        <Card>
+          <div className="flex justify-end mb-4 space-x-4">
+            <div className="flex flex-col">
+              <label className="text-xs text-gray-600 dark:text-gray-400 mb-1">Status</label>
+              <div className="btn-group" role="group">
+                <button
+                  className={`px-3 py-1 text-xs border rounded-l-md ${
+                    orderFilters.status === 'all'
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'bg-white dark:bg-slate-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-600'
+                  }`}
+                  onClick={() => setOrderFilters(prev => ({ ...prev, status: 'all' }))}
+                >
+                  Todas
+                </button>
+                <button
+                  className={`px-3 py-1 text-xs border-t border-b border-r rounded-r-md ${
+                    orderFilters.status === 'open'
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'bg-white dark:bg-slate-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-600'
+                  }`}
+                  onClick={() => setOrderFilters(prev => ({ ...prev, status: 'open' }))}
+                >
+                  Abertas
+                </button>
               </div>
             </div>
-          </Card>
 
-          {/* Preços de Mercado */}
-          <Card title="Preços de Mercado" icon="heroicons-outline:chart-bar">
-            <div className="space-y-3">
-              {marketData.map((coin, index) => (
-                <div key={index} className="flex justify-between items-center py-2">
-                  <div>
-                    <p className="text-sm font-medium">{coin.symbol}</p>
-                    <p className="text-xs text-gray-500">{coin.price}</p>
-                  </div>
-                  <div className={`flex items-center text-sm ${coin.trend === 'up' ? 'text-green-600' : 'text-red-600'}`}>
-                    {coin.trend === 'up' ? <TrendingUp size={16} /> : <TrendingDown size={16} />}
-                    <span className="ml-1">{coin.change}</span>
-                  </div>
-                </div>
-              ))}
+            <div className="flex flex-col">
+              <label className="text-xs text-gray-600 dark:text-gray-400 mb-1">Tipo</label>
+              <div className="btn-group" role="group">
+                <button
+                  className={`px-3 py-1 text-xs border rounded-l-md ${
+                    orderFilters.type === 'all'
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'bg-white dark:bg-slate-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-600'
+                  }`}
+                  onClick={() => setOrderFilters(prev => ({ ...prev, type: 'all' }))}
+                >
+                  Todas
+                </button>
+                <button
+                  className={`px-3 py-1 text-xs border-t border-b ${
+                    orderFilters.type === 'sell'
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'bg-white dark:bg-slate-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-600'
+                  }`}
+                  onClick={() => setOrderFilters(prev => ({ ...prev, type: 'sell' }))}
+                >
+                  Venda
+                </button>
+                <button
+                  className={`px-3 py-1 text-xs border rounded-r-md ${
+                    orderFilters.type === 'buy'
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'bg-white dark:bg-slate-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-600'
+                  }`}
+                  onClick={() => setOrderFilters(prev => ({ ...prev, type: 'buy' }))}
+                >
+                  Compra
+                </button>
+              </div>
             </div>
-          </Card>
+          </div>
 
-          {/* Histórico de Trocas */}
-          <Card title="Trocas Recentes" icon="heroicons-outline:clock">
-            <div className="space-y-3">
-              <div className="flex items-center justify-between py-2 border-b">
-                <div>
-                  <p className="text-sm font-medium">BRL → BTC</p>
-                  <p className="text-xs text-gray-500">R$ 1.000,00 → 0.0032 BTC</p>
-                </div>
-                <span className="text-xs text-gray-500">Hoje</span>
-              </div>
-              <div className="flex items-center justify-between py-2 border-b">
-                <div>
-                  <p className="text-sm font-medium">ETH → BRL</p>
-                  <p className="text-xs text-gray-500">0.5 ETH → R$ 9.460,00</p>
-                </div>
-                <span className="text-xs text-gray-500">Ontem</span>
-              </div>
-              <div className="flex items-center justify-between py-2">
-                <div>
-                  <p className="text-sm font-medium">BTC → USDT</p>
-                  <p className="text-xs text-gray-500">0.001 BTC → 62.45 USDT</p>
-                </div>
-                <span className="text-xs text-gray-500">2 dias</span>
-              </div>
-            </div>
-          </Card>
-        </div>
+          {/* Orders Table */}
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-200 dark:border-slate-700">
+                  <th className="text-left py-3 px-4 font-medium text-gray-900 dark:text-white">Par</th>
+                  <th className="text-left py-3 px-4 font-medium text-gray-900 dark:text-white">Tipo</th>
+                  <th className="text-left py-3 px-4 font-medium text-gray-900 dark:text-white">Quantidade</th>
+                  <th className="text-left py-3 px-4 font-medium text-gray-900 dark:text-white">Preço</th>
+                  <th className="text-left py-3 px-4 font-medium text-gray-900 dark:text-white">Total</th>
+                  <th className="text-left py-3 px-4 font-medium text-gray-900 dark:text-white">Status</th>
+                  <th className="text-left py-3 px-4 font-medium text-gray-900 dark:text-white">Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                {orders.length > 0 ? orders.map(order => (
+                  <tr key={order.id} className="border-b border-gray-100 dark:border-slate-700">
+                    <td className="py-3 px-4">{order.pair}</td>
+                    <td className="py-3 px-4">
+                      <span className={`px-2 py-1 rounded-full text-xs ${
+                        order.type === 'buy' 
+                          ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                          : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                      }`}>
+                        {order.type === 'buy' ? 'Compra' : 'Venda'}
+                      </span>
+                    </td>
+                    <td className="py-3 px-4">{order.amount}</td>
+                    <td className="py-3 px-4">{formatNumber(order.price, 2)}</td>
+                    <td className="py-3 px-4">{formatNumber(order.total, 2)}</td>
+                    <td className="py-3 px-4">
+                      <span className={`px-2 py-1 rounded-full text-xs ${
+                        order.status === 'completed'
+                          ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                          : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+                      }`}>
+                        {order.status === 'completed' ? 'Concluída' : 'Pendente'}
+                      </span>
+                    </td>
+                    <td className="py-3 px-4">
+                      {order.status === 'pending' && (
+                        <Button size="sm" className="text-xs bg-red-600 hover:bg-red-700">
+                          <Icon icon="heroicons:trash" className="w-3 h-3 mr-1" />
+                          Cancelar
+                        </Button>
+                      )}
+                    </td>
+                  </tr>
+                )) : (
+                  <tr>
+                    <td colSpan="7" className="text-center py-8 text-gray-500 dark:text-gray-400">
+                      Nenhuma ordem encontrada
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </Card>
       </div>
     </div>
   );

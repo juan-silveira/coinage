@@ -5,7 +5,9 @@ const ThemeProvider = ({ children }) => {
   return (
     <>
       <Provider store={store}>
-        {children}
+        <div suppressHydrationWarning>
+          {children}
+        </div>
       </Provider>
     </>
   );

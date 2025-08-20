@@ -92,9 +92,12 @@ const useAuthStore = create(
           isAuthenticated: true,
           requiresPasswordChange,
           isLoading: false,
-          // reset flags de cache ao fazer login
+          // CRÍTICO: Limpar COMPLETAMENTE cache de balances no login para evitar cross-user contamination
           cacheLoaded: false,
           cacheLoading: false,
+          cachedBalances: null,
+          balancesLastUpdate: null,
+          balancesLoading: false,
         });
       },
       

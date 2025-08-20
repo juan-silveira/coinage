@@ -16,21 +16,26 @@ import ThemeProvider from "./theme-provider"
 import { AlertProvider } from "@/contexts/AlertContext";
 import { CompanyProvider } from "@/contexts/CompanyContext";
 import { ConfigProvider } from "@/contexts/ConfigContext";
+import NoSSR from "@/components/wrappers/NoSSR";
 
 export default function RootLayout({ children }) {
   return (
     <>
       <html lang="pt-BR">
-        <body className="font-inter  custom-tippy dashcode-app">
-          <ThemeProvider>
-            <ConfigProvider>
-              <AlertProvider>
-                <CompanyProvider>
-                  {children}
-                </CompanyProvider>
-              </AlertProvider>
-            </ConfigProvider>
-          </ThemeProvider>
+        <body className="font-inter  custom-tippy dashcode-app" suppressHydrationWarning>
+          <NoSSR>
+            <ThemeProvider>
+              <ConfigProvider>
+                <AlertProvider>
+                  <CompanyProvider>
+                    <div suppressHydrationWarning>
+                      {children}
+                    </div>
+                  </CompanyProvider>
+                </AlertProvider>
+              </ConfigProvider>
+            </ThemeProvider>
+          </NoSSR>
         </body>
       </html>
     </>

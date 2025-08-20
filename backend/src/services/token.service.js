@@ -750,6 +750,151 @@ class TokenService {
   }
 
   /**
+   * Mint tokens para um endereço (apenas para tokens com função mint)
+   * @param {string} contractAddress - Endereço do contrato do token
+   * @param {string} toAddress - Endereço de destino
+   * @param {string} amount - Quantidade a mintar
+   * @param {string} network - Rede (mainnet ou testnet)
+   * @returns {Promise<Object>} Resultado da transação
+   */
+  async mintTokens(contractAddress, toAddress, amount, network = 'testnet') {
+    try {
+      // Validar endereços
+      if (!ethers.isAddress(contractAddress)) {
+        throw new Error('Endereço do contrato inválido');
+      }
+      if (!ethers.isAddress(toAddress)) {
+        throw new Error('Endereço de destino inválido');
+      }
+
+      // Buscar contrato e ABI
+      const contract = await contractService.getContract(contractAddress);
+      if (!contract || !contract.abi) {
+        throw new Error('Contrato não encontrado ou ABI indisponível');
+      }
+
+      // Executar mint
+      const result = await blockchainService.executeContractFunction(
+        contractAddress,
+        contract.abi,
+        'mint',
+        [toAddress, ethers.parseUnits(amount, 18)], // Assumindo 18 decimais
+        network
+      );
+
+      return {
+        success: true,
+        message: 'Tokens mintados com sucesso',
+        data: result
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: 'Erro ao mintar tokens',
+        error: error.message
+      };
+    }
+  }
+
+  /**
+   * Burn tokens de um endereço (apenas para tokens com função burnFrom)
+   * @param {string} contractAddress - Endereço do contrato do token
+   * @param {string} fromAddress - Endereço de origem
+   * @param {string} amount - Quantidade a queimar
+   * @param {string} network - Rede (mainnet ou testnet)
+   * @returns {Promise<Object>} Resultado da transação
+   */
+  async burnTokensFrom(contractAddress, fromAddress, amount, network = 'testnet') {
+    try {
+      // Validar endereços
+      if (!ethers.isAddress(contractAddress)) {
+        throw new Error('Endereço do contrato inválido');
+      }
+      if (!ethers.isAddress(fromAddress)) {
+        throw new Error('Endereço de origem inválido');
+      }
+
+      // Buscar contrato e ABI
+      const contract = await contractService.getContract(contractAddress);
+      if (!contract || !contract.abi) {
+        throw new Error('Contrato não encontrado ou ABI indisponível');
+      }
+
+      // Executar burnFrom
+      const result = await blockchainService.executeContractFunction(
+        contractAddress,
+        contract.abi,
+        'burnFrom',
+        [fromAddress, ethers.parseUnits(amount, 18)], // Assumindo 18 decimais
+        network
+      );
+
+      return {
+        success: true,
+        message: 'Tokens queimados com sucesso',
+        data: result
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: 'Erro ao queimar tokens',
+        error: error.message
+      };
+    }
+  }
+
+  /**
+   * Transfer gasless de tokens (meta-transação)
+   * @param {string} contractAddress - Endereço do contrato do token
+   * @param {string} fromAddress - Endereço de origem
+   * @param {string} toAddress - Endereço de destino
+   * @param {string} amount - Quantidade a transferir
+   * @param {string} network - Rede (mainnet ou testnet)
+   * @returns {Promise<Object>} Resultado da transação
+   */
+  async transferFromGasless(contractAddress, fromAddress, toAddress, amount, network = 'testnet') {
+    try {
+      // Validar endereços
+      if (!ethers.isAddress(contractAddress)) {
+        throw new Error('Endereço do contrato inválido');
+      }
+      if (!ethers.isAddress(fromAddress)) {
+        throw new Error('Endereço de origem inválido');
+      }
+      if (!ethers.isAddress(toAddress)) {
+        throw new Error('Endereço de destino inválido');
+      }
+
+      // Buscar contrato e ABI
+      const contract = await contractService.getContract(contractAddress);
+      if (!contract || !contract.abi) {
+        throw new Error('Contrato não encontrado ou ABI indisponível');
+      }
+
+      // Executar transferFromGasless
+      const result = await blockchainService.executeContractFunction(
+        contractAddress,
+        contract.abi,
+        'transferFromGasless',
+        [fromAddress, toAddress, ethers.parseUnits(amount, 18)], // Assumindo 18 decimais
+        network
+      );
+
+      return {
+        success: true,
+        message: 'Transferência gasless realizada com sucesso',
+        data: result
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: 'Erro na transferência gasless',
+        error: error.message
+      };
+    }
+  }
+
+  /**
    * Testa o serviço de tokens
    * @returns {Promise<Object>} Resultado do teste
    */

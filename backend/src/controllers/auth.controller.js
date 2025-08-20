@@ -809,22 +809,33 @@ const register = async (req, res) => {
 
     // Gerar chaves blockchain
     const { publicKey, privateKey } = crypto.generateKeyPairSync('ed25519', {
-      publicKeyEncoding: { type: 'spki', format: 'hex' },
-      privateKeyEncoding: { type: 'pkcs8', format: 'hex' }
+      publicKeyEncoding: { type: 'spki', format: 'pem' },
+      privateKeyEncoding: { type: 'pkcs8', format: 'pem' }
     });
+    
+    // Converter para formato hex para armazenar no banco
+    const publicKeyHex = publicKey.replace(/-----BEGIN PUBLIC KEY-----\n?/, '')
+                                  .replace(/\n?-----END PUBLIC KEY-----\n?/, '')
+                                  .replace(/\n/g, '');
+    const privateKeyHex = privateKey.replace(/-----BEGIN PRIVATE KEY-----\n?/, '')
+                                    .replace(/\n?-----END PRIVATE KEY-----\n?/, '')
+                                    .replace(/\n/g, '');
 
+    // Gerar CPF temporário único para evitar conflitos de unicidade
+    const tempCpf = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`.padEnd(14, '0').substr(0, 14);
+    
     // Criar usuário (INATIVO até confirmar email)
     const user = await prisma.user.create({
       data: {
         name,
         email: email.toLowerCase(),
         password: hashedPassword,
-        publicKey,
-        privateKey,
+        publicKey: publicKeyHex,
+        privateKey: privateKeyHex,
         isActive: false, // ALTERADO: usuário começa inativo
         isFirstAccess: true,
         balance: 0,
-        cpf: '' // Será preenchido no KYC
+        cpf: tempCpf // CPF temporário único será preenchido no KYC
       }
     });
 
@@ -855,6 +866,7 @@ const register = async (req, res) => {
     // Enviar email de confirmação
     try {
       const emailService = require('../services/email.service');
+      await emailService.init(); // Garantir que está inicializado
       const token = await emailService.generateEmailConfirmationToken(user.id, company_alias || 'default');
       
       await emailService.sendEmailConfirmation(user.email, {

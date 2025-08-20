@@ -14,6 +14,9 @@ services:
       - DB_HOST=postgres
       - DB_PORT=5432
       - REDIS_HOST=redis
+      - APP_URL=http://localhost:8800
+    volumes:
+      - uploads_data:/usr/src/app/uploads
     networks:
       - coinage_network
     restart: unless-stopped
@@ -24,10 +27,8 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
-      minio:
-        condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8800/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -87,27 +88,6 @@ services:
       timeout: 10s
       retries: 3
 
-  # MinIO Object Storage
-  minio:
-    image: minio/minio:latest
-    container_name: coinage_minio
-    command: server /data --console-address ":9001"
-    env_file:
-      - .env
-    volumes:
-      - minio_data:/data
-    ports:
-      - "9000:9000"  # API
-      - "9001:9001"  # Console
-    networks:
-      - coinage_network
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
 volumes:
   postgres_data:
     driver: local
@@ -115,7 +95,7 @@ volumes:
     driver: local
   rabbitmq_data:
     driver: local
-  minio_data:
+  uploads_data:
     driver: local
 
 networks:

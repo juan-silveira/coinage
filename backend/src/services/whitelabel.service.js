@@ -585,12 +585,15 @@ class WhitelabelService {
       const bcrypt = require('bcryptjs');
       const hashedPassword = await bcrypt.hash(password, 12);
 
+      // Gerar CPF temporário único para evitar conflitos de unicidade
+      const tempCpf = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`.padEnd(14, '0').substr(0, 14);
+      
       // Criar usuário sem CPF/chaves (será preenchido no primeiro acesso)
       const user = await this.prisma.user.create({
         data: {
           name,
           email: email.toLowerCase(),
-          cpf: '00000000000', // CPF temporário será preenchido no primeiro acesso
+          cpf: tempCpf, // CPF temporário único será preenchido no primeiro acesso
           password: hashedPassword,
           publicKey: 'TEMP_KEY', // Chave temporária será gerada no primeiro acesso
           privateKey: 'TEMP_KEY', // Chave temporária será gerada no primeiro acesso
@@ -612,6 +615,7 @@ class WhitelabelService {
 
       // Gerar token de confirmação
       const emailService = require('./email.service');
+      await emailService.init(); // Garantir que está inicializado
       const token = await emailService.generateEmailConfirmationToken(user.id, company.id);
 
       // Enviar email de confirmação (com bypass)

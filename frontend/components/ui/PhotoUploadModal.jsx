@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { X, Upload, Camera, Loader2 } from 'lucide-react';
 import { useAlertContext } from '@/contexts/AlertContext';
 import useAuthStore from '@/store/authStore';
-import api from '@/services/api';
+import imageStorageService from '@/services/imageStorage.service';
 
 const PhotoUploadModal = ({ isOpen, onClose, onPhotoUploaded, currentPhoto }) => {
   const [file, setFile] = useState(null);
@@ -11,35 +11,25 @@ const PhotoUploadModal = ({ isOpen, onClose, onPhotoUploaded, currentPhoto }) =>
   const [isUploading, setIsUploading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const { showSuccess, showError } = useAlertContext();
-  const { setProfilePhotoUrl } = useAuthStore();
+  const { user, setProfilePhotoUrl } = useAuthStore();
 
   if (!isOpen) return null;
 
-  const handleFileSelect = (selectedFile) => {
+  const handleFileSelect = async (selectedFile) => {
     if (!selectedFile) return;
 
-    // Validate file type
-    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
-    if (!allowedTypes.includes(selectedFile.type)) {
-      showError('Tipo de arquivo inválido. Apenas JPG, PNG e GIF são permitidos.');
-      return;
+    try {
+      // Validate using service
+      imageStorageService.validateImage(selectedFile);
+      
+      setFile(selectedFile);
+
+      // Create preview
+      const dataUrl = await imageStorageService.fileToDataUrl(selectedFile);
+      setPreview(dataUrl);
+    } catch (error) {
+      showError(error.message);
     }
-
-    // Validate file size (5MB)
-    const maxSize = 5 * 1024 * 1024; // 5MB
-    if (selectedFile.size > maxSize) {
-      showError('Arquivo muito grande. Máximo permitido: 5MB');
-      return;
-    }
-
-    setFile(selectedFile);
-
-    // Create preview
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setPreview(reader.result);
-    };
-    reader.readAsDataURL(selectedFile);
   };
 
   const handleFileInput = (e) => {
@@ -67,7 +57,7 @@ const PhotoUploadModal = ({ isOpen, onClose, onPhotoUploaded, currentPhoto }) =>
   };
 
   const handleUpload = async () => {
-    if (!file) {
+    if (!file || !user?.id) {
       showError('Selecione uma foto para enviar');
       return;
     }
@@ -75,29 +65,26 @@ const PhotoUploadModal = ({ isOpen, onClose, onPhotoUploaded, currentPhoto }) =>
     setIsUploading(true);
 
     try {
-      const formData = new FormData();
-      formData.append('photo', file);
-
-      const response = await api.post('/api/profile/upload-photo', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
-
-      if (response.data.success) {
+      // Get the data URL from preview or create it
+      const dataUrl = preview || await imageStorageService.fileToDataUrl(file);
+      
+      // Save to local storage
+      const imageData = await imageStorageService.saveProfileImage(user.id, file, dataUrl);
+      
+      if (imageData) {
         showSuccess('Foto de perfil atualizada com sucesso!');
-        // Atualizar o store centralizado
-        setProfilePhotoUrl(response.data.data.url);
+        // Update the store with the local data URL
+        setProfilePhotoUrl(dataUrl);
+        
         // Manter compatibilidade com callback
         if (onPhotoUploaded) {
-          onPhotoUploaded(response.data.data.url);
+          onPhotoUploaded(dataUrl);
         }
         handleClose();
       }
     } catch (error) {
-      console.error('Error uploading photo:', error);
-      const errorMessage = error.response?.data?.message || 'Erro ao enviar foto. Tente novamente.';
-      showError(errorMessage);
+      console.error('Error saving photo locally:', error);
+      showError(error.message || 'Erro ao salvar foto. Tente novamente.');
     } finally {
       setIsUploading(false);
     }
@@ -205,14 +192,14 @@ const PhotoUploadModal = ({ isOpen, onClose, onPhotoUploaded, currentPhoto }) =>
                     <input
                       type="file"
                       className="hidden"
-                      accept="image/jpeg,image/jpg,image/png,image/gif"
+                      accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
                       onChange={handleFileInput}
                       disabled={isUploading}
                     />
                   </label>
                 </div>
                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                  JPG, PNG ou GIF até 5MB
+                  JPG, PNG, GIF ou WebP até 5MB
                 </p>
               </div>
             )}

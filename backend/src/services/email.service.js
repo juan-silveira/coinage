@@ -997,4 +997,9 @@ class EmailService {
   }
 }
 
-module.exports = EmailService;
+// Criar instância singleton
+const emailServiceInstance = new EmailService();
+
+// Exportar tanto a classe quanto a instância
+module.exports = emailServiceInstance;
+module.exports.EmailService = EmailService;

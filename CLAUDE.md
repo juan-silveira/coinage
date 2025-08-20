@@ -39,6 +39,7 @@ Sistema financeiro com funcionalidades de depósito e saque (withdraw).
 - Autenticação JWT completa
 - Páginas Transfer e Exchange (frontend)
 - Collections Postman organizadas (20 collections)
+- **Sistema de fotos de perfil com armazenamento local (IndexedDB)**
 
 ## Status Atual - Sistema 90% Completo 🚀
 - **Backend API**: ✅ Funcionando (http://localhost:8800)
@@ -96,3 +97,183 @@ Sistema financeiro com funcionalidades de depósito e saque (withdraw).
 - **Derrubar, buildar e iniciar containers**: docker compose down && docker compose build backend && docker compose up -d
 - **Se zerar o banco de dados**: usar o seed-basic-data.js dentro de /backend/scripts para iniciar a base de dados
 - **Buildar e iniciar frontend**: yarn build && yarn dev
+
+## 📸 Sistema de Fotos de Perfil
+
+### Implementação Atual (IndexedDB - Local)
+- **Service**: `/frontend/services/imageStorage.service.js`
+- **Modal**: `/frontend/components/ui/PhotoUploadModal.jsx`
+- **Avatar**: `/frontend/components/ui/UserAvatar.jsx`
+- **Armazenamento**: IndexedDB do navegador (database: `CoinageImages`)
+- **Benefícios**: Sem CORS, rápido, offline-ready
+
+### 🚀 Migração Futura para Amazon S3
+
+#### 1. Backend - Criar serviço S3
+```javascript
+// backend/src/services/s3.service.js
+const AWS = require('aws-sdk');
+
+class S3Service {
+  constructor() {
+    this.s3 = new AWS.S3({
+      accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+      region: process.env.AWS_REGION
+    });
+    this.bucket = process.env.S3_BUCKET_NAME;
+  }
+
+  async uploadProfilePhoto(userId, fileBuffer, filename, contentType) {
+    const key = `profile-photos/${userId}/${Date.now()}-${filename}`;
+    
+    const params = {
+      Bucket: this.bucket,
+      Key: key,
+      Body: fileBuffer,
+      ContentType: contentType,
+      ACL: 'public-read'
+    };
+
+    const result = await this.s3.upload(params).promise();
+    return result.Location;
+  }
+
+  async deleteProfilePhoto(userId, photoKey) {
+    const params = {
+      Bucket: this.bucket,
+      Key: photoKey
+    };
+    
+    return await this.s3.deleteObject(params).promise();
+  }
+}
+```
+
+#### 2. Backend - Endpoint para upload
+```javascript
+// backend/src/routes/profile.routes.js
+router.post('/upload-photo', upload.single('photo'), async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const file = req.file;
+    
+    // Upload para S3
+    const photoUrl = await s3Service.uploadProfilePhoto(
+      userId, 
+      file.buffer, 
+      file.originalname, 
+      file.mimetype
+    );
+    
+    // Salvar URL no banco
+    await User.update({ profilePhotoUrl: photoUrl }, { where: { id: userId } });
+    
+    res.json({ success: true, data: { url: photoUrl } });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+```
+
+#### 3. Frontend - Atualizar PhotoUploadModal
+```javascript
+// Substituir o método handleUpload atual por:
+const handleUpload = async () => {
+  if (!file || !user?.id) {
+    showError('Selecione uma foto para enviar');
+    return;
+  }
+
+  setIsUploading(true);
+
+  try {
+    const formData = new FormData();
+    formData.append('photo', file);
+
+    const response = await api.post('/api/profile/upload-photo', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+
+    if (response.data.success) {
+      showSuccess('Foto de perfil atualizada com sucesso!');
+      setProfilePhotoUrl(response.data.data.url);
+      
+      // Remover da storage local se existir
+      await imageStorageService.removeProfileImage(user.id);
+      
+      if (onPhotoUploaded) {
+        onPhotoUploaded(response.data.data.url);
+      }
+      handleClose();
+    }
+  } catch (error) {
+    console.error('Error uploading photo:', error);
+    showError('Erro ao enviar foto. Tente novamente.');
+  } finally {
+    setIsUploading(false);
+  }
+};
+```
+
+#### 4. Frontend - Atualizar UserAvatar
+```javascript
+// Modificar o useEffect para priorizar URLs do S3:
+useEffect(() => {
+  const loadProfilePhoto = async () => {
+    if (!user?.id) return;
+
+    try {
+      // Primeiro: tentar carregar do backend (S3)
+      const response = await api.get('/api/profile/simple-photo');
+      if (response.data.success && response.data.data.url) {
+        setProfilePhotoUrl(response.data.data.url);
+        // Remover versão local se houver
+        await imageStorageService.removeProfileImage(user.id);
+        return;
+      }
+
+      // Fallback: usar storage local
+      const localImage = await imageStorageService.getProfileImage(user.id);
+      if (localImage?.dataUrl) {
+        setProfilePhotoUrl(localImage.dataUrl);
+      }
+    } catch (error) {
+      console.log('Error loading profile photo:', error);
+    }
+  };
+
+  if (user?.id && !profilePhotoUrl) {
+    loadProfilePhoto();
+  }
+}, [user?.id, setProfilePhotoUrl]);
+```
+
+#### 5. Variáveis de Ambiente (.env)
+```env
+# S3 Configuration
+AWS_ACCESS_KEY_ID=your-access-key
+AWS_SECRET_ACCESS_KEY=your-secret-key
+AWS_REGION=us-east-1
+S3_BUCKET_NAME=coinage-profile-photos
+```
+
+#### 6. Dependências Necessárias
+```bash
+# Backend
+npm install aws-sdk multer
+
+# Configurar CORS para S3 no bucket
+```
+
+### 📋 Checklist de Migração S3
+- [ ] Configurar bucket S3 com permissões
+- [ ] Instalar dependências AWS SDK
+- [ ] Criar serviço S3 no backend
+- [ ] Implementar endpoint de upload
+- [ ] Atualizar PhotoUploadModal
+- [ ] Atualizar UserAvatar  
+- [ ] Configurar variáveis de ambiente
+- [ ] Testar upload e visualização
+- [ ] Migrar fotos existentes (opcional)
+- [ ] Limpar storage local após migração

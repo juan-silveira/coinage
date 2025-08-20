@@ -1,4 +1,5 @@
 const express = require('express');
+const path = require('path');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
@@ -129,6 +130,9 @@ BigInt.prototype.toJSON = function() { return this.toString() }
 // Middleware para parsing de JSON
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Servir arquivos estáticos de uploads
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // Rota de health check
 app.get('/health', (req, res) => {
@@ -573,7 +577,7 @@ app.use('/api/earnings', earningsRoutes);
 // Rotas de planos de usuário (públicas para consulta, autenticadas para admin)
 app.use('/api/user-plans', userPlanRoutes);
 
-// Configurações públicas (sem autenticação)
+// Configurações públicas (sem autenticação e sem rate limiting)
 app.use('/api/config', configRoutes);
 
 // Smart Contract Routes (Public)
