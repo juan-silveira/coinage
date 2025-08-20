@@ -15,7 +15,6 @@ import {
 } from "@/components/partials/app/todo/store";
 import Todos from "@/components/partials/app/todo/Todos";
 import AddTodo from "@/components/partials/app/todo/AddTodo";
-import { ToastContainer } from "react-toastify";
 import EditTodoModal from "@/components/partials/app/todo/EditTodo";
 import Topfilter from "@/components/partials/app/todo/Topfilter";
 import BottomFilter from "@/components/partials/app/todo/BottomFilter";
@@ -126,7 +125,6 @@ const TodoPage = () => {
 
   return (
     <>
-      <ToastContainer />
 
       <div className="flex md:space-x-5 app_height overflow-hidden relative rtl:space-x-reverse">
         <div

@@ -15,6 +15,8 @@ const useAuthStore = create(
       cacheLoading: false, // evita concorrência em carregamentos
       maskBalances: false, // se true, aplica blur nos valores
       notifications: [], // notificações do sistema
+      profilePhotoUrl: null, // URL da foto de perfil
+      profilePhotoTimestamp: null, // timestamp da última atualização da foto
       
       // Cache de balances
       cachedBalances: null,
@@ -55,6 +57,17 @@ const useAuthStore = create(
       
       clearNotifications: () => set({ notifications: [] }),
       
+      // Ações para foto de perfil
+      setProfilePhotoUrl: (url) => set({ 
+        profilePhotoUrl: url,
+        profilePhotoTimestamp: Date.now()
+      }),
+      
+      clearProfilePhoto: () => set({ 
+        profilePhotoUrl: null,
+        profilePhotoTimestamp: null 
+      }),
+      
       login: (user, accessToken, refreshToken, requiresPasswordChange = false) => {
         if (user && user.name) {
           sessionStorage.setItem('showLoginSuccess', 'true');
@@ -64,7 +77,7 @@ const useAuthStore = create(
         // Tentar salvar a company atual da URL para usar no logout
         try {
           const currentPath = window.location.pathname;
-          const pathMatch = currentPath.match(/\/(login|register|first-access)\/([^\/\?]+)/);
+          const pathMatch = currentPath.match(/\/(login|register)\/([^\/\?]+)/);
           if (pathMatch && pathMatch[2]) {
             sessionStorage.setItem('currentLoginCompany', pathMatch[2]);
           }
@@ -79,9 +92,12 @@ const useAuthStore = create(
           isAuthenticated: true,
           requiresPasswordChange,
           isLoading: false,
-          // reset flags de cache ao fazer login
+          // CRÍTICO: Limpar COMPLETAMENTE cache de balances no login para evitar cross-user contamination
           cacheLoaded: false,
           cacheLoading: false,
+          cachedBalances: null,
+          balancesLastUpdate: null,
+          balancesLoading: false,
         });
       },
       
@@ -123,7 +139,7 @@ const useAuthStore = create(
         if (companyAlias === 'coinage') {
           try {
             const currentPath = window.location.pathname;
-            const pathMatch = currentPath.match(/\/(login|register|first-access)\/([^\/\?]+)/);
+            const pathMatch = currentPath.match(/\/(login|register)\/([^\/\?]+)/);
             if (pathMatch && pathMatch[2]) {
               companyAlias = pathMatch[2];
             }
@@ -149,6 +165,8 @@ const useAuthStore = create(
           cacheLoaded: false,
           cacheLoading: false,
           notifications: [], // limpar notificações ao fazer logout
+          profilePhotoUrl: null, // limpar foto de perfil ao fazer logout
+          profilePhotoTimestamp: null,
           cachedBalances: null,
           balancesLastUpdate: null,
           balancesLoading: false,
@@ -187,16 +205,15 @@ const useAuthStore = create(
     {
       name: 'auth-storage',
       partialize: (state) => ({
-        // REMOVIDO: Dados sensíveis não devem ser persistidos no localStorage
-        // user: state.user,
-        // accessToken: state.accessToken,
-        // refreshToken: state.refreshToken,
-        // isAuthenticated: state.isAuthenticated,
-        // requiresPasswordChange: state.requiresPasswordChange,
+        // Persistir dados de autenticação de forma segura
+        user: state.user,
+        accessToken: state.accessToken,
+        refreshToken: state.refreshToken,
+        isAuthenticated: state.isAuthenticated,
+        requiresPasswordChange: state.requiresPasswordChange,
         
-        // APENAS dados não essenciais devem ser persistidos
-        maskBalances: state.maskBalances, // persistir preferência de ocultar valores
-        // Não persistir cacheLoaded/cacheLoading
+        // Outros dados não essenciais
+        maskBalances: state.maskBalances,
       }),
     }
   )

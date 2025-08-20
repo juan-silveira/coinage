@@ -15,6 +15,7 @@ function Button({
   link,
   onClick,
   div,
+  style,
 }) {
   return (
     <>
@@ -27,6 +28,7 @@ function Button({
           }
         ${disabled ? " opacity-40 cursor-not-allowed" : ""}
         ${className}`}
+          style={style}
         >
           {/* if has children and not loading*/}
           {children && !isLoading && children}
@@ -88,6 +90,7 @@ function Button({
           }
         ${disabled ? " opacity-40 cursor-not-allowed" : ""}
         ${className}`}
+          style={style}
         >
           {/* if has children and not loading*/}
           {children && !isLoading && children}
@@ -149,6 +152,7 @@ function Button({
           }
         ${disabled ? " opacity-40 cursor-not-allowed" : ""}
         ${className}`}
+          style={style}
         >
           {/* if has children and not loading*/}
           {children && !isLoading && children}

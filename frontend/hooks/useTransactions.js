@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { transactionService } from '@/services/api';
 import useAuthStore from '@/store/authStore';
-import useConfig from '@/hooks/useConfig';
+import { useConfigContext } from '@/contexts/ConfigContext';
 
 const useTransactions = (initialParams = {}) => {
   const [transactions, setTransactions] = useState([]);
@@ -15,7 +15,8 @@ const useTransactions = (initialParams = {}) => {
   });
 
   const user = useAuthStore((s) => s.user);
-  const { defaultNetwork } = useConfig();
+  const { config } = useConfigContext();
+  const defaultNetwork = config?.defaultNetwork;
 
   // Estabilizar initialParams com useMemo para evitar mudanças desnecessárias
   const stableInitialParams = useMemo(() => initialParams, [

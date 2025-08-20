@@ -19,7 +19,7 @@ class BalanceSyncService {
    * @param {string} network - Rede (mainnet/testnet)
    * @returns {Promise<Object>} Dados do cache Redis
    */
-  async getRedisCache(userId, address, network = 'mainnet') {
+  async getRedisCache(userId, address, network) {
     try {
       const response = await api.get('/api/balance-sync/cache', {
         params: { userId, address, network }
@@ -43,7 +43,7 @@ class BalanceSyncService {
    * @param {string} network - Rede (mainnet/testnet)
    * @returns {Promise<Object>} Resultado da atualização
    */
-  async updateRedisCache(userId, address, balances, network = 'mainnet') {
+  async updateRedisCache(userId, address, balances, network) {
     try {
       const response = await api.post('/api/balance-sync/cache', {
         userId,
@@ -71,7 +71,7 @@ class BalanceSyncService {
    * @param {string} network - Rede (mainnet/testnet)
    * @returns {Promise<Array>} Histórico de mudanças
    */
-  async getChangeHistory(userId, address, limit = 50, network = 'mainnet') {
+  async getChangeHistory(userId, address, limit = 50, network) {
     try {
       const response = await api.get('/api/balance-sync/history', {
         params: { userId, address, limit, network }
@@ -94,7 +94,7 @@ class BalanceSyncService {
    * @param {string} network - Rede (mainnet/testnet)
    * @returns {Promise<Object>} Resultado da limpeza
    */
-  async clearRedisCache(userId, address, network = 'mainnet') {
+  async clearRedisCache(userId, address, network) {
     try {
       const response = await api.delete('/api/balance-sync/cache/clear', {
         params: { userId, address, network }
@@ -182,7 +182,7 @@ class BalanceSyncService {
    * @param {string} network - Rede (mainnet/testnet)
    * @returns {Promise<Object>} Resultado da sincronização
    */
-  async syncWithRedis(userId, address, localBalances, network = 'mainnet') {
+  async syncWithRedis(userId, address, localBalances, network) {
     try {
       // Buscar cache atual do Redis
       const redisCache = await this.getRedisCache(userId, address, network);

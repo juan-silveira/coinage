@@ -9,7 +9,7 @@ import Flatpickr from "react-flatpickr";
 import { useForm, Controller } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
-import { toast } from "react-toastify";
+import { useAlertContext } from '@/contexts/AlertContext';
 
 const FormValidationSchema = yup
   .object({
@@ -106,6 +106,7 @@ const OptionComponent = ({ data, ...props }) => {
 const EditTodoModal = () => {
   const { editModal, editItem } = useSelector((state) => state.todo);
   const dispatch = useDispatch();
+  const { showSuccess, showError, showInfo, showWarning } = useAlertContext();
 
   const {
     register,
@@ -133,16 +134,7 @@ const EditTodoModal = () => {
       })
     );
     dispatch(closeEditModal(false));
-    toast.info("Edit Successfully", {
-      position: "top-right",
-      autoClose: 1500,
-      hideProgressBar: false,
-      closeOnClick: true,
-      pauseOnHover: true,
-      draggable: true,
-      progress: undefined,
-      theme: "dark",
-    });
+    showInfo("Edit Successfully");
   };
 
   return (

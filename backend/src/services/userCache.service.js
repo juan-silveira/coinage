@@ -117,7 +117,14 @@ class UserCacheService {
       // console.log(`✅ [UserCacheService] Dados blockchain carregados:`, blockchainData);
       
       // 3. Verificar se é primeira sessão do usuário
-      const isFirstSession = !this.activeSessions.has(userId);
+      // CORREÇÃO: Verificar se existem dados anteriores no Redis ao invés de sessão ativa
+      const previousBalances = await this.tokenAmountService.getPreviousBalances(userId, blockchainData.network || 'testnet');
+      const isFirstSession = Object.keys(previousBalances).length === 0;
+      
+      console.log(`🔍 [UserCacheService] DEBUG primeira sessão para usuário ${userId}:`);
+      console.log(`  - activeSessions.has(${userId}): ${this.activeSessions.has(userId)}`);
+      console.log(`  - previousBalances keys: ${Object.keys(previousBalances).length}`);
+      console.log(`  - isFirstSession calculado: ${isFirstSession}`);
       
       // 4. Detectar mudanças nos saldos e criar notificações
       if (blockchainData.balancesTable) {

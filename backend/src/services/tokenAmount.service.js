@@ -14,12 +14,12 @@ class TokenAmountService {
     try {
       console.log('🚀 Inicializando TokenAmountService...');
       
-      // Configurar intervalo para verificar mudanças nos saldos
-      setInterval(() => {
-        this.checkAllUserBalances();
-      }, 5 * 60 * 1000); // Verificar a cada 5 minutos
+      // TEMPORARIAMENTE DESABILITADO - Configurar intervalo para verificar mudanças nos saldos
+      // setInterval(() => {
+      //   this.checkAllUserBalances();
+      // }, 5 * 60 * 1000); // Verificar a cada 5 minutos
       
-      console.log('✅ TokenAmountService inicializado com sucesso');
+      console.log('✅ TokenAmountService inicializado (com loop de verificação DESABILITADO temporariamente)');
     } catch (error) {
       console.error('❌ Erro ao inicializar TokenAmountService:', error);
     }
@@ -34,8 +34,8 @@ class TokenAmountService {
       // e verificar seus saldos atuais vs. anteriores
       console.log('🔍 Verificando mudanças nos saldos dos usuários...');
       
-      // Por enquanto, vamos simular com alguns usuários de teste
-      await this.simulateBalanceChanges();
+      // TEMPORARIAMENTE DESABILITADO - Por enquanto, vamos simular com alguns usuários de teste
+      // await this.simulateBalanceChanges();
       
     } catch (error) {
       console.error('❌ Erro ao verificar saldos dos usuários:', error);
@@ -101,6 +101,14 @@ class TokenAmountService {
     try {
       const previousBalances = await this.getPreviousBalances(userId, network);
       
+      // Debug logging para entender o problema de notificações
+      console.log(`🔍 [TokenAmountService] detectBalanceChanges DEBUG para usuário ${userId}:`);
+      console.log(`  - isFirstLoad: ${isFirstLoad}`);
+      console.log(`  - previousBalances keys: ${Object.keys(previousBalances).length}`);
+      console.log(`  - previousBalances: ${JSON.stringify(previousBalances)}`);
+      console.log(`  - Redis conectado: ${redisService.isConnected}`);
+      console.log(`  - Redis company client: ${!!redisService.company}`);
+      
       if (!newBalances.balancesTable) {
         return { changes: [], isFirstLoad: true };
       }
@@ -113,8 +121,11 @@ class TokenAmountService {
         const previousAmount = parseFloat(previousBalances[tokenSymbol] || 0);
         const currentAmount = parseFloat(newAmount);
         
+        console.log(`  - Token ${tokenSymbol}: previousAmount=${previousAmount}, currentAmount=${currentAmount}, isFirstLoad=${isFirstLoad}`);
+        
         // Se é primeira vez que vemos este token
         if (previousAmount === 0 && currentAmount > 0 && !isFirstLoad) {
+          console.log(`  ⚠️ CRIANDO NOTIFICAÇÃO para token ${tokenSymbol} (previousAmount=0, currentAmount=${currentAmount}, isFirstLoad=${isFirstLoad})`);
           newTokens.push({
             token: tokenSymbol,
             amount: currentAmount
@@ -133,6 +144,8 @@ class TokenAmountService {
               changeType: currentAmount > previousAmount ? 'aumentou' : 'diminuiu'
             });
           }
+        } else {
+          console.log(`  ✅ SEM NOTIFICAÇÃO para token ${tokenSymbol} (condições não atendidas)`);
         }
       }
       

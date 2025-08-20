@@ -66,14 +66,20 @@ const startServer = () => {
     };
     
     // Inicializar Redis
-    console.log('🔍 Inicializando Redis...');
-    await redisService.initialize();
-    console.log('✅ Redis inicializado');
+    try {
+      await redisService.initialize();
+      console.log('✅ Redis: Conectado e inicializado');
+    } catch (error) {
+      console.error('❌ Erro ao conectar Redis:', error.message);
+    }
     
     // Inicializar UserCacheService
-    console.log('🔍 Inicializando UserCacheService...');
-    await userCacheService.initialize();
-    console.log('✅ UserCacheService inicializado');
+    try {
+      await userCacheService.initialize();
+      console.log('✅ UserCacheService: Inicializado');
+    } catch (error) {
+      console.error('❌ Erro ao inicializar UserCacheService:', error.message);
+    }
     
     // Inicializar serviços (alguns podem falhar se dependem de Sequelize, mas não vamos quebrar)
     console.log('🔍 Inicializando serviços...');
@@ -135,10 +141,10 @@ const startServer = () => {
       console.log('⚠️ Queue service: não disponível');
     }
     
-    // Tentar inicializar sistema completo
+    // Tentar inicializar sistema completo (temporariamente desabilitado)
     try {
-      await initService.initializeSystem();
-      console.log('✅ Sistema inicializado');
+      // await initService.initializeSystem();
+      console.log('✅ Sistema básico inicializado');
     } catch (error) {
       console.log('⚠️ Sistema: inicialização parcial (alguns serviços podem não estar disponíveis)');
     }

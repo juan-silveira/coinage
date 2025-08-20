@@ -9,6 +9,7 @@ const jwtService = require('../services/jwt.service');
 const redisService = require('../services/redis.service');
 const userCacheService = require('../services/userCache.service');
 const userService = require('../services/user.service');
+const userActionsService = require('../services/userActions.service');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const { validatePassword } = require('../utils/passwordValidation');
@@ -66,6 +67,13 @@ const login = async (req, res) => {
 
     // Verificar se usuário está bloqueado por tentativas excessivas
     if (existingUser && existingUser.isBlockedLoginAttempts) {
+      // Registrar tentativa de login em conta bloqueada
+      await userActionsService.logAuth(existingUser.id, 'login_failed', req, {
+        status: 'failed',
+        errorMessage: 'Account blocked due to excessive failed attempts',
+        errorCode: 'ACCOUNT_BLOCKED'
+      });
+      
       return res.status(423).json({
         success: false,
         message: 'Conta bloqueada devido a muitas tentativas de login incorretas. Entre em contato com o administrador.',
@@ -95,6 +103,13 @@ const login = async (req, res) => {
         });
 
         if (shouldBlock) {
+          // Registrar bloqueio da conta
+          await userActionsService.logSecurity(existingUser.id, 'account_locked', req, {
+            status: 'failed',
+            details: { reason: 'Excessive failed login attempts', attempts: newFailedAttempts },
+            errorMessage: 'Account locked after 5 failed attempts'
+          });
+          
           return res.status(423).json({
             success: false,
             message: 'Conta bloqueada devido a 5 tentativas incorretas consecutivas. Entre em contato com o administrador.',
@@ -104,6 +119,13 @@ const login = async (req, res) => {
             }
           });
         }
+
+        // Registrar tentativa de login falhada
+        await userActionsService.logAuth(existingUser.id, 'login_failed', req, {
+          status: 'failed',
+          details: { attempts: newFailedAttempts },
+          errorMessage: 'Invalid credentials'
+        });
 
         return res.status(401).json({
           success: false,
@@ -122,6 +144,13 @@ const login = async (req, res) => {
     }
 
     if (!user.isActive) {
+      // Registrar tentativa de login em conta inativa
+      await userActionsService.logAuth(user.id, 'login_failed', req, {
+        status: 'failed',
+        errorMessage: 'Inactive user account',
+        errorCode: 'ACCOUNT_INACTIVE'
+      });
+      
       return res.status(403).json({
         success: false,
         message: 'Usuário inativo'
@@ -138,7 +167,22 @@ const login = async (req, res) => {
           isBlockedLoginAttempts: false
         }
       });
+      
+      // Registrar desbloqueio se estava bloqueado
+      if (existingUser.isBlockedLoginAttempts) {
+        await userActionsService.logSecurity(user.id, 'account_unlocked', req, {
+          details: { reason: 'Successful login after block' }
+        });
+      }
     }
+
+    // Registrar login bem-sucedido
+    await userActionsService.logAuth(user.id, 'login', req, {
+      details: {
+        isFirstAccess: user.isFirstAccess,
+        userPlan: user.userPlan
+      }
+    });
 
     // Gerar tokens
     const accessToken = jwtService.generateAccessToken(user);
@@ -227,6 +271,11 @@ const logout = async (req, res) => {
       console.warn('⚠️ Erro ao finalizar cache automático:', cacheError.message);
     }
 
+    // Registrar logout
+    if (req.user && req.user.id) {
+      await userActionsService.logAuth(req.user.id, 'logout', req);
+    }
+
     res.json({
       success: true,
       message: 'Logout realizado com sucesso'
@@ -280,6 +329,13 @@ const changePassword = async (req, res) => {
     const isValidPassword = userService.verifyPassword(currentPassword, user.password, user.email);
     
     if (!isValidPassword) {
+      // Registrar tentativa falhada de mudança de senha
+      await userActionsService.logSecurity(req.user.id, 'password_changed', req, {
+        status: 'failed',
+        errorMessage: 'Invalid current password',
+        errorCode: 'INVALID_PASSWORD'
+      });
+      
       return res.status(400).json({
         success: false,
         message: 'Senha atual incorreta'
@@ -293,6 +349,14 @@ const changePassword = async (req, res) => {
     });
 
     if (updateResult.success) {
+      // Registrar mudança de senha bem-sucedida
+      await userActionsService.logSecurity(req.user.id, 'password_changed', req, {
+        details: {
+          isFirstAccess: user.isFirstAccess,
+          wasFirstAccess: true
+        }
+      });
+      
       res.json({
         success: true,
         message: 'Senha alterada com sucesso'
@@ -655,9 +719,12 @@ const refreshToken = async (req, res) => {
  */
 const getCurrentUser = async (req, res) => {
   try {
+    console.log('👤 getCurrentUser - Iniciando...');
     const user = req.user;
+    console.log('👤 getCurrentUser - Usuário:', user ? user.id : 'null');
     
     if (!user) {
+      console.log('❌ getCurrentUser - Usuário não encontrado no req.user');
       return res.status(401).json({
         success: false,
         message: 'Usuário não autenticado'
@@ -674,6 +741,10 @@ const getCurrentUser = async (req, res) => {
           phone: user.phone,
           cpf: user.cpf,
           birthDate: user.birthDate,
+          publicKey: user.publicKey || user.public_key,
+          blockchainAddress: user.blockchainAddress || user.blockchain_address,
+          isActive: user.isActive,
+          emailConfirmed: user.emailConfirmed,
           permissions: user.permissions,
           roles: user.roles,
           isApiAdmin: user.isApiAdmin,
@@ -736,14 +807,35 @@ const register = async (req, res) => {
     // Hash da senha
     const hashedPassword = await bcrypt.hash(password, 12);
 
-    // Criar usuário
+    // Gerar chaves blockchain
+    const { publicKey, privateKey } = crypto.generateKeyPairSync('ed25519', {
+      publicKeyEncoding: { type: 'spki', format: 'pem' },
+      privateKeyEncoding: { type: 'pkcs8', format: 'pem' }
+    });
+    
+    // Converter para formato hex para armazenar no banco
+    const publicKeyHex = publicKey.replace(/-----BEGIN PUBLIC KEY-----\n?/, '')
+                                  .replace(/\n?-----END PUBLIC KEY-----\n?/, '')
+                                  .replace(/\n/g, '');
+    const privateKeyHex = privateKey.replace(/-----BEGIN PRIVATE KEY-----\n?/, '')
+                                    .replace(/\n?-----END PRIVATE KEY-----\n?/, '')
+                                    .replace(/\n/g, '');
+
+    // Gerar CPF temporário único para evitar conflitos de unicidade
+    const tempCpf = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`.padEnd(14, '0').substr(0, 14);
+    
+    // Criar usuário (INATIVO até confirmar email)
     const user = await prisma.user.create({
       data: {
         name,
         email: email.toLowerCase(),
         password: hashedPassword,
-        isActive: true,
-        isFirstAccess: true
+        publicKey: publicKeyHex,
+        privateKey: privateKeyHex,
+        isActive: false, // ALTERADO: usuário começa inativo
+        isFirstAccess: true,
+        balance: 0,
+        cpf: tempCpf // CPF temporário único será preenchido no KYC
       }
     });
 
@@ -771,15 +863,52 @@ const register = async (req, res) => {
       }
     }
 
+    // Enviar email de confirmação
+    try {
+      const emailService = require('../services/email.service');
+      await emailService.init(); // Garantir que está inicializado
+      const token = await emailService.generateEmailConfirmationToken(user.id, company_alias || 'default');
+      
+      await emailService.sendEmailConfirmation(user.email, {
+        userName: user.name,
+        companyName: company_alias || 'Coinage',
+        token,
+        userId: user.id,
+        companyAlias: company_alias || 'default',
+        baseUrl: process.env.FRONTEND_URL || 'http://localhost:3000',
+        expiresIn: '24 horas',
+        primaryColor: '#3B82F6'
+      });
+
+      console.log(`📧 Email de confirmação enviado para: ${user.email}`);
+      
+    } catch (emailError) {
+      console.error('❌ Erro ao enviar email de confirmação:', emailError);
+      // Não falhar o registro por erro de email
+    }
+
+    // Registrar ação de usuário criado
+    await userActionsService.logAuth(user.id, 'registration_completed', req, {
+      status: 'success',
+      details: {
+        email: user.email,
+        hasCompany: !!company_alias,
+        companyAlias: company_alias || null,
+        emailConfirmationSent: true
+      }
+    });
+
     res.status(201).json({
       success: true,
-      message: 'Usuário registrado com sucesso',
+      message: 'Usuário registrado com sucesso. Verifique seu email para ativar a conta.',
       data: {
         user: {
           id: user.id,
           name: user.name,
           email: user.email,
-          isFirstAccess: user.isFirstAccess
+          isFirstAccess: user.isFirstAccess,
+          isActive: user.isActive,
+          emailConfirmationSent: true
         }
       }
     });
@@ -896,6 +1025,63 @@ const unblockUser = async (req, res) => {
 };
 
 /**
+ * Bloquear usuário (função para administradores)
+ */
+const blockUser = async (req, res) => {
+  const prisma = getPrisma();
+  
+  try {
+    const { email } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email é obrigatório'
+      });
+    }
+
+    // Buscar usuário
+    const user = await prisma.user.findUnique({
+      where: { email }
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Usuário não encontrado'
+      });
+    }
+
+    // Bloquear usuário
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        isBlockedLoginAttempts: true,
+        lastFailedLoginAt: new Date()
+      }
+    });
+
+    res.json({
+      success: true,
+      message: `Usuário ${email} bloqueado com sucesso`,
+      data: {
+        email: user.email,
+        name: user.name,
+        wasBlocked: user.isBlockedLoginAttempts,
+        blockedAt: new Date()
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Erro ao bloquear usuário:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro interno do servidor'
+    });
+  }
+};
+
+/**
  * Listar usuários bloqueados (função para administradores)
  */
 const listBlockedUsers = async (req, res) => {
@@ -946,6 +1132,7 @@ module.exports = {
   refreshToken,
   getCurrentUser,
   testBlacklist,
+  blockUser,
   unblockUser,
   listBlockedUsers
 };

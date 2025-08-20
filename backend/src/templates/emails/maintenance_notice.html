@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manutenção Programada</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: linear-gradient(135deg, #ff7f00, #ff6b35); color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+        .content { background: #f9f9f9; padding: 30px; }
+        .warning-icon { font-size: 48px; color: #ff7f00; text-align: center; margin-bottom: 20px; }
+        .schedule-box { background: #fff3cd; border: 2px solid #ffc107; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: center; }
+        .datetime { font-size: 20px; font-weight: bold; color: #856404; }
+        .services-affected { background: #f8d7da; border-left: 4px solid #dc3545; padding: 15px; margin: 20px 0; }
+        .info-box { background: #d1ecf1; border-left: 4px solid #17a2b8; padding: 15px; margin: 20px 0; }
+        .footer { background: #333; color: white; padding: 20px; text-align: center; border-radius: 0 0 8px 8px; }
+        .timeline { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; }
+        .timeline-item { border-left: 3px solid #17a2b8; padding-left: 15px; margin-bottom: 15px; }
+        .timeline-time { font-weight: bold; color: #17a2b8; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔧 Manutenção Programada</h1>
+            <p>{{companyName}}</p>
+        </div>
+        
+        <div class="content">
+            <div class="warning-icon">⚠️</div>
+            
+            <h2>Aviso Importante</h2>
+            
+            <p>Informamos que realizaremos uma manutenção programada em nossos sistemas para melhorar a performance e adicionar novas funcionalidades.</p>
+            
+            <div class="schedule-box">
+                <h3>📅 Cronograma da Manutenção</h3>
+                <div class="datetime">
+                    <strong>Início:</strong> {{maintenanceStart}}<br>
+                    <strong>Término:</strong> {{maintenanceEnd}}
+                </div>
+            </div>
+
+            <div class="services-affected">
+                <h3>🚨 Serviços Afetados</h3>
+                <p>Durante o período de manutenção, os seguintes serviços podem ficar indisponíveis:</p>
+                <ul>
+                    {{#each affectedServices}}
+                    <li><strong>{{this.name}}:</strong> {{this.description}}</li>
+                    {{/each}}
+                </ul>
+            </div>
+
+            <div class="timeline">
+                <h3>⏱️ Cronograma Detalhado</h3>
+                <div class="timeline-item">
+                    <div class="timeline-time">30 min antes</div>
+                    <p>Envio de notificações finais e preparação dos sistemas</p>
+                </div>
+                <div class="timeline-item">
+                    <div class="timeline-time">Início da manutenção</div>
+                    <p>Sistemas começam a ficar indisponíveis gradualmente</p>
+                </div>
+                <div class="timeline-item">
+                    <div class="timeline-time">Durante a manutenção</div>
+                    <p>Atualização de servidores, banco de dados e aplicações</p>
+                </div>
+                <div class="timeline-item">
+                    <div class="timeline-time">Fim da manutenção</div>
+                    <p>Sistemas voltam ao ar gradualmente após testes</p>
+                </div>
+            </div>
+
+            <div class="info-box">
+                <h3>💡 O que você pode fazer?</h3>
+                <ul>
+                    <li><strong>Complete suas transações:</strong> Finalize operações pendentes antes do horário de início</li>
+                    <li><strong>Acompanhe o status:</strong> Verifique nosso status em tempo real</li>
+                    <li><strong>Planeje-se:</strong> Considere este período em suas operações</li>
+                    <li><strong>Mantenha-se informado:</strong> Acompanhe nossas redes sociais para atualizações</li>
+                </ul>
+            </div>
+
+            <div style="background: #e8f5e8; border-left: 4px solid #28a745; padding: 15px; margin: 20px 0;">
+                <h4>✨ Melhorias que você pode esperar</h4>
+                <ul>
+                    <li>Performance aprimorada em todas as operações</li>
+                    <li>Novas funcionalidades de segurança</li>
+                    <li>Interface mais rápida e responsiva</li>
+                    <li>Correções de bugs reportados</li>
+                </ul>
+            </div>
+
+            <div style="background: #fff3cd; border: 1px solid #ffc107; padding: 15px; border-radius: 8px; text-align: center;">
+                <h4>📞 Precisa de Ajuda?</h4>
+                <p>Se você tiver dúvidas ou precisar de suporte urgente durante a manutenção:</p>
+                <p><strong>Email:</strong> suporte@{{companyName}}.com<br>
+                <strong>WhatsApp:</strong> (11) 99999-9999</p>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>Agradecemos pela compreensão!</p>
+            <p>Equipe {{companyName}}</p>
+        </div>
+    </div>
+</body>
+</html>

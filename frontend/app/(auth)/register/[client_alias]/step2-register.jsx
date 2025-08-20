@@ -7,7 +7,7 @@ import Button from '@/components/ui/Button';
 import Textinput from '@/components/ui/Textinput';
 import Card from '@/components/ui/Card';
 import PasswordStrengthIndicator from '@/components/ui/PasswordStrengthIndicator';
-import { toast } from 'react-toastify';
+import { useAlertContext } from '@/contexts/AlertContext';
 import { Eye, EyeOff, ArrowLeft, CheckCircle } from 'lucide-react';
 
 /**
@@ -31,6 +31,7 @@ const NewUserRegisterStep = ({
   const [registrationSuccess, setRegistrationSuccess] = useState(false);
   const { getBrandName, getPrimaryColor } = useBranding();
   const router = useRouter();
+  const { showSuccess, showError, showInfo, showWarning } = useAlertContext();
 
   // Atualizar email quando userStatus mudar
   useEffect(() => {
@@ -53,22 +54,22 @@ const NewUserRegisterStep = ({
 
   const validateForm = () => {
     if (!formData.name.trim()) {
-      toast.error('Nome é obrigatório');
+      showError('Nome é obrigatório');
       return false;
     }
 
     if (!formData.email.includes('@')) {
-      toast.error('Email inválido');
+      showError('Email inválido');
       return false;
     }
 
     if (formData.password.length < 6) {
-      toast.error('Senha deve ter pelo menos 6 caracteres');
+      showError('Senha deve ter pelo menos 6 caracteres');
       return false;
     }
 
     if (formData.password !== formData.confirmPassword) {
-      toast.error('Senhas não coincidem');
+      showError('Senhas não coincidem');
       return false;
     }
 
@@ -96,7 +97,7 @@ const NewUserRegisterStep = ({
       console.log('✅ Resultado do registro:', result);
       
       setRegistrationSuccess(true);
-      toast.success('Cadastro realizado com sucesso!');
+      showSuccess('Cadastro realizado com sucesso!');
 
       if (onSuccess) {
         onSuccess(result);
@@ -106,9 +107,9 @@ const NewUserRegisterStep = ({
       console.error('Erro no registro:', error);
       
       if (error.response?.status === 409) {
-        toast.error('Este email já está em uso');
+        showError('Este email já está em uso');
       } else {
-        toast.error('Erro ao criar conta. Tente novamente.');
+        showError('Erro ao criar conta. Tente novamente.');
       }
     } finally {
       setLoading(false);
@@ -136,8 +137,7 @@ const NewUserRegisterStep = ({
             <div className="space-y-3">
               <Button
                 onClick={() => router.push(`/login/${companyAlias}`)}
-                className="w-full"
-                style={{ backgroundColor: getPrimaryColor() }}
+                className="w-full btn-brand"
               >
                 Ir para Login
               </Button>
@@ -145,7 +145,7 @@ const NewUserRegisterStep = ({
               <button
                 onClick={() => {
                   // Implementar reenvio de email
-                  toast.info('Email reenviado com sucesso!');
+                  showInfo('Email reenviado com sucesso!');
                 }}
                 className="w-full text-sm text-blue-600 hover:text-blue-500 dark:text-blue-400"
               >
@@ -168,7 +168,7 @@ const NewUserRegisterStep = ({
 
   return (
     <div className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
+      <div className="max-w-xl w-full space-y-8">
         <div className="text-center">
           <h2 className="mt-6 text-3xl font-extrabold text-gray-900 dark:text-white">
             Criar Conta - {getBrandName()}
@@ -274,7 +274,8 @@ const NewUserRegisterStep = ({
                 type="button"
                 variant="outline"
                 onClick={onBack}
-                className="flex-1"
+                className="flex-1 btn-outline-brand"
+                style={{ borderColor: 'var(--brand-primary)', color: 'var(--brand-primary)' }}
                 disabled={loading}
               >
                 <ArrowLeft size={16} className="mr-2" />
@@ -283,9 +284,9 @@ const NewUserRegisterStep = ({
               
               <Button
                 type="submit"
-                className="flex-1"
+                className="flex-1 btn-brand"
+                style={{ backgroundColor: 'var(--brand-primary)' }}
                 isLoading={loading}
-                style={{ backgroundColor: getPrimaryColor() }}
               >
                 Criar Conta
               </Button>

@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>{{subject}} - Coinage</title>
+    <style>
+        /* Reset básico */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        /* Estilo base do corpo */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333333;
+            background: #485586;
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            min-height: 100vh;
+        }
+
+        /* Container principal */
+        .email-container {
+            width: 100%;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Header com logos */
+        .header {
+            background: rgba(255, 255, 255, 0.04);
+            backdrop-filter: blur(20px);
+            border-radius: 12px 12px 0 0;
+            padding: 18px 24px;
+            text-align: center;
+            margin-bottom: 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .logo-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .company-logo {
+            height: 32px;
+            max-width: 120px;
+            object-fit: contain;
+            opacity: 0.92;
+        }
+
+        .powered-by {
+            color: rgba(255, 255, 255, 0.4);
+            font-size: 12px;
+            font-weight: 300;
+            margin: 0 2px;
+        }
+
+        .coinage-logo {
+            height: 24px;
+            max-width: 80px;
+            object-fit: contain;
+            opacity: 0.88;
+        }
+
+        .coinage-text {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 18px;
+            font-weight: 600;
+            letter-spacing: -0.3px;
+        }
+
+        /* Card principal branco */
+        .email-card {
+            background: #ffffff;
+            border-radius: 0 0 16px 16px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+            overflow: hidden;
+            border: 1px solid rgba(0, 0, 0, 0.04);
+        }
+
+        .email-content {
+            padding: 32px 28px;
+        }
+
+        /* Títulos */
+        .email-title {
+            font-size: 22px;
+            font-weight: 600;
+            color: #111827;
+            margin-bottom: 6px;
+            text-align: center;
+            letter-spacing: -0.025em;
+        }
+
+        .email-subtitle {
+            font-size: 15px;
+            color: #6b7280;
+            margin-bottom: 24px;
+            text-align: center;
+            font-weight: 400;
+        }
+
+        /* Conteúdo principal */
+        .content-section {
+            margin-bottom: 30px;
+        }
+
+        .content-section h2 {
+            font-size: 18px;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 15px;
+        }
+
+        .content-section p {
+            margin-bottom: 15px;
+            color: #4b5563;
+        }
+
+        /* Cards de informação */
+        .info-card {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .info-card.success {
+            background: #ecfdf5;
+            border-color: #10b981;
+        }
+
+        .info-card.warning {
+            background: #fffbeb;
+            border-color: #f59e0b;
+        }
+
+        .info-card.error {
+            background: #fef2f2;
+            border-color: #ef4444;
+        }
+
+        /* Detalhes da transação */
+        .transaction-details {
+            background: #f8fafc;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .detail-row:last-child {
+            border-bottom: none;
+        }
+
+        .detail-label {
+            font-weight: 500;
+            color: #64748b;
+        }
+
+        .detail-value {
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        .detail-value.amount {
+            color: #059669;
+            font-size: 18px;
+        }
+
+        /* Botões */
+        .button-container {
+            text-align: center;
+            margin: 30px 0;
+        }
+
+        .primary-button {
+            display: inline-block;
+            background: linear-gradient(135deg, #059669, #047857);
+            color: #ffffff;
+            font-weight: 600;
+            padding: 12px 30px;
+            border-radius: 8px;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3);
+        }
+
+        .primary-button:hover {
+            background: linear-gradient(135deg, #047857, #065f46);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(5, 150, 105, 0.4);
+        }
+
+        .secondary-button {
+            display: inline-block;
+            background: transparent;
+            color: #059669;
+            font-weight: 500;
+            padding: 10px 24px;
+            border: 2px solid #059669;
+            border-radius: 8px;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            margin-left: 10px;
+        }
+
+        .secondary-button:hover {
+            background: #059669;
+            color: #ffffff;
+        }
+
+        /* Footer */
+        .footer {
+            background: rgba(255, 255, 255, 0.02);
+            backdrop-filter: blur(8px);
+            border-radius: 8px;
+            padding: 16px;
+            margin-top: 16px;
+            text-align: center;
+        }
+
+        .footer-logo {
+            margin-bottom: 8px;
+        }
+
+        .footer-coinage {
+            height: 20px;
+            opacity: 0.75;
+        }
+
+        .footer-text {
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 11px;
+            line-height: 1.4;
+            margin-bottom: 6px;
+        }
+
+        .footer-links {
+            margin-top: 8px;
+        }
+
+        .footer-links a {
+            color: rgba(255, 255, 255, 0.6);
+            text-decoration: none;
+            font-size: 10px;
+            margin: 0 6px;
+            padding: 2px 0;
+            transition: opacity 0.2s ease;
+        }
+
+        .footer-links a:hover {
+            opacity: 0.8;
+        }
+
+        /* Responsive */
+        @media only screen and (max-width: 600px) {
+            .email-container {
+                padding: 10px;
+            }
+            
+            .email-content {
+                padding: 25px 20px;
+            }
+            
+            .email-title {
+                font-size: 20px;
+            }
+            
+            .logo-container {
+                flex-direction: column;
+                gap: 8px;
+            }
+            
+            .detail-row {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 4px;
+            }
+            
+            .button-container {
+                margin: 20px 0;
+            }
+            
+            .secondary-button {
+                margin-left: 0;
+                margin-top: 10px;
+                display: block;
+            }
+        }
+
+        /* Modo escuro para clientes que suportam */
+        @media (prefers-color-scheme: dark) {
+            .email-card {
+                background: #ffffffcc;
+            }
+            
+            .email-title {
+                color: #f9fafb;
+            }
+            
+            .email-subtitle {
+                color: #d1d5db;
+            }
+            
+            .content-section p {
+                color: #d1d5db;
+            }
+            
+            .transaction-details {
+                background: #374151;
+            }
+            
+            .detail-label {
+                color: #9ca3af;
+            }
+            
+            .detail-value {
+                color: #f3f4f6;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <!-- Header com logos -->
+        <div class="header">
+            <div class="logo-container">
+                <img src="{{companyLogo}}" alt="{{companyName}}" class="company-logo">
+                <span class="powered-by">-</span>
+                <img src="./logo.svg" alt="Coinage" class="coinage-logo">
+            </div>
+        </div>
+
+        <!-- Card principal -->
+        <div class="email-card">
+            <div class="email-content">
+                <!-- Conteúdo do email será inserido aqui -->
+                {{content}}
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <div class="footer-logo">
+                <img src="./logo.svg" alt="Coinage" class="footer-coinage">
+            </div>
+            <div class="footer-text">
+                Gestão blockchain
+            </div>
+            <div class="footer-links">
+                <a href="{{dashboardUrl}}">Dashboard</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

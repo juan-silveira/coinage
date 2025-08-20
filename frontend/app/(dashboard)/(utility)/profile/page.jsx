@@ -1,8 +1,10 @@
 "use client";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import Icon from "@/components/ui/Icon";
 import Card from "@/components/ui/Card";
+import UserAvatar from "@/components/ui/UserAvatar";
+import PhotoUploadModal from "@/components/ui/PhotoUploadModal";
 import BalancesTable from "@/components/partials/table/BalancesTable";
 import useAuthStore from "@/store/authStore";
 import useCachedBalances from "@/hooks/useCachedBalances";
@@ -10,16 +12,21 @@ import useCacheData from "@/hooks/useCacheData";
 import useCurrentCompany from "@/hooks/useCurrentCompany";
 import useEarnings from "@/hooks/useEarnings";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import { useAlertContext } from "@/contexts/AlertContext";
+import api from "@/services/api";
 
 const profile = () => {
   // Hook para gerenciar título da aba com contagem de notificações
   useDocumentTitle('Perfil do Usuário', 'Coinage', true);
   
-  const { user } = useAuthStore();
+  const { user, profilePhotoUrl, setProfilePhotoUrl } = useAuthStore();
   const { cachedUser, formatCPF, formatPhone } = useCacheData();
-  const { balances, loading, getBalance, getCorrectAzeSymbol } =
-    useCachedBalances();
+  const { balances, loading, getBalance, getCorrectAzeSymbol } = useCachedBalances();
   const { currentCompany, loading: companyLoading } = useCurrentCompany();
+  const { showSuccess, showError } = useAlertContext();
+  
+  // Estados para foto de perfil
+  const [photoModalOpen, setPhotoModalOpen] = useState(false);
   
   // Hook para earnings
   const { 
@@ -43,12 +50,7 @@ const profile = () => {
     SUPER_ADMIN: "Super Admin",
   };
 
-  // Console.log apenas quando currentCompany mudar
-  // useEffect(() => {
-  //   if (currentCompany) {
-  //     console.log('🔍 [Profile] Current Company Role:', currentCompany);
-  //   }
-  // }, [currentCompany]);
+
 
   return (
     <div>
@@ -59,17 +61,13 @@ const profile = () => {
             <div className="md:flex items-end md:space-x-6 rtl:space-x-reverse">
               <div className="flex-none">
                 <div className="md:h-[186px] md:w-[186px] h-[140px] w-[140px] md:ml-0 md:mr-0 ml-auto mr-auto md:mb-0 mb-4 rounded-full ring-4 ring-slate-100 relative">
-                  <img
-                    src="/assets/images/users/ivan.jpg"
-                    alt=""
-                    className="w-full h-full object-cover rounded-full"
-                  />
-                  <Link
-                    href="#"
-                    className="absolute right-2 h-8 w-8 bg-slate-50 text-slate-600 rounded-full shadow-sm flex flex-col items-center justify-center md:top-[140px] top-[100px]"
+                  <UserAvatar size="3xl" className="!w-full !h-full" />
+                  <button
+                    onClick={() => setPhotoModalOpen(true)}
+                    className="absolute right-2 h-8 w-8 bg-slate-50 text-slate-600 rounded-full shadow-sm flex flex-col items-center justify-center md:top-[140px] top-[100px] hover:bg-slate-200 transition-colors"
                   >
                     <Icon icon="heroicons:pencil-square" />
-                  </Link>
+                  </button>
                 </div>
               </div>
               <div className="flex-1">
@@ -98,47 +96,40 @@ const profile = () => {
             <div className="flex-1">
               <div className="balance text-base text-slate-900 dark:text-slate-300 font-medium mb-1">
                 {loading ? (
-                  <div className="animate-pulse bg-slate-200 dark:bg-slate-600 h-4 w-16 rounded"></div>
+                  <div className="animate-pulse">
+                    <div className="h-6 bg-slate-300 dark:bg-slate-600 rounded w-24"></div>
+                  </div>
                 ) : (
-                  `${getBalance(
-                    getCorrectAzeSymbol()
-                  )} ${getCorrectAzeSymbol()}`
+                  <span>
+                    {getBalance('cBRL')} {getCorrectAzeSymbol('cBRL')}
+                  </span>
                 )}
               </div>
-              <div className="text-sm text-slate-600 font-light dark:text-slate-300">
-                Saldo {getCorrectAzeSymbol()}
+              <div className="balance-text text-xs text-slate-500 dark:text-slate-400">
+                Saldo em Real Digital (cBRL)
               </div>
             </div>
-
             <div className="flex-1">
               <div className="balance text-base text-slate-900 dark:text-slate-300 font-medium mb-1">
                 {loading ? (
-                  <div className="animate-pulse bg-slate-200 dark:bg-slate-600 h-4 w-16 rounded"></div>
+                  <div className="animate-pulse">
+                    <div className="h-6 bg-slate-300 dark:bg-slate-600 rounded w-24"></div>
+                  </div>
                 ) : (
-                  `${getBalance("cBRL")} cBRL`
+                  <span>
+                    {getBalance('AZE')} {getCorrectAzeSymbol('AZE')}
+                  </span>
                 )}
               </div>
-              <div className="text-sm text-slate-600 font-light dark:text-slate-300">
-                Saldo cBRL
-              </div>
-            </div>
-
-            <div className="flex-1">
-              <div className="text-base text-slate-900 dark:text-slate-300 font-medium mb-1">
-                {loading ? (
-                  <div className="animate-pulse bg-slate-200 dark:bg-slate-600 h-4 w-16 rounded"></div>
-                ) : (
-                  balances?.totalTokens || 0
-                )}
-              </div>
-              <div className="text-sm text-slate-600 font-light dark:text-slate-300">
-                Total de Tokens
+              <div className="balance-text text-xs text-slate-500 dark:text-slate-400">
+                Saldo da Coin Azore (AZE)
               </div>
             </div>
           </div>
         </div>
+
         <div className="grid grid-cols-12 gap-6">
-          <div className="lg:col-span-5 col-span-12">
+        <div className="lg:col-span-5 col-span-12">
             <Card title="Info">
               <ul className="list space-y-8">
                 <li className="flex space-x-3 rtl:space-x-reverse">
@@ -278,131 +269,33 @@ const profile = () => {
             </Card>
           </div>
           <div className="lg:col-span-7 col-span-12">
-            <div className="space-y-6">
-              <Card title="Balance de tokens">
-                <BalancesTable balances={balances} loading={loading} />
-              </Card>
-              
-              {/* Nova seção de Earnings */}
-              <Card title="Earnings (Proventos)">
-                {earningsLoading ? (
-                  <div className="space-y-4">
-                    <div className="animate-pulse bg-slate-200 dark:bg-slate-600 h-4 w-full rounded"></div>
-                    <div className="animate-pulse bg-slate-200 dark:bg-slate-600 h-4 w-3/4 rounded"></div>
-                    <div className="animate-pulse bg-slate-200 dark:bg-slate-600 h-4 w-1/2 rounded"></div>
-                  </div>
-                ) : earnings && earnings.length > 0 ? (
-                  <div className="space-y-4">
-                    {/* Tabela de Earnings */}
-                    <div className="overflow-x-auto">
-                      <table className="w-full border-collapse dark:border-slate-700 dark:border">
-                        <thead>
-                          <tr className="bg-slate-50 dark:bg-slate-700 dark:text-slate-300">
-                            <th className="text-xs font-medium leading-4 uppercase text-slate-600 ltr:text-left px-3 md:px-6 py-3">
-                              <span className="block font-semibold">Token</span>
-                            </th>
-                            <th className="text-xs font-medium leading-4 uppercase text-slate-600 ltr:text-left px-3 md:px-6 py-3">
-                              <span className="block font-semibold">Quantidade</span>
-                            </th>
-                            <th className="text-xs font-medium leading-4 uppercase text-slate-600 ltr:text-left px-3 md:px-6 py-3">
-                              <span className="block font-semibold">Cotação</span>
-                            </th>
-                            <th className="text-xs font-medium leading-4 uppercase text-slate-600 ltr:text-left px-3 md:px-6 py-3">
-                              <span className="block font-semibold">Valor</span>
-                            </th>
-                            <th className="text-xs font-medium leading-4 uppercase text-slate-600 ltr:text-left px-3 md:px-6 py-3">
-                              <span className="block font-semibold">Data</span>
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {earnings.map((earning, index) => (
-                            <tr
-                              key={earning.id}
-                              className="border-b border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
-                            >
-                              <td className="text-slate-900 dark:text-slate-300 text-sm px-3 md:px-6 py-3">
-                                <div className="flex items-center space-x-2">
-                                  <img
-                                    src={`/assets/images/currencies/${earning.tokenSymbol}.png`}
-                                    alt={earning.tokenSymbol}
-                                    className="w-6 h-6 rounded-full"
-                                    onError={(e) => {
-                                      e.target.style.display = 'none';
-                                      e.target.nextSibling.style.display = 'flex';
-                                    }}
-                                  />
-                                  <div className="w-6 h-6 bg-slate-200 dark:bg-slate-600 rounded-full flex items-center justify-center hidden">
-                                    <span className="text-slate-600 dark:text-slate-400 text-xs font-bold">
-                                      {earning.tokenSymbol.charAt(0)}
-                                    </span>
-                                  </div>
-                                  <span className="font-medium">{earning.tokenSymbol}</span>
-                                </div>
-                              </td>
-                              <td className="text-slate-900 dark:text-slate-300 text-sm px-3 md:px-6 py-3">
-                                {parseFloat(earning.amount).toFixed(6)}
-                              </td>
-                              <td className="text-slate-900 dark:text-slate-300 text-sm px-3 md:px-6 py-3">
-                                R$ {parseFloat(earning.quote).toFixed(2)}
-                              </td>
-                              <td className="text-slate-900 dark:text-slate-300 text-sm px-3 md:px-6 py-3">
-                                <span className="font-bold text-green-600 dark:text-green-400">
-                                  R$ {earning.valueInCbrl?.toFixed(2) || '0.00'}
-                                </span>
-                              </td>
-                              <td className="text-slate-900 dark:text-slate-300 text-sm px-3 md:px-6 py-3">
-                                {new Date(earning.distributionDate).toLocaleDateString('pt-BR')}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                    
-                    {/* Resumo dos Earnings */}
-                    <div className="bg-slate-50 dark:bg-slate-700 rounded-lg p-4">
-                      <div className="grid grid-cols-3 gap-4 text-center">
-                        <div>
-                          <div className="text-2xl font-bold text-slate-900 dark:text-slate-100">
-                            {stats.totalEarnings}
-                          </div>
-                          <div className="text-sm text-slate-600 dark:text-slate-400">
-                            Total de Earnings
-                          </div>
-                        </div>
-                        <div>
-                          <div className="text-2xl font-bold text-green-600 dark:text-green-400">
-                            R$ {stats.totalValueInCbrl?.toFixed(2) || '0.00'}
-                          </div>
-                          <div className="text-sm text-slate-600 dark:text-slate-400">
-                            Valor Total
-                          </div>
-                        </div>
-                        <div>
-                          <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                            {pagination.totalPages || 1}
-                          </div>
-                          <div className="text-sm text-slate-600 dark:text-slate-400">
-                            Páginas
-                          </div>
-                        </div>
+            <Card title="Saldos Atuais">
+              {loading ? (
+                <div className="space-y-4">
+                  {[...Array(3)].map((_, i) => (
+                    <div key={i} className="animate-pulse flex space-x-4">
+                      <div className="rounded-full bg-slate-300 dark:bg-slate-600 h-10 w-10"></div>
+                      <div className="flex-1 space-y-2 py-1">
+                        <div className="h-4 bg-slate-300 dark:bg-slate-600 rounded w-3/4"></div>
+                        <div className="h-3 bg-slate-300 dark:bg-slate-600 rounded w-1/2"></div>
                       </div>
                     </div>
-                  </div>
-                ) : (
-                  <div className="text-center py-8">
-                    <Icon icon="heroicons:currency-dollar" className="w-12 h-12 text-slate-400 mx-auto mb-4" />
-                    <p className="text-slate-600 dark:text-slate-400">
-                      Nenhum earning disponível no momento.
-                    </p>
-                  </div>
-                )}
-              </Card>
-            </div>
+                  ))}
+                </div>
+              ) : (
+                <BalancesTable balances={balances} />
+              )}
+            </Card>
           </div>
         </div>
       </div>
+
+      {/* Photo Upload Modal */}
+      <PhotoUploadModal
+        isOpen={photoModalOpen}
+        onClose={() => setPhotoModalOpen(false)}
+        currentPhoto={profilePhotoUrl}
+      />
     </div>
   );
 };

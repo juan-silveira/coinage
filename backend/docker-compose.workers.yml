@@ -1,0 +1,143 @@
+version: '3.8'
+
+services:
+  # Worker para processamento de transações blockchain
+  blockchain-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: coinage-blockchain-worker
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=${DATABASE_URL}
+      - RABBITMQ_URL=${RABBITMQ_URL}
+      - REDIS_URL=${REDIS_URL}
+      - BLOCKCHAIN_RPC_URL=${BLOCKCHAIN_RPC_URL}
+      - BLOCKCHAIN_PRIVATE_KEY=${BLOCKCHAIN_PRIVATE_KEY}
+    command: ["node", "src/workers/blockchain.worker.js"]
+    depends_on:
+      - rabbitmq
+      - redis
+      - postgres
+    restart: unless-stopped
+    networks:
+      - coinage-network
+    volumes:
+      - ./src:/app/src:ro
+      - ./package.json:/app/package.json:ro
+      - ./package-lock.json:/app/package-lock.json:ro
+
+  # Worker para processamento de depósitos
+  deposit-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: coinage-deposit-worker
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=${DATABASE_URL}
+      - RABBITMQ_URL=${RABBITMQ_URL}
+      - REDIS_URL=${REDIS_URL}
+      - BLOCKCHAIN_RPC_URL=${BLOCKCHAIN_RPC_URL}
+      - PIX_PROVIDER_URL=${PIX_PROVIDER_URL}
+      - PIX_PROVIDER_TOKEN=${PIX_PROVIDER_TOKEN}
+    command: ["node", "src/workers/deposit.worker.js"]
+    depends_on:
+      - rabbitmq
+      - redis
+      - postgres
+    restart: unless-stopped
+    networks:
+      - coinage-network
+    volumes:
+      - ./src:/app/src:ro
+      - ./package.json:/app/package.json:ro
+      - ./package-lock.json:/app/package-lock.json:ro
+
+  # Worker para processamento de saques
+  withdraw-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: coinage-withdraw-worker
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=${DATABASE_URL}
+      - RABBITMQ_URL=${RABBITMQ_URL}
+      - REDIS_URL=${REDIS_URL}
+      - BLOCKCHAIN_RPC_URL=${BLOCKCHAIN_RPC_URL}
+      - PIX_PROVIDER_URL=${PIX_PROVIDER_URL}
+      - PIX_PROVIDER_TOKEN=${PIX_PROVIDER_TOKEN}
+    command: ["node", "src/workers/withdraw.worker.js"]
+    depends_on:
+      - rabbitmq
+      - redis
+      - postgres
+    restart: unless-stopped
+    networks:
+      - coinage-network
+    volumes:
+      - ./src:/app/src:ro
+      - ./package.json:/app/package.json:ro
+      - ./package-lock.json:/app/package-lock.json:ro
+
+  # Worker para notificações (emails e webhooks)
+  notification-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: coinage-notification-worker
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=${DATABASE_URL}
+      - RABBITMQ_URL=${RABBITMQ_URL}
+      - REDIS_URL=${REDIS_URL}
+      - EMAIL_PROVIDER=mandrill
+      - EMAIL_API_KEY=${EMAIL_API_KEY}
+      - EMAIL_FROM_ADDRESS=${EMAIL_FROM_ADDRESS}
+    command: ["node", "src/workers/notification.worker.js"]
+    depends_on:
+      - rabbitmq
+      - redis
+      - postgres
+    restart: unless-stopped
+    networks:
+      - coinage-network
+    volumes:
+      - ./src:/app/src:ro
+      - ./package.json:/app/package.json:ro
+      - ./package-lock.json:/app/package-lock.json:ro
+
+  # Gerenciador de todos os workers (alternativa)
+  worker-manager:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: coinage-worker-manager
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=${DATABASE_URL}
+      - RABBITMQ_URL=${RABBITMQ_URL}
+      - REDIS_URL=${REDIS_URL}
+      - BLOCKCHAIN_RPC_URL=${BLOCKCHAIN_RPC_URL}
+      - PIX_PROVIDER_URL=${PIX_PROVIDER_URL}
+      - PIX_PROVIDER_TOKEN=${PIX_PROVIDER_TOKEN}
+      - EMAIL_PROVIDER=mandrill
+      - EMAIL_API_KEY=${EMAIL_API_KEY}
+      - EMAIL_FROM_ADDRESS=${EMAIL_FROM_ADDRESS}
+    command: ["node", "src/workers/index.js"]
+    depends_on:
+      - rabbitmq
+      - redis
+      - postgres
+    restart: unless-stopped
+    networks:
+      - coinage-network
+    volumes:
+      - ./src:/app/src:ro
+      - ./package.json:/app/package.json:ro
+      - ./package-lock.json:/app/package-lock.json:ro
+
+networks:
+  coinage-network:
+    external: true

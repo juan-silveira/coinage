@@ -247,7 +247,7 @@ const DepositPage = () => {
 
                   <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg">
                     <p className="text-sm text-blue-800 dark:text-blue-200">
-                      <strong>Importante:</strong> O valor será convertido para AZE na blockchain Azore após a confirmação do pagamento.
+                      <strong>Importante:</strong> O valor será convertido para cBRL na blockchain Azore após a confirmação do pagamento.
                     </p>
                   </div>
                 </div>
@@ -404,4 +404,10 @@ const DepositPage = () => {
 };
 
 export default DepositPage;
+
+
+
+
+
+
 

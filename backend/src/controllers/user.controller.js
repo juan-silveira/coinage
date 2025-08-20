@@ -6,6 +6,7 @@ const getPrisma = () => prismaConfig.getPrisma();
 
 // Importar serviços
 const userService = require('../services/user.service');
+const userActionsService = require('../services/userActions.service');
 const { validatePassword } = require('../utils/passwordValidation');
 
 /**
@@ -35,6 +36,17 @@ const createUser = async (req, res) => {
     }
 
     const user = await userService.createUser(userData, companyId);
+
+    // Registrar ação administrativa de criação de usuário
+    await userActionsService.logAdmin(req.user.id, 'user_created', user.id, req, {
+      details: {
+        newUser: {
+          name: user.name,
+          email: user.email,
+          userPlan: user.userPlan
+        }
+      }
+    });
 
     res.status(201).json({
       success: true,
@@ -123,6 +135,16 @@ const getUserByCpf = async (req, res) => {
  */
 const listUsers = async (req, res) => {
   try {
+    console.log('🔍 listUsers - Usuário autenticado:', req.user ? req.user.id : 'Nenhum');
+    
+    // Verificar se o usuário está autenticado
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Usuário não autenticado'
+      });
+    }
+
     const options = {
       page: parseInt(req.query.page) || 1,
       limit: parseInt(req.query.limit) || 50,
@@ -134,14 +156,18 @@ const listUsers = async (req, res) => {
       sortOrder: req.query.sortOrder || 'desc'
     };
 
+    console.log('🔍 listUsers - Options:', JSON.stringify(options, null, 2));
+
     const result = await userService.listUsers(options);
+
+    console.log('✅ listUsers - Resultado:', result.users.length, 'usuários encontrados');
 
     res.json({
       success: true,
       data: result
     });
   } catch (error) {
-    console.error('Erro ao listar usuários:', error);
+    console.error('❌ Erro ao listar usuários:', error);
     res.status(500).json({
       success: false,
       message: 'Erro interno do servidor'
@@ -629,6 +655,48 @@ const listUserTransactions = async (req, res) => {
 };
 
 /**
+ * Bloquear usuário
+ */
+const blockUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const user = await userService.blockUser(id);
+    res.json({
+      success: true,
+      message: 'Usuário bloqueado com sucesso',
+      data: { user }
+    });
+  } catch (error) {
+    console.error('Erro ao bloquear usuário:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro interno do servidor'
+    });
+  }
+};
+
+/**
+ * Desbloquear usuário
+ */
+const unblockUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const user = await userService.unblockUser(id);
+    res.json({
+      success: true,
+      message: 'Usuário desbloqueado com sucesso',
+      data: { user }
+    });
+  } catch (error) {
+    console.error('Erro ao desbloquear usuário:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro interno do servidor'
+    });
+  }
+};
+
+/**
  * Testar serviço de usuários
  */
 const testUserService = async (req, res) => {
@@ -655,6 +723,8 @@ module.exports = {
   updateUser,
   deactivateUser,
   activateUser,
+  blockUser,
+  unblockUser,
   testUserService,
   testService: testUserService,
   listUserTransactions,

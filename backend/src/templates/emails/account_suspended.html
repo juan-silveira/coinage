@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conta Suspensa</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: linear-gradient(135deg, #dc3545, #c82333); color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+        .content { background: #f9f9f9; padding: 30px; }
+        .alert-icon { font-size: 48px; color: #dc3545; text-align: center; margin-bottom: 20px; }
+        .suspension-info { background: #f8d7da; border: 2px solid #dc3545; padding: 20px; border-radius: 8px; margin: 20px 0; }
+        .reason-box { background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0; }
+        .action-steps { background: #d1ecf1; border-left: 4px solid #17a2b8; padding: 15px; margin: 20px 0; }
+        .footer { background: #333; color: white; padding: 20px; text-align: center; border-radius: 0 0 8px 8px; }
+        .btn { display: inline-block; background: #17a2b8; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; margin: 10px 0; }
+        .urgent { background: #dc3545; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚨 Conta Suspensa</h1>
+            <p>{{companyName}}</p>
+        </div>
+        
+        <div class="content">
+            <div class="alert-icon">🔒</div>
+            
+            <h2>Olá, {{userName}}</h2>
+            
+            <div class="suspension-info">
+                <h3>⚠️ Sua conta foi temporariamente suspensa</h3>
+                <p><strong>Data da suspensão:</strong> {{suspendedAt}}</p>
+                <p>O acesso às funcionalidades da sua conta está temporariamente restrito por motivos de segurança.</p>
+            </div>
+
+            <div class="reason-box">
+                <h3>📋 Motivo da Suspensão</h3>
+                <p>{{reason}}</p>
+            </div>
+
+            <div class="action-steps">
+                <h3>🔧 Como resolver esta situação</h3>
+                <ol>
+                    <li><strong>Entre em contato conosco:</strong> Use os canais de atendimento oficiais</li>
+                    <li><strong>Forneça informações:</strong> Esteja preparado para verificar sua identidade</li>
+                    <li><strong>Aguarde análise:</strong> Nossa equipe analisará seu caso em até 48 horas</li>
+                    <li><strong>Siga orientações:</strong> Cumpra quaisquer requisitos adicionais solicitados</li>
+                </ol>
+            </div>
+
+            <h3>📞 Canais de Atendimento</h3>
+            <div style="background: white; padding: 20px; border-radius: 8px;">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                    <div>
+                        <strong>📧 Email Priority:</strong><br>
+                        {{contactEmail}}<br>
+                        <small>Resposta em até 4 horas</small>
+                    </div>
+                    <div>
+                        <strong>📱 WhatsApp:</strong><br>
+                        (11) 99999-9999<br>
+                        <small>Segunda à Sexta, 8h às 20h</small>
+                    </div>
+                    <div>
+                        <strong>💬 Chat Online:</strong><br>
+                        Site oficial<br>
+                        <small>24 horas por dia</small>
+                    </div>
+                </div>
+            </div>
+
+            <div style="background: #f8d7da; border: 1px solid #dc3545; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                <h4>⚠️ Importante</h4>
+                <ul>
+                    <li><strong>Não ignore esta mensagem:</strong> A suspensão pode se tornar permanente</li>
+                    <li><strong>Canais oficiais:</strong> Use apenas nossos canais oficiais de contato</li>
+                    <li><strong>Documentação:</strong> Tenha seus documentos em mãos para agilizar o processo</li>
+                    <li><strong>Prazo:</strong> Entre em contato em até 7 dias para evitar o encerramento da conta</li>
+                </ul>
+            </div>
+
+            <div style="background: #e8f5e8; border-left: 4px solid #28a745; padding: 15px; margin: 20px 0;">
+                <h4>🛡️ Sua Segurança é Prioridade</h4>
+                <p>Esta suspensão é uma medida preventiva para proteger sua conta e seus fundos. Trabalhamos para resolver a situação o mais rápido possível.</p>
+            </div>
+
+            <div style="text-align: center; margin: 30px 0;">
+                <a href="mailto:{{contactEmail}}" class="btn urgent">Contatar Suporte Urgente</a>
+                <a href="#" class="btn">Central de Ajuda</a>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>Esta é uma mensagem automática de segurança</p>
+            <p>{{companyName}} - Sua segurança é nossa prioridade</p>
+        </div>
+    </div>
+</body>
+</html>

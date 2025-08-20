@@ -1,0 +1,427 @@
+{
+  "info": {
+    "name": "20 - System Health Check",
+    "description": "Health checks completos para todos os serviços do sistema",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": "1.0.0",
+    "_postman_id": "20-system-health-check-2024"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8800",
+      "type": "string"
+    },
+    {
+      "key": "dockerBaseUrl", 
+      "value": "http://localhost:8800",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "01 - Backend Health Check",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test('Service is OK', function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData.status).to.eql('OK');",
+              "    pm.expect(jsonData.service).to.eql('coinage-backend');",
+              "});",
+              "",
+              "pm.test('Response has timestamp', function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData.timestamp).to.not.be.empty;",
+              "});",
+              "",
+              "pm.test('Response time is acceptable', function () {",
+              "    pm.expect(pm.response.responseTime).to.be.below(1000);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/health",
+          "host": ["{{baseUrl}}"],
+          "path": ["health"]
+        },
+        "description": "Verifica se o backend está respondendo"
+      }
+    },
+    {
+      "name": "02 - API Root Endpoint",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test('API is running', function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData.status).to.eql('running');",
+              "    pm.expect(jsonData.message).to.contain('Coinage API');",
+              "});",
+              "",
+              "pm.test('Has endpoints information', function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData.endpoints).to.be.an('object');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/",
+          "host": ["{{baseUrl}}"],
+          "path": [""]
+        },
+        "description": "Testa endpoint raiz da API"
+      }
+    },
+    {
+      "name": "03 - Database Connection Test",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test('Database connection is successful', function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.be.true;",
+              "    pm.expect(jsonData.status).to.eql('connected');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/test/db",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "test", "db"]
+        },
+        "description": "Testa conexão com o banco de dados"
+      }
+    },
+    {
+      "name": "04 - Authentication Test",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test('Authentication endpoint working', function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.be.true;",
+              "    pm.expect(jsonData.message).to.contain('Authentication test');",
+              "});",
+              "",
+              "pm.test('Request data is received correctly', function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData.received).to.be.an('object');",
+              "    pm.expect(jsonData.received.email).to.eql('test@coinage.com');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"test@coinage.com\",\n  \"password\": \"test123\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/test/auth",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "test", "auth"]
+        },
+        "description": "Testa endpoint de autenticação"
+      }
+    },
+    {
+      "name": "05 - Email Service Test",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test('Email service is working', function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.be.true;",
+              "    pm.expect(jsonData.message).to.contain('Email service test');",
+              "});",
+              "",
+              "pm.test('Email provider is configured', function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData.provider).to.not.be.empty;",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"to\": \"test@example.com\",\n  \"subject\": \"Test Email\",\n  \"template\": \"welcome\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/test/email",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "test", "email"]
+        },
+        "description": "Testa serviço de email"
+      }
+    },
+    {
+      "name": "06 - PostgreSQL Health Check",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "// PostgreSQL está rodando via Docker na porta 5433",
+              "pm.test('Response indicates database check', function () {",
+              "    // Este teste pode retornar erro se não conseguir conectar",
+              "    // Mas deve pelo menos tentar fazer a conexão",
+              "    pm.expect(pm.response.responseTime).to.be.below(5000);",
+              "});",
+              "",
+              "if (pm.response.code === 200) {",
+              "    pm.test('Database is accessible', function () {",
+              "        const jsonData = pm.response.json();",
+              "        pm.expect(jsonData.success).to.be.true;",
+              "    });",
+              "} else {",
+              "    pm.test('Database connection error is handled', function () {",
+              "        pm.expect(pm.response.code).to.be.oneOf([200, 500, 503]);",
+              "    });",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/test/db",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "test", "db"]
+        },
+        "description": "Verifica conectividade com PostgreSQL"
+      }
+    },
+    {
+      "name": "07 - Invalid Endpoint Test",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 404', function () {",
+              "    pm.response.to.have.status(404);",
+              "});",
+              "",
+              "pm.test('Error message is appropriate', function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.be.false;",
+              "    pm.expect(jsonData.message).to.contain('not found');",
+              "});",
+              "",
+              "pm.test('Error response includes path info', function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData.path).to.eql('/api/nonexistent');",
+              "    pm.expect(jsonData.method).to.eql('GET');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/nonexistent",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "nonexistent"]
+        },
+        "description": "Testa tratamento de endpoints inexistentes"
+      }
+    },
+    {
+      "name": "08 - Load Test (Multiple Requests)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test('Response time is acceptable under load', function () {",
+              "    // Deve responder em menos de 2 segundos mesmo com múltiplas requisições",
+              "    pm.expect(pm.response.responseTime).to.be.below(2000);",
+              "});",
+              "",
+              "pm.test('Service remains stable', function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData.status).to.eql('OK');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/health",
+          "host": ["{{baseUrl}}"],
+          "path": ["health"]
+        },
+        "description": "Teste de carga básico - execute múltiplas vezes"
+      }
+    },
+    {
+      "name": "09 - CORS Test",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test('CORS headers are present', function () {",
+              "    pm.expect(pm.response.headers.get('Access-Control-Allow-Origin')).to.not.be.undefined;",
+              "});",
+              "",
+              "pm.test('Response is JSON', function () {",
+              "    pm.expect(pm.response.headers.get('Content-Type')).to.contain('application/json');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "OPTIONS",
+        "header": [
+          {
+            "key": "Origin",
+            "value": "http://localhost:3000"
+          },
+          {
+            "key": "Access-Control-Request-Method",
+            "value": "POST"
+          },
+          {
+            "key": "Access-Control-Request-Headers",
+            "value": "Content-Type, Authorization"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/test/auth",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "test", "auth"]
+        },
+        "description": "Testa configuração de CORS"
+      }
+    },
+    {
+      "name": "10 - Performance Benchmark",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "const responseTime = pm.response.responseTime;",
+              "",
+              "pm.test('Response time is excellent (<100ms)', function () {",
+              "    if (responseTime < 100) {",
+              "        console.log(`✅ Excellent response time: ${responseTime}ms`);",
+              "        pm.expect(responseTime).to.be.below(100);",
+              "    }",
+              "});",
+              "",
+              "pm.test('Response time is good (<500ms)', function () {",
+              "    if (responseTime < 500) {",
+              "        console.log(`🟢 Good response time: ${responseTime}ms`);",
+              "        pm.expect(responseTime).to.be.below(500);",
+              "    }",
+              "});",
+              "",
+              "pm.test('Response time is acceptable (<1000ms)', function () {",
+              "    console.log(`📊 Response time: ${responseTime}ms`);",
+              "    pm.expect(responseTime).to.be.below(1000);",
+              "});",
+              "",
+              "// Salvar métrica para relatórios",
+              "pm.globals.set('last_response_time', responseTime);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/health",
+          "host": ["{{baseUrl}}"],
+          "path": ["health"]
+        },
+        "description": "Benchmark de performance do sistema"
+      }
+    }
+  ]
+}

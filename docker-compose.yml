@@ -7,37 +7,16 @@ services:
     container_name: coinage_backend
     ports:
       - "8800:8800"
+    env_file:
+      - .env
     environment:
       - NODE_ENV=production
-      - PORT=8800
       - DB_HOST=postgres
       - DB_PORT=5432
-      - DB_NAME=coinage_db
-      - DB_USER=coinage_user
-      - DB_PASSWORD=coinage_password
-      - DATABASE_URL=postgresql://coinage_user:coinage_password@postgres:5432/coinage_db?sslmode=disable
       - REDIS_HOST=redis
-      - REDIS_PORT=6379
-      - RABBITMQ_HOST=rabbitmq
-      - RABBITMQ_PORT=5672
-      - RABBITMQ_USER=coinage_user
-      - RABBITMQ_PASSWORD=coinage_password
-      - MINIO_HOST=minio
-      - MINIO_PORT=9000
-      - MINIO_ACCESS_KEY=coinage_access_key
-      - MINIO_SECRET_KEY=coinage_secret_key
-      - DEFAULT_ADMIN_EMAIL=ivan.alberton@navi.inf.br
-      - DEFAULT_ADMIN_PASSWORD=N@vi@2025
-      - JWT_SECRET=1dbe2489ad1e57530b103d71d7007ad34e17a3239a90c0cfa9007cbcab6859f75c9d2cd12f08a95a9c23428466e1e6f25c5c33cd818889d7c63d5eedf4c88f50
-      - TESTNET_RPC_URL=https://rpc-testnet.azore.technology
-      - TESTNET_CHAIN_ID=88001
-      - MAINNET_RPC_URL=https://rpc.azore.technology
-      - MAINNET_CHAIN_ID=88000
-      - DEFAULT_NETWORK=mainnet
-      - MAINNET_EXPLORER_URL=https://azorescan.com/api
-      - TESTNET_EXPLORER_URL=https://floripa.azorescan.com/api
-      - TOKEN_ABI=${TOKEN_ABI}
-      - STAKE_ABI=${STAKE_ABI}
+      - APP_URL=http://localhost:8800
+    volumes:
+      - uploads_data:/usr/src/app/uploads
     networks:
       - coinage_network
     restart: unless-stopped
@@ -48,10 +27,8 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
-      minio:
-        condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8800/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -63,10 +40,8 @@ services:
     container_name: coinage_postgres
     ports:
       - "5433:5432"
-    environment:
-      - POSTGRES_DB=coinage_db
-      - POSTGRES_USER=coinage_user
-      - POSTGRES_PASSWORD=coinage_password
+    env_file:
+      - .env
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
@@ -98,9 +73,8 @@ services:
   rabbitmq:
     image: rabbitmq:3-management-alpine
     container_name: coinage_rabbitmq
-    environment:
-      - RABBITMQ_DEFAULT_USER=coinage_user
-      - RABBITMQ_DEFAULT_PASS=coinage_password
+    env_file:
+      - .env
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
     ports:
@@ -114,28 +88,6 @@ services:
       timeout: 10s
       retries: 3
 
-  # MinIO Object Storage
-  minio:
-    image: minio/minio:latest
-    container_name: coinage_minio
-    command: server /data --console-address ":9001"
-    environment:
-      - MINIO_ROOT_USER=coinage_access_key
-      - MINIO_ROOT_PASSWORD=coinage_secret_key
-    volumes:
-      - minio_data:/data
-    ports:
-      - "9000:9000"  # API
-      - "9001:9001"  # Console
-    networks:
-      - coinage_network
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
 volumes:
   postgres_data:
     driver: local
@@ -143,7 +95,7 @@ volumes:
     driver: local
   rabbitmq_data:
     driver: local
-  minio_data:
+  uploads_data:
     driver: local
 
 networks:

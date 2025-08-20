@@ -1,15 +1,24 @@
 {
-  "name": "deposit-worker",
+  "name": "coinage-workers",
   "version": "1.0.0",
-  "description": "Worker para processar depósitos da fila RabbitMQ",
-  "main": "scripts/start-deposit-worker.js",
+  "description": "Workers para processar filas RabbitMQ do sistema Coinage",
+  "main": "src/workers/index.js",
   "scripts": {
-    "start": "node scripts/start-deposit-worker.js",
-    "dev": "nodemon scripts/start-deposit-worker.js",
+    "start": "node src/workers/index.js",
+    "start:blockchain": "node src/workers/blockchain.worker.js",
+    "start:deposit": "node src/workers/deposit.worker.js",
+    "start:withdraw": "node src/workers/withdraw.worker.js",
+    "start:notification": "node src/workers/notification.worker.js",
+    "dev": "nodemon src/workers/index.js",
+    "dev:blockchain": "nodemon src/workers/blockchain.worker.js",
+    "dev:deposit": "nodemon src/workers/deposit.worker.js",
+    "dev:withdraw": "nodemon src/workers/withdraw.worker.js",
+    "dev:notification": "nodemon src/workers/notification.worker.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
     "amqplib": "^0.10.3",
+    "axios": "^1.6.0",
     "uuid": "^9.0.0",
     "dotenv": "^16.0.3"
   },
@@ -19,10 +28,20 @@
   "keywords": [
     "rabbitmq",
     "worker",
+    "blockchain",
     "deposits",
-    "blockchain"
+    "withdrawals", 
+    "notifications",
+    "webhooks",
+    "coinage"
   ],
   "author": "Coinage Team",
   "license": "MIT"
 }
+
+
+
+
+
+
 

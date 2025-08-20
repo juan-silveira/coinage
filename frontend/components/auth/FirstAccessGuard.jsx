@@ -38,10 +38,9 @@ const FirstAccessGuard = ({ children }) => {
 
       // Se isFirstAccess for true, redirecionar obrigatoriamente
       if (user.isFirstAccess === true) {
-        // Construir URL de primeiro acesso com dados do usuário
-        const firstAccessUrl = `/first-access/${companyAlias || 'coinage-app'}?userId=${user.id}&userName=${encodeURIComponent(user.name)}&email=${encodeURIComponent(user.email)}`;
-        
-        router.push(firstAccessUrl);
+        // Por enquanto, redirecionar diretamente sem token para evitar problemas de autenticação
+        // Os dados do usuário serão obtidos do store
+        router.push('/first-access');
         return;
       }
 

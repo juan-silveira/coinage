@@ -6,13 +6,7 @@ import { configService } from '@/services/api';
  */
 const useConfig = () => {
   const [config, setConfig] = useState({
-    defaultNetwork: 'mainnet', // Valor padrão fallback
-    mainnetRpcUrl: 'https://rpc-mainnet.azore.technology',
-    testnetRpcUrl: 'https://rpc-testnet.azore.technology',
-    mainnetChainId: 8800,
-    testnetChainId: 88001,
-    mainnetExplorerUrl: 'https://azorescan.com/api',
-    testnetExplorerUrl: 'https://floripa.azorescan.com/api',
+    // Sem valores padrão - serão carregados do backend
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -27,15 +21,15 @@ const useConfig = () => {
       
       if (response.success) {
         setConfig(response.data);
-        console.log('✅ [useConfig] Configurações carregadas:', response.data);
-        console.log('🔧 [DEBUG] defaultNetwork configurado:', response.data.defaultNetwork);
+        // console.log('✅ [useConfig] Configurações carregadas:', response.data);
+        // console.log('🔧 [DEBUG] defaultNetwork configurado:', response.data.defaultNetwork);
       } else {
         throw new Error(response.message || 'Erro ao carregar configurações');
       }
     } catch (err) {
       console.error('❌ [useConfig] Erro ao carregar configurações:', err);
       setError(err.message);
-      // Manter valores padrão em caso de erro
+      // NUNCA usar fallback hardcoded - tudo deve vir do backend
     } finally {
       setLoading(false);
     }

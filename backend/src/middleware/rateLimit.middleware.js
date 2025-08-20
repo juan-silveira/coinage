@@ -112,14 +112,14 @@ const transactionRateLimiter = createRateLimiter({
 
 /**
  * Rate limiter para API calls gerais
- * 1000 requisições por 15 minutos por empresa (aumentado para companies grandes)
+ * 5000 requisições por 15 minutos por empresa (aumentado para desenvolvimento frontend)
  */
 const apiRateLimiter = createRateLimiter({
-  maxRequests: 1000,
+  maxRequests: 5000,
   windowMs: 15 * 60 * 1000, // 15 minutos
   keyPrefix: 'api_rate_limit',
   keyGenerator: (req) => req.company?.id || req.ip,
-  message: 'Limite de requisições da API excedido. Máximo 1000 requisições por 15 minutos.'
+  message: 'Limite de requisições da API excedido. Máximo 5000 requisições por 15 minutos.'
 });
 
 /**

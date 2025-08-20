@@ -252,6 +252,26 @@ export const authService = {
     }
   },
 
+  // Criar token de primeiro acesso
+  createFirstAccessToken: async () => {
+    try {
+      const response = await api.post('/api/whitelabel/create-first-access-token');
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  // Obter dados usando token de primeiro acesso
+  getFirstAccessData: async (token) => {
+    try {
+      const response = await api.get(`/api/whitelabel/get-first-access-data/${token}`);
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+
   // Logout
   logout: async () => {
     try {
@@ -295,6 +315,24 @@ export const authService = {
     const response = await api.get('/api/auth/me');
     return response.data;
   },
+
+  // Validar token atual (usando endpoint /me)
+  validateToken: async (token) => {
+    try {
+      const response = await api.get('/api/auth/me', {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+      return response.data;
+    } catch (error) {
+      // Se der erro 401, o token é inválido
+      if (error.response?.status === 401) {
+        return { success: false, message: 'Token inválido' };
+      }
+      throw error;
+    }
+  },
 };
 
 // Serviços de usuário
@@ -330,7 +368,7 @@ export const userService = {
   },
 
   // Obter saldos do usuário por endereço (usa endpoint fresh que inclui AZE-t nativo)
-  getUserBalances: async (address, network = 'mainnet', forceRefresh = false) => {
+  getUserBalances: async (address, network, forceRefresh = false) => {
     // Usar o novo endpoint que busca dados frescos incluindo AZE-t
     const response = await api.get(`/api/balance-sync/fresh`, {
       params: { 
@@ -360,6 +398,29 @@ export const userService = {
     return response.data;
   },
 
+  // Ativar usuário
+  activateUser: async (id) => {
+    const response = await api.post(`/api/users/${id}/activate`);
+    return response.data;
+  },
+
+  // Desativar usuário
+  deactivateUser: async (id) => {
+    const response = await api.post(`/api/users/${id}/deactivate`);
+    return response.data;
+  },
+
+  // Bloquear usuário
+  blockUser: async (id) => {
+    const response = await api.post(`/api/users/${id}/block`);
+    return response.data;
+  },
+
+  // Desbloquear usuário
+  unblockUser: async (id) => {
+    const response = await api.post(`/api/users/${id}/unblock`);
+    return response.data;
+  },
 
 };
 
@@ -511,6 +572,100 @@ export const whitelabelService = {
   getUserCompanies: async (params = {}) => {
     const response = await api.get('/api/whitelabel/user/companies', { params });
     return response.data;
+  }
+};
+
+// Serviços de administração de empresas
+export const companyService = {
+  // Listar todas as empresas (admin)
+  getCompanies: async (params = {}) => {
+    const response = await api.get('/api/companies/frontend', { params });
+    return response.data;
+  },
+
+  // Obter empresa por ID
+  getCompanyById: async (id) => {
+    const response = await api.get(`/api/companies/${id}`);
+    return response.data;
+  },
+
+  // Criar empresa
+  createCompany: async (companyData) => {
+    const response = await api.post('/api/companies', companyData);
+    return response.data;
+  },
+
+  // Atualizar empresa
+  updateCompany: async (id, companyData) => {
+    const response = await api.put(`/api/companies/${id}`, companyData);
+    return response.data;
+  },
+
+  // Ativar empresa
+  activateCompany: async (id) => {
+    const response = await api.post(`/api/companies/${id}/activate`);
+    return response.data;
+  },
+
+  // Desativar empresa
+  deactivateCompany: async (id) => {
+    const response = await api.post(`/api/companies/${id}/deactivate`);
+    return response.data;
+  },
+
+  // Obter estatísticas de uso da empresa
+  getCompanyUsageStats: async (id) => {
+    const response = await api.get(`/api/companies/${id}/usage-stats`);
+    return response.data;
+  },
+
+  // Obter usuários da empresa
+  getCompanyUsers: async (id, params = {}) => {
+    const response = await api.get(`/api/companies/${id}/users`, { params });
+    return response.data;
+  },
+
+  // Obter estatísticas dos usuários da empresa
+  getCompanyUsersStats: async (id) => {
+    const response = await api.get(`/api/companies/${id}/users/stats`);
+    return response.data;
+  },
+
+  // Atualizar rate limits
+  updateRateLimits: async (id, rateLimit) => {
+    const response = await api.put(`/api/companies/${id}/rate-limits`, { rateLimit });
+    return response.data;
+  }
+};
+
+// Serviços de administração para estatísticas gerais
+export const adminService = {
+  // Obter estatísticas gerais do sistema
+  getSystemStats: async () => {
+    // Para agora, vamos criar um endpoint que combine dados de usuários e empresas
+    const [usersResponse, companiesResponse] = await Promise.all([
+      api.get('/api/users', { params: { limit: 1 } }), // Para pegar total
+      api.get('/api/companies', { params: { limit: 1 } }) // Para pegar total
+    ]);
+
+    return {
+      success: true,
+      data: {
+        totalUsers: usersResponse.data.data?.pagination?.total || 0,
+        totalCompanies: companiesResponse.data.data?.pagination?.total || 0,
+        activeUsers: usersResponse.data.data?.pagination?.total || 0, // TODO: filtrar ativos
+        activeCompanies: companiesResponse.data.data?.pagination?.total || 0 // TODO: filtrar ativas
+      }
+    };
+  },
+
+  // Obter atividades recentes
+  getRecentActivities: async (params = {}) => {
+    // TODO: Implementar endpoint de logs/atividades
+    return {
+      success: true,
+      data: []
+    };
   }
 };
 

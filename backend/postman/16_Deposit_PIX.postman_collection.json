@@ -1,0 +1,431 @@
+{
+  "info": {
+    "name": "💰 Deposits PIX (cBRL)",
+    "description": "Endpoints para operações de depósito PIX convertendo Real Brasileiro para cBRL (Digital Real)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": "1.0.0"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "{{base_url}}",
+      "type": "string"
+    },
+    {
+      "key": "access_token",
+      "value": "{{access_token}}",
+      "type": "string"
+    },
+    {
+      "key": "user_id",
+      "value": "{{user_id}}",
+      "type": "string"
+    },
+    {
+      "key": "deposit_id",
+      "value": "{{deposit_id}}",
+      "type": "string"
+    },
+    {
+      "key": "payment_id",
+      "value": "{{payment_id}}",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "💳 Create PIX Deposit",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{access_token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"amount\": 100.00,\n  \"description\": \"Depósito para compra de cBRL\",\n  \"userId\": \"{{user_id}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/deposits/pix",
+          "host": ["{{base_url}}"],
+          "path": ["api", "deposits", "pix"]
+        },
+        "description": "Cria um novo depósito PIX e gera QR Code para pagamento"
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 201\", function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "",
+              "pm.test(\"Deposit created successfully\", function () {",
+              "    const response = pm.response.json();",
+              "    pm.expect(response).to.have.property('success');",
+              "    pm.expect(response.success).to.be.true;",
+              "    pm.expect(response.data).to.have.property('deposit');",
+              "    pm.expect(response.data.deposit).to.have.property('id');",
+              "});",
+              "",
+              "pm.test(\"PIX payment info provided\", function () {",
+              "    const response = pm.response.json();",
+              "    pm.expect(response.data).to.have.property('pixPayment');",
+              "    pm.expect(response.data.pixPayment).to.have.property('qrCode');",
+              "    pm.expect(response.data.pixPayment).to.have.property('paymentId');",
+              "});",
+              "",
+              "if (pm.response.code === 201) {",
+              "    const response = pm.response.json();",
+              "    pm.environment.set('deposit_id', response.data.deposit.id);",
+              "    pm.environment.set('payment_id', response.data.pixPayment.paymentId);",
+              "    console.log('✅ Deposit Created - ID:', response.data.deposit.id);",
+              "    console.log('✅ Payment ID:', response.data.pixPayment.paymentId);",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "📊 Get Deposit Status",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{access_token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/deposits/{{deposit_id}}",
+          "host": ["{{base_url}}"],
+          "path": ["api", "deposits", "{{deposit_id}}"]
+        },
+        "description": "Verifica o status de um depósito específico"
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"Deposit info retrieved\", function () {",
+              "    const response = pm.response.json();",
+              "    pm.expect(response).to.have.property('success');",
+              "    pm.expect(response.data).to.have.property('deposit');",
+              "    pm.expect(response.data.deposit).to.have.property('status');",
+              "});",
+              "",
+              "console.log('✅ Deposit Status:', pm.response.json().data?.deposit?.status);"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "🔄 Check PIX Payment Status",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{access_token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/deposits/pix/{{payment_id}}/status",
+          "host": ["{{base_url}}"],
+          "path": ["api", "deposits", "pix", "{{payment_id}}", "status"]
+        },
+        "description": "Verifica o status do pagamento PIX no provedor"
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"PIX payment status retrieved\", function () {",
+              "    const response = pm.response.json();",
+              "    pm.expect(response).to.have.property('success');",
+              "    pm.expect(response.data).to.have.property('pixStatus');",
+              "});",
+              "",
+              "console.log('✅ PIX Status:', pm.response.json().data?.pixStatus);"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "📋 List User Deposits",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{access_token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/deposits/user/{{user_id}}?page=1&limit=10",
+          "host": ["{{base_url}}"],
+          "path": ["api", "deposits", "user", "{{user_id}}"],
+          "query": [
+            {
+              "key": "page",
+              "value": "1"
+            },
+            {
+              "key": "limit",
+              "value": "10"
+            }
+          ]
+        },
+        "description": "Lista os depósitos de um usuário com paginação"
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"Deposits list retrieved\", function () {",
+              "    const response = pm.response.json();",
+              "    pm.expect(response).to.have.property('success');",
+              "    pm.expect(response.data).to.have.property('deposits');",
+              "    pm.expect(response.data.deposits).to.be.an('array');",
+              "});",
+              "",
+              "pm.test(\"Pagination info provided\", function () {",
+              "    const response = pm.response.json();",
+              "    pm.expect(response.data).to.have.property('pagination');",
+              "    pm.expect(response.data.pagination).to.have.property('total');",
+              "    pm.expect(response.data.pagination).to.have.property('page');",
+              "});",
+              "",
+              "console.log('✅ User Deposits Count:', pm.response.json().data?.deposits?.length || 0);"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "💱 Get Conversion Rate",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{access_token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/deposits/conversion-rate?from=BRL&to=cBRL&amount=100",
+          "host": ["{{base_url}}"],
+          "path": ["api", "deposits", "conversion-rate"],
+          "query": [
+            {
+              "key": "from",
+              "value": "BRL"
+            },
+            {
+              "key": "to",
+              "value": "cBRL"
+            },
+            {
+              "key": "amount",
+              "value": "100"
+            }
+          ]
+        },
+        "description": "Obtém a taxa de conversão atual de BRL para cBRL"
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"Conversion rate provided\", function () {",
+              "    const response = pm.response.json();",
+              "    pm.expect(response).to.have.property('success');",
+              "    pm.expect(response.data).to.have.property('rate');",
+              "    pm.expect(response.data).to.have.property('convertedAmount');",
+              "});",
+              "",
+              "console.log('✅ Conversion Rate:', pm.response.json().data?.rate);"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "🏦 List PIX Providers",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{access_token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/deposits/pix/providers",
+          "host": ["{{base_url}}"],
+          "path": ["api", "deposits", "pix", "providers"]
+        },
+        "description": "Lista os provedores PIX disponíveis e suas configurações"
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"Providers list retrieved\", function () {",
+              "    const response = pm.response.json();",
+              "    pm.expect(response).to.have.property('success');",
+              "    pm.expect(response.data).to.have.property('providers');",
+              "    pm.expect(response.data.providers).to.be.an('array');",
+              "});",
+              "",
+              "console.log('✅ PIX Providers:', pm.response.json().data?.providers?.length || 0);"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "🔍 Simulate PIX Payment (Mock)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{access_token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"paymentId\": \"{{payment_id}}\",\n  \"status\": \"COMPLETED\",\n  \"paidAmount\": 100.00,\n  \"paidAt\": \"2024-08-19T17:30:00Z\",\n  \"transactionId\": \"PIX123456789\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/deposits/pix/simulate-payment",
+          "host": ["{{base_url}}"],
+          "path": ["api", "deposits", "pix", "simulate-payment"]
+        },
+        "description": "Simula o pagamento PIX para testes (apenas em ambiente de desenvolvimento)"
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"Payment simulation successful\", function () {",
+              "    const response = pm.response.json();",
+              "    pm.expect(response).to.have.property('success');",
+              "    pm.expect(response.success).to.be.true;",
+              "});",
+              "",
+              "console.log('✅ PIX Payment Simulated - Status:', pm.response.json().data?.status);"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "🔔 PIX Payment Webhook",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-Webhook-Signature",
+            "value": "{{webhook_signature}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"event\": \"pix.payment.completed\",\n  \"data\": {\n    \"paymentId\": \"{{payment_id}}\",\n    \"status\": \"COMPLETED\",\n    \"amount\": 100.00,\n    \"paidAt\": \"2024-08-19T17:30:00Z\",\n    \"transactionId\": \"PIX123456789\",\n    \"customerName\": \"João Silva\",\n    \"customerDocument\": \"***.***.***-**\"\n  },\n  \"timestamp\": \"2024-08-19T17:30:00Z\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/deposits/pix/webhook",
+          "host": ["{{base_url}}"],
+          "path": ["api", "deposits", "pix", "webhook"]
+        },
+        "description": "Endpoint para receber webhooks dos provedores PIX"
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"Webhook processed successfully\", function () {",
+              "    const response = pm.response.json();",
+              "    pm.expect(response).to.have.property('success');",
+              "    pm.expect(response.success).to.be.true;",
+              "});",
+              "",
+              "console.log('✅ PIX Webhook Processed - Event:', JSON.parse(pm.request.body.raw).event);"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    }
+  ]
+}

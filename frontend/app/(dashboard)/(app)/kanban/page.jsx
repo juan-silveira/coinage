@@ -16,7 +16,6 @@ import {
 import Task from "@/components/partials/app/kanban/Task";
 import AddColumn from "@/components/partials/app/kanban/AddColumn";
 import AddTaskModal from "@/components/partials/app/kanban/AddTaskModal";
-import { ToastContainer } from "react-toastify";
 import EditTaskModal from "@/components/partials/app/kanban/EditTask";
 const KanbanPage = () => {
   const { columns, taskModal } = useSelector((state) => state.kanban);
@@ -33,7 +32,6 @@ const KanbanPage = () => {
   };
   return (
     <div>
-      <ToastContainer />
       <div className="flex flex-wrap justify-between items-center mb-4">
         <h4 className="font-medium lg:text-2xl text-xl capitalize text-slate-900 inline-block ltr:pr-4 rtl:pl-4">
           kanban

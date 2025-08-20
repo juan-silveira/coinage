@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>Problema no Depósito - Coinage</title>
+    <style>
+        /* Reset básico */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        /* Estilo base do corpo */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333333;
+            background: linear-gradient(135deg, #374151 0%, #1f2937 50%, #dc2626 100%);
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            min-height: 100vh;
+        }
+
+        /* Container principal */
+        .email-container {
+            width: 100%;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Header com logos */
+        .header {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 12px 12px 0 0;
+            padding: 20px;
+            text-align: center;
+            margin-bottom: 2px;
+        }
+
+        .logo-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .powered-by {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 12px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .coinage-text {
+            color: #ffffff;
+            font-size: 20px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+
+        /* Card principal branco */
+        .email-card {
+            background: #ffffff;
+            border-radius: 0 0 12px 12px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+        }
+
+        .email-content {
+            padding: 40px 30px;
+        }
+
+        /* Títulos */
+        .email-title {
+            font-size: 28px;
+            font-weight: 700;
+            color: #dc2626;
+            margin-bottom: 8px;
+            text-align: center;
+        }
+
+        .email-subtitle {
+            font-size: 16px;
+            color: #6b7280;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        /* Status error */
+        .error-banner {
+            background: linear-gradient(135deg, #fef2f2, #fecaca);
+            border: 2px solid #dc2626;
+            border-radius: 12px;
+            padding: 25px;
+            margin: 30px 0;
+            text-align: center;
+        }
+
+        .error-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+
+        .error-banner h3 {
+            color: #7f1d1d;
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .error-banner p {
+            color: #991b1b;
+            font-size: 15px;
+            margin: 0;
+        }
+
+        /* Detalhes do problema */
+        .issue-details {
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 25px;
+            margin: 25px 0;
+        }
+
+        .issue-header {
+            text-align: center;
+            margin-bottom: 25px;
+        }
+
+        .issue-type {
+            font-size: 18px;
+            font-weight: 600;
+            color: #dc2626;
+            margin-bottom: 8px;
+        }
+
+        .issue-description {
+            font-size: 14px;
+            color: #6b7280;
+            line-height: 1.6;
+        }
+
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .detail-row:last-child {
+            border-bottom: none;
+        }
+
+        .detail-label {
+            font-weight: 500;
+            color: #64748b;
+            font-size: 14px;
+        }
+
+        .detail-value {
+            font-weight: 600;
+            color: #1e293b;
+            font-size: 14px;
+        }
+
+        .detail-value.error {
+            color: #dc2626;
+            font-size: 16px;
+        }
+
+        /* Próximos passos */
+        .next-steps {
+            background: #fff7ed;
+            border: 2px solid #f59e0b;
+            border-radius: 12px;
+            padding: 25px;
+            margin: 25px 0;
+        }
+
+        .next-steps h4 {
+            color: #92400e;
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .step-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .step-item {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 15px;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.7);
+            border-radius: 8px;
+        }
+
+        .step-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .step-number {
+            background: #f59e0b;
+            color: white;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+            margin-right: 12px;
+            margin-top: 2px;
+            flex-shrink: 0;
+        }
+
+        .step-text {
+            color: #92400e;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        /* Suporte */
+        .support-section {
+            background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
+            border: 2px solid #0284c7;
+            border-radius: 12px;
+            padding: 25px;
+            margin: 25px 0;
+            text-align: center;
+        }
+
+        .support-icon {
+            font-size: 32px;
+            margin-bottom: 15px;
+        }
+
+        .support-section h4 {
+            color: #0c4a6e;
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 15px;
+        }
+
+        .support-section p {
+            color: #075985;
+            font-size: 14px;
+            margin-bottom: 20px;
+            line-height: 1.6;
+        }
+
+        .support-info {
+            background: rgba(255, 255, 255, 0.8);
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+
+        .support-info p {
+            color: #1e293b;
+            font-size: 14px;
+            margin: 5px 0;
+        }
+
+        .support-info strong {
+            color: #0284c7;
+        }
+
+        /* Botões */
+        .button-container {
+            text-align: center;
+            margin: 30px 0;
+        }
+
+        .primary-button {
+            display: inline-block;
+            background: linear-gradient(135deg, #0284c7, #0369a1);
+            color: #ffffff;
+            font-weight: 600;
+            font-size: 16px;
+            padding: 14px 32px;
+            border-radius: 8px;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(2, 132, 199, 0.3);
+            margin-right: 10px;
+        }
+
+        .primary-button:hover {
+            background: linear-gradient(135deg, #0369a1, #075985);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(2, 132, 199, 0.4);
+        }
+
+        .secondary-button {
+            display: inline-block;
+            background: transparent;
+            color: #dc2626;
+            font-weight: 500;
+            padding: 12px 24px;
+            border: 2px solid #dc2626;
+            border-radius: 8px;
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+
+        .secondary-button:hover {
+            background: #dc2626;
+            color: #ffffff;
+        }
+
+        /* Footer */
+        .footer {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 25px;
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        .footer-text {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .footer-links {
+            margin-top: 15px;
+        }
+
+        .footer-links a {
+            color: rgba(255, 255, 255, 0.8);
+            text-decoration: none;
+            font-size: 12px;
+            margin: 0 8px;
+        }
+
+        /* Responsive */
+        @media only screen and (max-width: 600px) {
+            .email-container {
+                padding: 10px;
+            }
+            
+            .email-content {
+                padding: 25px 20px;
+            }
+            
+            .email-title {
+                font-size: 24px;
+            }
+            
+            .detail-row {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 4px;
+                padding: 8px 0;
+            }
+
+            .step-item {
+                padding: 8px;
+            }
+
+            .button-container .primary-button {
+                display: block;
+                margin: 0 0 10px 0;
+            }
+
+            .button-container .secondary-button {
+                display: block;
+                margin: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <!-- Header com logos -->
+        <div class="header">
+            <div class="logo-container">
+                <span class="powered-by">Powered by</span>
+                <div class="coinage-text">🏦 Coinage</div>
+            </div>
+        </div>
+
+        <!-- Card principal -->
+        <div class="email-card">
+            <div class="email-content">
+                <h1 class="email-title">Problema no Depósito ⚠️</h1>
+                <p class="email-subtitle">Detectamos um problema com sua transação</p>
+
+                <div class="error-banner">
+                    <div class="error-icon">❌</div>
+                    <h3>Depósito Não Processado</h3>
+                    <p>Olá <strong>{{userName}}</strong>, infelizmente não conseguimos processar seu depósito. Mas não se preocupe, estamos aqui para ajudar!</p>
+                </div>
+
+                <div class="issue-details">
+                    <div class="issue-header">
+                        <div class="issue-type">{{errorType}}</div>
+                        <div class="issue-description">{{errorDescription}}</div>
+                    </div>
+
+                    <div class="detail-row">
+                        <div class="detail-label">Valor Solicitado</div>
+                        <div class="detail-value">R$ {{amount}}</div>
+                    </div>
+
+                    <div class="detail-row">
+                        <div class="detail-label">Método de Depósito</div>
+                        <div class="detail-value">{{depositMethod}}</div>
+                    </div>
+
+                    <div class="detail-row">
+                        <div class="detail-label">Data da Tentativa</div>
+                        <div class="detail-value">{{attemptDate}}</div>
+                    </div>
+
+                    <div class="detail-row">
+                        <div class="detail-label">Status</div>
+                        <div class="detail-value error">Falhou</div>
+                    </div>
+
+                    <div class="detail-row">
+                        <div class="detail-label">ID da Tentativa</div>
+                        <div class="detail-value">{{transactionId}}</div>
+                    </div>
+                </div>
+
+                <div class="next-steps">
+                    <h4>🛠️ O que fazer agora?</h4>
+                    
+                    <div class="step-list">
+                        <div class="step-item">
+                            <div class="step-number">1</div>
+                            <div class="step-text">
+                                <strong>Verifique os dados:</strong> Confirme se os dados PIX estão corretos e se há saldo suficiente em sua conta bancária
+                            </div>
+                        </div>
+                        
+                        <div class="step-item">
+                            <div class="step-number">2</div>
+                            <div class="step-text">
+                                <strong>Tente novamente:</strong> Faça uma nova tentativa de depósito através do dashboard
+                            </div>
+                        </div>
+                        
+                        <div class="step-item">
+                            <div class="step-number">3</div>
+                            <div class="step-text">
+                                <strong>Aguarde alguns minutos:</strong> Às vezes o sistema PIX pode ter instabilidades temporárias
+                            </div>
+                        </div>
+                        
+                        <div class="step-item">
+                            <div class="step-number">4</div>
+                            <div class="step-text">
+                                <strong>Entre em contato:</strong> Se o problema persistir, nossa equipe está pronta para ajudar
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="support-section">
+                    <div class="support-icon">?</div>
+                    <h4>Precisa de Ajuda?</h4>
+                    <p>Nossa equipe está disponível para resolver problemas com depósitos.</p>
+                    
+                    <div class="support-info">
+                        <p><strong>Email:</strong> {{supportEmail}}</p>
+                        <p><strong>Horário:</strong> Segunda a Sexta, 9h às 18h</p>
+                        <p><strong>Resposta:</strong> Até 2 horas úteis</p>
+                    </div>
+                </div>
+
+                <div class="button-container">
+                    <a href="{{dashboardUrl}}" class="primary-button">Tentar Novamente</a>
+                    <a href="{{supportUrl}}" class="secondary-button">Falar com Suporte</a>
+                </div>
+
+                <div style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 15px; margin-top: 20px; text-align: center;">
+                    <p style="color: #92400e; margin: 0; font-size: 14px;">
+                        💡 <strong>Importante:</strong> Seu saldo não foi alterado. Nenhum valor foi debitado de sua conta bancária devido à falha no processamento.
+                    </p>
+                </div>
+
+                <div style="text-align: center; margin-top: 25px; color: #6b7280; font-size: 13px;">
+                    <p>Este é um email automático de notificação. Para resolver o problema, siga as instruções acima ou entre em contato conosco.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <div style="margin-bottom: 15px;">
+                <div class="coinage-text" style="font-size: 16px;">🏦 Coinage</div>
+            </div>
+            <div class="footer-text">
+                Sistema financeiro seguro e confiável<br>
+                Suporte especializado para resolver seus problemas
+            </div>
+            <div class="footer-links">
+                <a href="{{dashboardUrl}}">Dashboard</a>
+                <a href="{{supportUrl}}">Suporte</a>
+                <a href="{{faqUrl}}">FAQ</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

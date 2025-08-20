@@ -1,84 +1,40 @@
 const express = require('express');
 const router = express.Router();
-const emailService = require('../services/email.service');
-const userService = require('../services/user.service');
-const userCompanyService = require('../services/userCompany.service');
-const whitelabelService = require('../services/whitelabel.service');
+const emailConfirmationController = require('../controllers/emailConfirmation.controller');
+const { authenticateApiKey } = require('../middleware/auth.middleware');
+const { authenticateJWT } = require('../middleware/jwt.middleware');
+const { apiRateLimiter } = require('../middleware/rateLimit.middleware');
+const { skipEmailConfirmation } = require('../middleware/emailConfirmed.middleware');
 
 /**
  * @swagger
  * /api/email-confirmation/confirm:
- *   post:
- *     summary: Confirma email do usuário
+ *   get:
+ *     summary: Confirma email do usuário usando token via query params
  *     tags: [Email Confirmation]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - token
- *               - companyAlias
- *             properties:
- *               token:
- *                 type: string
- *                 description: Token de confirmação
- *               companyAlias:
- *                 type: string
- *                 description: Alias da empresa
+ *     parameters:
+ *       - in: query
+ *         name: token
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Token de confirmação
+ *       - in: query
+ *         name: company
+ *         schema:
+ *           type: string
+ *         description: Alias da empresa (opcional)
  *     responses:
  *       200:
  *         description: Email confirmado com sucesso
  *       400:
  *         description: Token inválido ou expirado
  */
-router.post('/confirm', async (req, res) => {
-  try {
-    const { token, companyAlias } = req.body;
-
-    if (!token || !companyAlias) {
-      return res.status(400).json({
-        success: false,
-        message: 'Token e company alias são obrigatórios'
-      });
-    }
-
-    // Validar token
-    const tokenData = await emailService.validateEmailConfirmationToken(token, companyAlias);
-
-    if (!tokenData || !tokenData.valid) {
-      return res.status(400).json({
-        success: false,
-        message: 'Token inválido ou expirado'
-      });
-    }
-
-    if (tokenData.bypassed) {
-      // Em modo bypass, apenas retornar sucesso
-      return res.json({
-        success: true,
-        message: 'Email confirmado com sucesso (bypass ativo)',
-        bypassed: true
-      });
-    }
-
-    // Ativar usuário
-    await userService.activateUser(tokenData.userId);
-
-    res.json({
-      success: true,
-      message: 'Email confirmado com sucesso! Sua conta foi ativada.'
-    });
-
-  } catch (error) {
-    console.error('❌ Erro na confirmação de email:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erro interno do servidor'
-    });
-  }
-});
+router.get('/confirm',
+  apiRateLimiter,
+  skipEmailConfirmation,
+  emailConfirmationController.confirmEmail
+);
 
 /**
  * @swagger
@@ -94,7 +50,6 @@ router.post('/confirm', async (req, res) => {
  *             type: object
  *             required:
  *               - email
- *               - companyAlias
  *             properties:
  *               email:
  *                 type: string
@@ -102,63 +57,103 @@ router.post('/confirm', async (req, res) => {
  *                 description: Email do usuário
  *               companyAlias:
  *                 type: string
- *                 description: Alias da empresa
+ *                 description: Alias da empresa (opcional)
  *     responses:
  *       200:
  *         description: Email reenviado com sucesso
+ *       429:
+ *         description: Rate limit excedido
+ */
+router.post('/resend',
+  apiRateLimiter,
+  skipEmailConfirmation,
+  emailConfirmationController.resendConfirmationEmail
+);
+
+/**
+ * @swagger
+ * /api/email-confirmation/manual-confirm:
+ *   post:
+ *     summary: Confirmação manual do email (botão "Já confirmei meu email")
+ *     tags: [Email Confirmation]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Email confirmado manualmente com sucesso
+ *       401:
+ *         description: Usuário não autenticado
  *       404:
  *         description: Usuário não encontrado
  */
-router.post('/resend', async (req, res) => {
-  try {
-    const { email, companyAlias } = req.body;
+router.post('/manual-confirm',
+  apiRateLimiter,
+  authenticateJWT,
+  skipEmailConfirmation,
+  emailConfirmationController.manualConfirmEmail
+);
 
-    if (!email || !companyAlias) {
-      return res.status(400).json({
-        success: false,
-        message: 'Email e company alias são obrigatórios'
+/**
+ * @swagger
+ * /api/email-confirmation/status/{userId}:
+ *   get:
+ *     summary: Verificar status do email de confirmação
+ *     tags: [Email Confirmation]
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID do usuário
+ *     responses:
+ *       200:
+ *         description: Status do email retornado
+ *       404:
+ *         description: Usuário não encontrado
+ */
+router.get('/status/:userId',
+  apiRateLimiter,
+  (req, res, next) => {
+    authenticateJWT(req, res, (jwtError) => {
+      if (!jwtError) return next();
+      authenticateApiKey(req, res, (apiError) => {
+        if (!apiError) return next();
+        return res.status(401).json({
+          success: false,
+          message: 'Token JWT ou API Key requerido',
+          code: 'AUTHENTICATION_REQUIRED'
+        });
       });
+    });
+  },
+  skipEmailConfirmation,
+  emailConfirmationController.getEmailStatus
+);
+
+/**
+ * @swagger
+ * /api/email-confirmation/health:
+ *   get:
+ *     summary: Health check do serviço
+ *     tags: [Email Confirmation]
+ *     responses:
+ *       200:
+ *         description: Serviço operacional
+ */
+router.get('/health', (req, res) => {
+  res.status(200).json({
+    success: true,
+    service: 'Email Confirmation Service',
+    status: 'operational',
+    timestamp: new Date().toISOString(),
+    endpoints: {
+      confirm: 'GET /api/email-confirmation/confirm?token=xxx&company=yyy',
+      resend: 'POST /api/email-confirmation/resend',
+      manualConfirm: 'POST /api/email-confirmation/manual-confirm',
+      status: 'GET /api/email-confirmation/status/:userId'
     }
-
-    // Buscar usuário
-    const user = await userService.getUserByEmail(email);
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'Usuário não encontrado'
-      });
-    }
-
-    // Buscar dados da empresa
-    const branding = await whitelabelService.getCompanyBrandingByAlias(companyAlias);
-    
-    // Gerar novo token
-    const token = await emailService.generateEmailConfirmationToken(user.id, branding.company_id);
-
-    // Enviar email
-    await emailService.sendEmailConfirmation(email, {
-      userName: user.name,
-      companyName: branding.brand_name,
-      companyId: branding.company_id,
-      companyAlias,
-      userId: user.id,
-      token,
-      baseUrl: process.env.FRONTEND_URL || 'http://localhost:3000',
-      primaryColor: branding.primary_color
-    });
-
-    res.json({
-      success: true,
-      message: 'Email de confirmação reenviado com sucesso'
-    });
-
-  } catch (error) {
-    console.error('❌ Erro ao reenviar confirmação:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erro interno do servidor'
-    });
-  }
+  });
 });
 
 module.exports = router;

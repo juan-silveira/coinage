@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KYC Rejeitado</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+        .content { background: #f9f9f9; padding: 30px; }
+        .warning-icon { font-size: 48px; color: #dc3545; text-align: center; margin-bottom: 20px; }
+        .alert { background: #f8d7da; border-left: 4px solid #dc3545; padding: 15px; margin: 20px 0; border-radius: 4px; color: #721c24; }
+        .info { background: #d1ecf1; border-left: 4px solid #17a2b8; padding: 15px; margin: 20px 0; border-radius: 4px; }
+        .footer { background: #333; color: white; padding: 20px; text-align: center; border-radius: 0 0 8px 8px; }
+        .btn { display: inline-block; background: #17a2b8; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; margin: 10px 0; }
+        .btn-support { background: #28a745; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>{{companyName}}</h1>
+        </div>
+        
+        <div class="content">
+            <div class="warning-icon">⚠️</div>
+            
+            <h2>Olá, {{userName}}</h2>
+            
+            <p>Infelizmente, sua solicitação de verificação KYC foi <strong>rejeitada</strong> em {{rejectedAt}}.</p>
+            
+            <div class="alert">
+                <h3>📋 Motivo da Rejeição</h3>
+                <p>{{reason}}</p>
+            </div>
+
+            <div class="info">
+                <h3>🔄 O que você pode fazer agora?</h3>
+                <p>{{nextSteps}}</p>
+                
+                <h4>Passos sugeridos:</h4>
+                <ul>
+                    <li><strong>Revise sua documentação:</strong> Certifique-se de que os documentos estão legíveis e não estão vencidos</li>
+                    <li><strong>Verifique as informações:</strong> Confirme se todos os dados estão corretos e correspondem aos documentos</li>
+                    <li><strong>Fotos de qualidade:</strong> Use boa iluminação e certifique-se de que não há reflexos ou sombras</li>
+                    <li><strong>Formato correto:</strong> Envie os documentos nos formatos aceitos (JPG, PNG, PDF)</li>
+                </ul>
+            </div>
+
+            <h3>📞 Precisa de Ajuda?</h3>
+            <p>Nossa equipe de suporte está pronta para ajudá-lo:</p>
+            <ul>
+                <li><strong>Email:</strong> {{supportEmail}}</li>
+                <li><strong>Horário:</strong> Segunda a Sexta, 9h às 18h</li>
+                <li><strong>Tempo de resposta:</strong> Até 24 horas</li>
+            </ul>
+
+            <div style="text-align: center;">
+                <a href="#" class="btn">Tentar Novamente</a>
+                <a href="mailto:{{supportEmail}}" class="btn btn-support">Contatar Suporte</a>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>Este email foi enviado por {{companyName}}</p>
+            <p>Se você tem dúvidas sobre este processo, não hesite em nos contatar.</p>
+        </div>
+    </div>
+</body>
+</html>

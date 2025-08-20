@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const companyController = require('../controllers/company.controller');
 const authMiddleware = require('../middleware/auth.middleware');
+const jwtMiddleware = require('../middleware/jwt.middleware');
 const { requirePasswordChange } = require('../middleware/session.middleware');
 
 /**
@@ -110,7 +111,11 @@ router.post('/', authMiddleware.authenticateApiKey, authMiddleware.requireApiAdm
  *       401:
  *         description: Não autorizado
  */
+// Rota para API Key (mantida para compatibilidade)
 router.get('/', authMiddleware.authenticateApiKey, authMiddleware.requireApiAdmin, companyController.listCompanies);
+
+// Rota para frontend usando JWT (para admins do sistema)
+router.get('/frontend', jwtMiddleware.authenticateToken, companyController.listCompanies);
 
 /**
  * @swagger

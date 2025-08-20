@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>Confirme seu Email - Coinage</title>
+    <style>
+        /* Reset básico */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        /* Estilo base do corpo */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333333;
+            background: linear-gradient(135deg, #374151 0%, #1f2937 50%, #059669 100%);
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            min-height: 100vh;
+        }
+
+        /* Container principal */
+        .email-container {
+            width: 100%;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Header com logos */
+        .header {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 12px 12px 0 0;
+            padding: 20px;
+            text-align: center;
+            margin-bottom: 2px;
+        }
+
+        .logo-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .powered-by {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 12px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .coinage-text {
+            color: #ffffff;
+            font-size: 20px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+
+        /* Card principal branco */
+        .email-card {
+            background: #ffffff;
+            border-radius: 0 0 12px 12px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+        }
+
+        .email-content {
+            padding: 40px 30px;
+        }
+
+        /* Títulos */
+        .email-title {
+            font-size: 28px;
+            font-weight: 700;
+            color: #7c3aed;
+            margin-bottom: 8px;
+            text-align: center;
+        }
+
+        .email-subtitle {
+            font-size: 16px;
+            color: #6b7280;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        /* Banner principal */
+        .confirmation-banner {
+            background: linear-gradient(135deg, #f3e8ff, #e9d5ff);
+            border: 2px solid #7c3aed;
+            border-radius: 12px;
+            padding: 30px;
+            margin: 30px 0;
+            text-align: center;
+        }
+
+        .confirmation-icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+        }
+
+        .confirmation-banner h3 {
+            color: #581c87;
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 12px;
+        }
+
+        .confirmation-banner p {
+            color: #7c2d12;
+            font-size: 16px;
+            margin-bottom: 25px;
+            line-height: 1.7;
+        }
+
+        /* Botão de confirmação grande */
+        .confirm-button {
+            display: inline-block;
+            background: linear-gradient(135deg, #7c3aed, #6d28d9);
+            color: #ffffff;
+            font-weight: 700;
+            font-size: 18px;
+            padding: 18px 40px;
+            border-radius: 12px;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            box-shadow: 0 6px 20px rgba(124, 58, 237, 0.4);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .confirm-button:hover {
+            background: linear-gradient(135deg, #6d28d9, #5b21b6);
+            transform: translateY(-3px);
+            box-shadow: 0 10px 25px rgba(124, 58, 237, 0.5);
+        }
+
+        /* Instruções */
+        .instructions {
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 25px;
+            margin: 30px 0;
+        }
+
+        .instructions h4 {
+            color: #374151;
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .step-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .step-item {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 15px;
+        }
+
+        .step-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .step-number {
+            background: #7c3aed;
+            color: white;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+            margin-right: 12px;
+            margin-top: 2px;
+            flex-shrink: 0;
+        }
+
+        .step-text {
+            color: #4b5563;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        /* Link manual */
+        .manual-link {
+            background: #fff7ed;
+            border: 2px dashed #f59e0b;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 25px 0;
+        }
+
+        .manual-link h5 {
+            color: #92400e;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .manual-link code {
+            background: #ffffff;
+            border: 1px solid #d1d5db;
+            color: #374151;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 12px;
+            word-break: break-all;
+            display: block;
+            margin: 8px 0;
+        }
+
+        .manual-link p {
+            color: #92400e;
+            font-size: 13px;
+            margin: 8px 0 0 0;
+        }
+
+        /* Informações de segurança */
+        .security-info {
+            background: linear-gradient(135deg, #fef2f2, #fecaca);
+            border: 1px solid #f87171;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 25px 0;
+        }
+
+        .security-info h5 {
+            color: #7f1d1d;
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .security-info ul {
+            color: #991b1b;
+            font-size: 13px;
+            margin-left: 16px;
+            line-height: 1.6;
+        }
+
+        .security-info li {
+            margin-bottom: 6px;
+        }
+
+        /* Timer de expiração */
+        .expiration-timer {
+            background: linear-gradient(135deg, #fffbeb, #fef3c7);
+            border: 2px solid #f59e0b;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 25px 0;
+            text-align: center;
+        }
+
+        .timer-icon {
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+
+        .expiration-timer h5 {
+            color: #92400e;
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .expiration-timer p {
+            color: #b45309;
+            font-size: 14px;
+            margin: 0;
+        }
+
+        .time-remaining {
+            font-size: 18px;
+            font-weight: 700;
+            color: #dc2626;
+            margin: 8px 0;
+        }
+
+        /* Footer */
+        .footer {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 25px;
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        .footer-text {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .footer-links {
+            margin-top: 15px;
+        }
+
+        .footer-links a {
+            color: rgba(255, 255, 255, 0.8);
+            text-decoration: none;
+            font-size: 12px;
+            margin: 0 8px;
+        }
+
+        /* Responsive */
+        @media only screen and (max-width: 600px) {
+            .email-container {
+                padding: 10px;
+            }
+            
+            .email-content {
+                padding: 25px 20px;
+            }
+            
+            .email-title {
+                font-size: 24px;
+            }
+
+            .confirmation-banner {
+                padding: 20px 15px;
+            }
+
+            .confirmation-banner h3 {
+                font-size: 20px;
+            }
+
+            .confirm-button {
+                font-size: 16px;
+                padding: 16px 30px;
+            }
+
+            .instructions,
+            .manual-link,
+            .security-info,
+            .expiration-timer {
+                padding: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <!-- Header com logos -->
+        <div class="header">
+            <div class="logo-container">
+                <span class="powered-by">Powered by</span>
+                <div class="coinage-text">🏦 Coinage</div>
+            </div>
+        </div>
+
+        <!-- Card principal -->
+        <div class="email-card">
+            <div class="email-content">
+                <h1 class="email-title">Confirme seu Email 📧</h1>
+                <p class="email-subtitle">Último passo para ativar sua conta</p>
+
+                <div class="confirmation-banner">
+                    <div class="confirmation-icon">📬</div>
+                    <h3>Quase lá, {{userName}}!</h3>
+                    <p>Para garantir a segurança da sua conta e começar a usar todos os recursos do Coinage, precisamos confirmar seu endereço de email.</p>
+                    <a href="{{confirmationUrl}}" class="confirm-button">Confirmar Email Agora</a>
+                </div>
+
+                <div class="instructions">
+                    <h4>📋 Como confirmar seu email:</h4>
+                    <ul class="step-list">
+                        <li class="step-item">
+                            <div class="step-number">1</div>
+                            <div class="step-text">Clique no botão <strong>"Confirmar Email Agora"</strong> acima</div>
+                        </li>
+                        <li class="step-item">
+                            <div class="step-number">2</div>
+                            <div class="step-text">Você será direcionado para uma página de confirmação</div>
+                        </li>
+                        <li class="step-item">
+                            <div class="step-number">3</div>
+                            <div class="step-text">Sua conta será ativada automaticamente</div>
+                        </li>
+                        <li class="step-item">
+                            <div class="step-number">4</div>
+                            <div class="step-text">Faça login e aproveite todos os recursos!</div>
+                        </li>
+                    </ul>
+                </div>
+
+                <div class="expiration-timer">
+                    <div class="timer-icon">⏰</div>
+                    <h5>Link de Confirmação</h5>
+                    <p>Este link expira em:</p>
+                    <div class="time-remaining">24 horas</div>
+                    <p>Confirme seu email o quanto antes para não perder o acesso!</p>
+                </div>
+
+                <div class="manual-link">
+                    <h5>🔗 Não consegue clicar no botão?</h5>
+                    <p>Copie e cole este link no seu navegador:</p>
+                    <code>{{confirmationUrl}}</code>
+                    <p>Ou acesse manualmente digitando o endereço na barra do navegador.</p>
+                </div>
+
+                <div class="security-info">
+                    <h5>🛡️ Informações de Segurança</h5>
+                    <ul>
+                        <li>Este email foi enviado para <strong>{{userEmail}}</strong></li>
+                        <li>Se você não criou uma conta no Coinage, ignore este email</li>
+                        <li>Nunca compartilhe links de confirmação com outras pessoas</li>
+                        <li>O link de confirmação é de uso único e expira em 24 horas</li>
+                        <li>Em caso de dúvidas, entre em contato conosco</li>
+                    </ul>
+                </div>
+
+                <div style="background: #ecfdf5; border: 1px solid #10b981; border-radius: 8px; padding: 20px; margin: 25px 0; text-align: center;">
+                    <p style="color: #065f46; margin: 0; font-size: 14px; line-height: 1.6;">
+                        💡 <strong>Dica:</strong> Após confirmar seu email, você poderá fazer depósitos, saques e utilizar todas as funcionalidades do Coinage com total segurança!
+                    </p>
+                </div>
+
+                <div style="text-align: center; margin-top: 30px; color: #6b7280; font-size: 13px;">
+                    <p><strong>Precisa de ajuda?</strong> Nossa equipe está sempre pronta para ajudar!</p>
+                    <p>📧 <a href="mailto:{{supportEmail}}" style="color: #7c3aed; text-decoration: none;">{{supportEmail}}</a></p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <div style="margin-bottom: 15px;">
+                <div class="coinage-text" style="font-size: 16px;">🏦 Coinage</div>
+            </div>
+            <div class="footer-text">
+                Sistema financeiro seguro e confiável<br>
+                Confirmação de email para sua proteção
+            </div>
+            <div class="footer-links">
+                <a href="{{loginUrl}}">Login</a>
+                <a href="{{supportUrl}}">Suporte</a>
+                <a href="{{privacyUrl}}">Privacidade</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

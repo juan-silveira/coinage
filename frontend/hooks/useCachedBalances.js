@@ -2,7 +2,7 @@ import { useCallback, useEffect } from 'react';
 import useAuthStore from '@/store/authStore';
 import { userService } from '@/services/api';
 import UserPlanService from '@/services/userPlanService';
-import useConfig from '@/hooks/useConfig';
+import { useConfigContext } from '@/contexts/ConfigContext';
 
 // Função para obter o intervalo baseado no plano do usuário
 const getCacheDurationMs = (userPlan = 'BASIC') => {
@@ -26,22 +26,29 @@ export const useCachedBalances = () => {
     clearCachedBalances
   } = useAuthStore();
   
-  const { defaultNetwork } = useConfig();
+  const { config } = useConfigContext();
+  const defaultNetwork = config?.defaultNetwork;
 
   // Verificar se o cache é válido
   const isCacheValid = useCallback(() => {
     if (!cachedBalances || !balancesLastUpdate) return false;
+    
+    // CRÍTICO: Verificar se o cache é do usuário atual (evitar cross-user contamination)
+    if (cachedBalances.userId && cachedBalances.userId !== user?.id) {
+      console.warn('⚠️ [CachedBalances] Cache de outro usuário detectado, invalidando');
+      return false;
+    }
     
     // Usar o intervalo baseado no plano do usuário
     const userPlan = user?.userPlan || 'BASIC';
     const cacheDuration = getCacheDurationMs(userPlan);
     
     return (Date.now() - balancesLastUpdate) < cacheDuration;
-  }, [cachedBalances, balancesLastUpdate, user?.userPlan]);
+  }, [cachedBalances, balancesLastUpdate, user?.userPlan, user?.id]);
 
   // Carregar balances da API
   const loadBalances = useCallback(async (force = false) => {
-    if (!isAuthenticated || !user?.publicKey) return;
+    if (!isAuthenticated || !user?.publicKey || !defaultNetwork) return;
     
     // Se o cache é válido e não é força, retorna o cache
     if (!force && isCacheValid()) {
@@ -54,29 +61,41 @@ export const useCachedBalances = () => {
     try {
       setBalancesLoading(true);
       
-      console.log('🔧 [DEBUG] useCachedBalances usando network:', defaultNetwork);
+      // console.log('🔧 [DEBUG] useCachedBalances usando network:', defaultNetwork);
       const response = await userService.getUserBalances(user.publicKey, defaultNetwork);
       
       if (response.success) {
-        setCachedBalances(response.data);
-        return response.data;
+        // CRÍTICO: Adicionar userId aos dados do cache para validação futura
+        const balancesWithUserId = {
+          ...response.data,
+          userId: user.id, // Adicionar ID do usuário atual
+          loadedAt: new Date().toISOString() // timestamp de quando foi carregado
+        };
+        setCachedBalances(balancesWithUserId);
+        return balancesWithUserId;
       } else {
         return cachedBalances; // Retorna cache anterior se houver erro
       }
     } catch (error) {
       return cachedBalances; // Retorna cache anterior se houver erro
     }
-  }, [isAuthenticated, user?.publicKey, isCacheValid, cachedBalances, balancesLoading, setCachedBalances, setBalancesLoading]);
+  }, [isAuthenticated, user?.publicKey, defaultNetwork, isCacheValid, cachedBalances, balancesLoading, setCachedBalances, setBalancesLoading]);
 
   // Carregar dados iniciais (sem incluir loadBalances na dependência)
   useEffect(() => {
-    if (isAuthenticated && user?.publicKey) {
+    if (isAuthenticated && user?.publicKey && user?.id) {
+      // CRÍTICO: Verificar se há cache de outro usuário e limpar se necessário
+      if (cachedBalances?.userId && cachedBalances.userId !== user.id) {
+        console.warn('⚠️ [CachedBalances] Detectado cache de outro usuário, limpando...');
+        clearCachedBalances();
+      }
+      
       loadBalances();
     } else {
       clearCachedBalances();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated, user?.publicKey]);
+  }, [isAuthenticated, user?.publicKey, user?.id]);
 
   // Auto-refresh baseado no plano do usuário
   useEffect(() => {

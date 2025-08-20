@@ -1,5 +1,6 @@
 const transactionService = require('../services/transaction.service');
 const queueService = require('../services/queue.service');
+const userActionsService = require('../services/userActions.service');
 
 /**
  * Controller para gerenciamento de transações da blockchain
@@ -27,6 +28,20 @@ class TransactionController {
       }
 
       console.log('🔍 [TransactionController] Chamando transactionService.getTransactionsByUser...');
+      
+      // Registrar visualização de transações
+      await userActionsService.logAction({
+        userId,
+        companyId: req.user?.companyId,
+        action: 'transactions_viewed',
+        category: 'blockchain',
+        details: {
+          filters: { status, network, transactionType, tokenSymbol, startDate, endDate },
+          pagination: { page: parseInt(page), limit: parseInt(limit) }
+        },
+        ipAddress: userActionsService.getIpAddress(req),
+        userAgent: req.headers['user-agent']
+      });
       
       const result = await transactionService.getTransactionsByUser(userId, {
         page: parseInt(page),

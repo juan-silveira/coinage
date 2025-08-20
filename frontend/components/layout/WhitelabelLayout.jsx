@@ -16,7 +16,6 @@ const WhitelabelLayout = ({
   const { 
     getBrandName, 
     getTagline, 
-    getLogoUrl, 
     getPrimaryColor, 
     getSecondaryColor,
     getInlineStyles 
@@ -80,24 +79,14 @@ const WhitelabelLayout = ({
         <header className="whitelabel-header">
           {headerContent || (
             <div className="container mx-auto px-4 py-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-4">
-                  <img
-                    src={getLogoUrl()}
-                    alt={getBrandName()}
-                    className="h-8 object-contain"
-                    onError={(e) => {
-                      e.target.src = '/assets/images/logo/logo.svg';
-                    }}
-                  />
-                  <div>
-                    <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
-                      {getBrandName()}
-                    </h1>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      {getTagline()}
-                    </p>
-                  </div>
+              <div className="flex flex-col items-center justify-center">
+                <div className="text-center">
+                  <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
+                    {getBrandName()}
+                  </h1>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    {getTagline()}
+                  </p>
                 </div>
               </div>
             </div>
@@ -106,7 +95,7 @@ const WhitelabelLayout = ({
       )}
 
       {/* Conteúdo principal */}
-      <main className="whitelabel-main flex-1">
+      <main className="whitelabel-main flex-1 flex items-center justify-center">
         {children}
       </main>
 

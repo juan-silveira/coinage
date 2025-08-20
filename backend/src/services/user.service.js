@@ -8,7 +8,12 @@ class UserService {
   }
 
   async init() {
-    this.prisma = prismaConfig.getPrisma();
+    try {
+      this.prisma = prismaConfig.getPrisma();
+    } catch (error) {
+      // Se não foi inicializado, inicializar primeiro
+      this.prisma = await prismaConfig.initialize();
+    }
   }
 
   /**
@@ -251,7 +256,16 @@ class UserService {
       // Construir filtros
       const where = {};
       
-      if (companyId) where.companyId = companyId;
+      // Filter by company through userCompanies relation if specified
+      if (companyId) {
+        where.userCompanies = {
+          some: {
+            companyId: companyId,
+            status: 'active'
+          }
+        };
+      }
+      
       if (typeof isActive === 'boolean') where.isActive = isActive;
       
       if (search) {
@@ -273,8 +287,12 @@ class UserService {
         this.prisma.user.findMany({
           where,
           include: {
-            company: {
-              select: { id: true, name: true, isActive: true }
+            userCompanies: {
+              include: {
+                company: {
+                  select: { id: true, name: true, alias: true, isActive: true }
+                }
+              }
             }
           },
           orderBy: { [sortBy]: sortOrder },
@@ -424,47 +442,6 @@ class UserService {
     }
   }
 
-  /**
-   * Ativa um usuário
-   * @param {string} id - ID do usuário
-   * @returns {Promise<Object>} Usuário ativado
-   */
-  async activateUser(id) {
-    try {
-      if (!this.prisma) await this.init();
-
-      const user = await this.prisma.user.update({
-        where: { id },
-        data: { isActive: true },
-        include: {
-          company: true
-        }
-      });
-
-      // Disparar webhook de usuário ativado
-      const webhookService = require('./webhook.service');
-      const userEventData = {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        cpf: user.cpf,
-        publicKey: user.publicKey,
-        roles: user.roles,
-        isActive: user.isActive,
-        companyId: user.companyId,
-        activatedAt: new Date()
-      };
-
-      webhookService.triggerWebhooks('user.activated', userEventData, user.companyId)
-        .then(result => console.log(`📡 Webhook user.activated disparado:`, result))
-        .catch(error => console.error(`❌ Erro ao disparar webhook user.activated:`, error));
-
-      return this.sanitizeUser(user);
-    } catch (error) {
-      console.error('❌ Erro ao ativar usuário:', error);
-      throw error;
-    }
-  }
 
   /**
    * Gera um par de chaves Ethereum
@@ -598,10 +575,32 @@ class UserService {
       const user = await this.prisma.user.update({
         where: { id: userId },
         data: { 
-          isActive: true,
-          emailVerifiedAt: new Date()
+          isActive: true
+        },
+        include: {
+          userCompanies: {
+            include: {
+              company: true
+            }
+          }
         }
       });
+
+      // Disparar webhook de usuário ativado
+      const webhookService = require('./webhook.service');
+      const userEventData = {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        isActive: user.isActive,
+        timestamp: new Date().toISOString()
+      };
+
+      try {
+        await webhookService.emitEvent('user:activated', userEventData);
+      } catch (webhookError) {
+        console.warn('⚠️ Erro ao disparar webhook de usuário ativado:', webhookError);
+      }
 
       return this.sanitizeUser(user);
     } catch (error) {
@@ -633,6 +632,103 @@ class UserService {
       return user ? this.sanitizeUser(user) : null;
     } catch (error) {
       console.error('❌ Erro ao buscar usuário por email:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Bloquear um usuário
+   * @param {string} id - ID do usuário
+   * @returns {Promise<Object>} Usuário bloqueado
+   */
+  async blockUser(id) {
+    try {
+      if (!this.prisma) await this.init();
+
+      const user = await this.prisma.user.update({
+        where: { id },
+        data: { 
+          isBlockedLoginAttempts: true,
+          lastFailedLoginAt: new Date(),
+          sessionToken: null,
+          sessionExpiresAt: null
+        },
+        include: {
+          userCompanies: {
+            include: {
+              company: true
+            }
+          }
+        }
+      });
+
+      // Disparar webhook de usuário bloqueado
+      const webhookService = require('./webhook.service');
+      const userEventData = {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        isBlockedLoginAttempts: user.isBlockedLoginAttempts,
+        timestamp: new Date().toISOString()
+      };
+
+      try {
+        await webhookService.emitEvent('user:blocked', userEventData);
+      } catch (webhookError) {
+        console.warn('⚠️ Erro ao disparar webhook de usuário bloqueado:', webhookError);
+      }
+
+      return this.sanitizeUser(user);
+    } catch (error) {
+      console.error('❌ Erro ao bloquear usuário:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Desbloquear um usuário
+   * @param {string} id - ID do usuário
+   * @returns {Promise<Object>} Usuário desbloqueado
+   */
+  async unblockUser(id) {
+    try {
+      if (!this.prisma) await this.init();
+
+      const user = await this.prisma.user.update({
+        where: { id },
+        data: { 
+          isBlockedLoginAttempts: false,
+          failedLoginAttempts: 0,
+          lastFailedLoginAt: null
+        },
+        include: {
+          userCompanies: {
+            include: {
+              company: true
+            }
+          }
+        }
+      });
+
+      // Disparar webhook de usuário desbloqueado
+      const webhookService = require('./webhook.service');
+      const userEventData = {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        isBlockedLoginAttempts: user.isBlockedLoginAttempts,
+        timestamp: new Date().toISOString()
+      };
+
+      try {
+        await webhookService.emitEvent('user:unblocked', userEventData);
+      } catch (webhookError) {
+        console.warn('⚠️ Erro ao disparar webhook de usuário desbloqueado:', webhookError);
+      }
+
+      return this.sanitizeUser(user);
+    } catch (error) {
+      console.error('❌ Erro ao desbloquear usuário:', error);
       throw error;
     }
   }
