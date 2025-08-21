@@ -13,12 +13,12 @@ export function ConfigProvider({ children }) {
   useEffect(() => {
     const loadConfig = async () => {
       try {
-        console.log('🔧 [ConfigProvider] Carregando configurações do backend...');
+        // console.log('🔧 [ConfigProvider] Carregando configurações do backend...');
         const response = await configService.getPublicConfig();
         
         if (response.success) {
           setConfig(response.data);
-          console.log('✅ [ConfigProvider] Configurações carregadas:', response.data);
+          // console.log('✅ [ConfigProvider] Configurações carregadas:', response.data);
         } else {
           throw new Error(response.message || 'Erro ao carregar configurações');
         }

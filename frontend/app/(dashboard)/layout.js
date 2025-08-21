@@ -4,7 +4,7 @@ import { useEffect, useState, Suspense } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Header from "@/components/partials/header";
 import Sidebar from "@/components/partials/sidebar";
-import Settings from "@/components/partials/settings";
+// import Settings from "@/components/partials/settings";
 import useWidth from "@/hooks/useWidth";
 import useSidebar from "@/hooks/useSidebar";
 import useContentWidth from "@/hooks/useContentWidth";
@@ -53,15 +53,26 @@ const DashboardContent = ({ children }) => {
   // Hook de notificações em tempo real (agora dentro do provider)
   useRealTimeNotifications();
   
-  // Hook de sincronização de balance em tempo real
-  const { isActive, startSync } = useBalanceSync();
+  // Verificar autenticação antes de usar hooks complexos
+  const { user, isAuthenticated } = useAuthStore();
+  
+  // Hook de sincronização de balance em tempo real - SEMPRE chama o hook
+  const balanceSyncHook = useBalanceSync();
+  const { isActive, startSync } = balanceSyncHook || {};
   
   // Removido o hook de título do layout principal para permitir que páginas específicas controlem seus títulos
   
-  // Iniciar sincronização de balance automaticamente
+  // Iniciar sincronização de balance automaticamente - ATIVADO
   useEffect(() => {
-    startSync();
-  }, [startSync]);
+    if (isAuthenticated && user?.publicKey && startSync && typeof startSync === 'function') {
+      startSync().catch(error => {
+        // Ignorar erros silenciosamente se for problema de autenticação
+        if (error?.code !== 'USER_NOT_AUTHENTICATED') {
+          console.error('Erro ao iniciar sync:', error);
+        }
+      });
+    }
+  }, [startSync, isAuthenticated, user?.publicKey]);
   
   return children;
 };
@@ -139,7 +150,7 @@ export default function RootLayout({ children }) {
                   onClick={() => setMobileMenu(false)}
                 ></div>
               )}
-              <Settings />
+              {/* <Settings /> */}
               <div
                 className={`content-wrapper transition-all duration-150 ${
                   width > 1280 ? switchHeaderClass() : ""
@@ -191,6 +202,8 @@ export default function RootLayout({ children }) {
               {width > breakpoints.md && (
                 <Footer className={width > breakpoints.xl ? switchHeaderClass() : ""} />
               )}
+              
+              {/* Indicador de Status do Backup */}
             </div>
           </NotificationProvider>
         </AlertProvider>

@@ -193,7 +193,7 @@ const PixPaymentPage = () => {
                 icon={
                   isPaid ? "heroicons:check-circle" : 
                   isExpired ? "heroicons:x-circle" : 
-                  "heroicons:credit-card"
+                  "fa6-brands:pix"
                 } 
                 className={`w-10 h-10 ${
                   isPaid ? 'text-green-600 dark:text-green-400' : 
@@ -321,66 +321,6 @@ const PixPaymentPage = () => {
             </div>
           </Card>
 
-          {/* QR Code */}
-          {isPending && (
-            <Card className="mb-6">
-              <div className="p-6 text-center">
-                <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                  QR Code PIX
-                </h2>
-                
-                <div className="mb-4">
-                  <img 
-                    src={payment.qrCode} 
-                    alt="QR Code PIX"
-                    className="mx-auto w-64 h-64 border-2 border-gray-200 dark:border-gray-700 rounded-lg"
-                  />
-                </div>
-                
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                  Use o aplicativo do seu banco para escanear o QR Code
-                </p>
-                
-                <Button
-                  onClick={copyPixCode}
-                  className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2"
-                >
-                  <Icon icon="heroicons:clipboard-document" className="w-4 h-4 mr-2" />
-                  Copiar Código PIX
-                </Button>
-              </div>
-            </Card>
-          )}
-
-          {/* Chave PIX */}
-          {isPending && (
-            <Card className="mb-6">
-              <div className="p-6">
-                <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                  Chave PIX
-                </h2>
-                
-                <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 mb-4">
-                  <div className="flex items-center justify-between">
-                    <span className="font-mono text-lg text-gray-900 dark:text-white break-all">
-                      {payment.pixKey}
-                    </span>
-                    <Button
-                      onClick={copyPixKey}
-                      className="ml-4 bg-gray-500 hover:bg-gray-600 text-white p-2"
-                    >
-                      <Icon icon="heroicons:clipboard-document" className="w-5 h-5" />
-                    </Button>
-                  </div>
-                </div>
-                
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Copie esta chave e cole no aplicativo do seu banco para realizar o pagamento
-                </p>
-              </div>
-            </Card>
-          )}
-
           {/* Informações da Instituição */}
           <Card className="mb-6">
             <div className="p-6">
@@ -427,6 +367,66 @@ const PixPaymentPage = () => {
               </div>
             </div>
           </Card>
+
+          {/* QR Code */}
+          {isPending && (
+            <Card className="mb-6">
+              <div className="p-6 text-center">
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                  QR Code PIX
+                </h2>
+                
+                <div className="mb-4">
+                  <img 
+                    src={payment.qrCode} 
+                    alt="QR Code PIX"
+                    className="mx-auto w-64 h-64 border-2 border-gray-200 dark:border-gray-700 rounded-lg"
+                  />
+                </div>
+                
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                  Use o aplicativo do seu banco para escanear o QR Code
+                </p>
+                
+                <Button
+                  onClick={copyPixCode}
+                  className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2"
+                >
+                  <Icon icon="heroicons:clipboard-document" className="w-4 h-4 mr-2" />
+                  Copiar Código PIX
+                </Button>
+              </div>
+            </Card>
+          )}
+
+          {/* Chave PIX */}
+          {/* {isPending && (
+            <Card className="mb-6">
+              <div className="p-6">
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                  Chave PIX
+                </h2>
+                
+                <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 mb-4">
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono text-lg text-gray-900 dark:text-white break-all">
+                      {payment.pixKey}
+                    </span>
+                    <Button
+                      onClick={copyPixKey}
+                      className="ml-4 bg-gray-500 hover:bg-gray-600 text-white p-2"
+                    >
+                      <Icon icon="heroicons:clipboard-document" className="w-5 h-5" />
+                    </Button>
+                  </div>
+                </div>
+                
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Copie esta chave e cole no aplicativo do seu banco para realizar o pagamento
+                </p>
+              </div>
+            </Card>
+          )} */}
 
           {/* Ações */}
           <div className="flex flex-col sm:flex-row justify-center space-y-3 sm:space-y-0 sm:space-x-4">
@@ -500,6 +500,7 @@ const PixPaymentPage = () => {
 };
 
 export default PixPaymentPage;
+
 
 
 

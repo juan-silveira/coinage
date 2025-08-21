@@ -225,7 +225,7 @@ const DepositPage = () => {
           <div className="space-y-6">
             <div className="text-center">
               <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-                Confirmar Depósito
+                Revisar Depósito
               </h2>
               <p className="text-gray-600 dark:text-gray-400">
                 Revise os detalhes antes de confirmar
@@ -301,7 +301,7 @@ const DepositPage = () => {
                     <span>Processando...</span>
                   </div>
                 ) : (
-                  'Confirmar Depósito'
+                  'Realizar Depósito'
                 )}
               </Button>
             </div>

@@ -33,10 +33,10 @@ const AuthGuard = ({ children }) => {
           );
           
           if (hasDiscrepancy) {
-            console.log('🔄 Dados desatualizados detectados. Atualizando do servidor:', {
-              cache: { emailConfirmed: user.emailConfirmed, isActive: user.isActive },
-              server: { emailConfirmed: serverUser.emailConfirmed, isActive: serverUser.isActive }
-            });
+            // console.log('🔄 Dados desatualizados detectados. Atualizando do servidor:', {
+            //   cache: { emailConfirmed: user.emailConfirmed, isActive: user.isActive },
+            //   server: { emailConfirmed: serverUser.emailConfirmed, isActive: serverUser.isActive }
+            // });
             updateUser(serverUser);
           }
           

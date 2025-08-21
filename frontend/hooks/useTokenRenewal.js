@@ -47,7 +47,6 @@ const useTokenRenewal = () => {
         return false;
       }
     } catch (error) {
-      console.error('❌ [TokenRenewal] Erro na renovação:', error);
       return false;
     } finally {
       isRenewing.current = false;
@@ -56,7 +55,6 @@ const useTokenRenewal = () => {
 
   // Fazer logout por inatividade
   const logoutByInactivity = useCallback(() => {
-    console.log('🚪 [TokenRenewal] Logout por inatividade');
     const companyAlias = logout();
     window.location.href = `/login/${companyAlias}?reason=inactivity`;
   }, [logout]);
@@ -82,63 +80,64 @@ const useTokenRenewal = () => {
     }, SESSION_TIMEOUT - WARNING_TIME);
   }, [logoutByInactivity]);
 
-  // Configurar refresh automático de token
+  // Configurar refresh automático de token - TEMPORARIAMENTE DESABILITADO
   const setupTokenRefresh = useCallback(() => {
     if (refreshTimerRef.current) {
       clearInterval(refreshTimerRef.current);
     }
 
-    // Renovar token a cada 8 minutos (antes dos 10 minutos de expiração)
-    refreshTimerRef.current = setInterval(async () => {
-      if (isAuthenticated && refreshToken) {
-        try {
-          await renewToken();
-        } catch (error) {
-          console.error('❌ [TokenRenewal] Erro no refresh automático:', error);
-        }
-      }
-    }, 8 * 60 * 1000); // 8 minutos
+    // DESABILITADO: estava causando logout automático
+    // refreshTimerRef.current = setInterval(async () => {
+    //   if (isAuthenticated && refreshToken) {
+    //     try {
+    //       await renewToken();
+    //     } catch (error) {
+    //       console.error('❌ [TokenRenewal] Erro no refresh automático:', error);
+    //     }
+    //   }
+    // }, 8 * 60 * 1000); // 8 minutos
   }, [isAuthenticated, refreshToken, renewToken]);
 
-  // Detectar atividade do usuário (PROTEGIDO CONTRA CRASHES)
+  // Detectar atividade do usuário - TEMPORARIAMENTE SIMPLIFICADO
   const handleUserActivity = useCallback(async () => {
     try {
-      const now = Date.now();
-      const timeSinceLastActivity = now - lastActivity.current;
+      // TEMPORARIAMENTE: apenas resetar timer sem renovar token
+      resetSessionTimer();
       
-      // Só renovar se passou mais de 1 minuto desde a última atividade
-      if (timeSinceLastActivity > 60000) {
-        try {
-          // Tentar renovar token
-          const renewed = await renewToken();
-          if (renewed) {
-            resetSessionTimer();
-          } else {
-            console.warn('⚠️ [TokenRenewal] Renovação falhou, mas EVITANDO logout desnecessário');
-            // Apenas resetar timer sem fazer logout
-            resetSessionTimer();
-          }
-        } catch (renewError) {
-          console.error('❌ [TokenRenewal] Erro na renovação (EVITANDO CRASH):', renewError);
-          // Continuar sem fazer logout por erro de renovação
-          resetSessionTimer();
-        }
-      } else {
-        // Apenas resetar timer sem renovar token
-        resetSessionTimer();
-      }
+      // COMENTADO: renovação que estava causando problemas
+      // const now = Date.now();
+      // const timeSinceLastActivity = now - lastActivity.current;
+      // 
+      // // Só renovar se passou mais de 1 minuto desde a última atividade
+      // if (timeSinceLastActivity > 60000) {
+      //   try {
+      //     // Tentar renovar token
+      //     const renewed = await renewToken();
+      //     if (renewed) {
+      //       resetSessionTimer();
+      //     } else {
+      //       console.warn('⚠️ [TokenRenewal] Renovação falhou, mas EVITANDO logout desnecessário');
+      //       // Apenas resetar timer sem fazer logout
+      //       resetSessionTimer();
+      //     }
+      //   } catch (renewError) {
+      //     console.error('❌ [TokenRenewal] Erro na renovação (EVITANDO CRASH):', renewError);
+      //     // Continuar sem fazer logout por erro de renovação
+      //     resetSessionTimer();
+      //   }
+      // } else {
+      //   // Apenas resetar timer sem renovar token
+      //   resetSessionTimer();
+      // }
     } catch (error) {
-      console.error('❌ [TokenRenewal] ERRO CRÍTICO na atividade do usuário (CRASH EVITADO):', error);
-      console.error('❌ [TokenRenewal] Stack trace:', error.stack);
-      
       // Em caso de erro crítico, apenas resetar timer
       try {
         resetSessionTimer();
       } catch (resetError) {
-        console.error('❌ [TokenRenewal] Erro crítico até no reset do timer:', resetError);
+        // Falha silenciosa no reset do timer
       }
     }
-  }, [renewToken, resetSessionTimer, logoutByInactivity]);
+  }, [resetSessionTimer]);
 
   // Listener para mudanças de rota
   useEffect(() => {
@@ -162,7 +161,7 @@ const useTokenRenewal = () => {
           try {
             await renewToken();
           } catch (error) {
-            console.error('❌ [TokenRenewal] Erro na primeira renovação:', error);
+            // Falha silenciosa na primeira renovação
           }
         }
       }, 8 * 60 * 1000);
@@ -198,13 +197,13 @@ const useTokenRenewal = () => {
           try {
             handleUserActivity();
           } catch (error) {
-            console.error('❌ [TokenRenewal] Erro no handleUserActivity (PROTEGIDO):', error);
+            // Falha silenciosa no handleUserActivity
           } finally {
             throttleTimer = null;
           }
         }, 30000); // Throttle para não renovar a cada clique (máximo 1x por 30s)
       } catch (error) {
-        console.error('❌ [TokenRenewal] Erro no throttledActivity (PROTEGIDO):', error);
+        // Falha silenciosa no throttledActivity
       }
     };
 

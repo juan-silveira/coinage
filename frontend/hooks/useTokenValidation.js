@@ -21,7 +21,7 @@ const useTokenValidation = () => {
         
         if (response.success) {
           // Token válido, continuar com a sessão
-          console.log('✅ Token válido - sessão mantida');
+          // console.log('✅ Token válido - sessão mantida');
           return;
         }
       } catch (error) {

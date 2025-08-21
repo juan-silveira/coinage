@@ -268,9 +268,126 @@ class DepositController {
       });
     }
   }
+
+  /**
+   * DEBUG: Confirmar PIX manualmente (apenas para desenvolvimento)
+   */
+  async debugConfirmPix(req, res) {
+    try {
+      // Verificar se está em ambiente de desenvolvimento
+      if (process.env.NODE_ENV === 'production') {
+        return res.status(403).json({
+          success: false,
+          message: 'Este endpoint está disponível apenas em desenvolvimento'
+        });
+      }
+
+      const { transactionId } = req.params;
+      
+      console.log(`🐛 DEBUG: Confirmando PIX manualmente para transação ${transactionId}`);
+
+      // Dados simulados do PIX
+      const pixData = {
+        pixId: `PIX_DEBUG_${Date.now()}`,
+        payerDocument: '12345678900',
+        payerName: 'Debug Test User',
+        paidAmount: req.body.amount || 100.00
+      };
+
+      // Confirmar pagamento PIX e enviar para fila
+      const result = await this.depositService.confirmPixPayment(transactionId, pixData);
+
+      // Registrar ação de debug
+      if (result.user_id) {
+        await userActionsService.logFinancial(result.user_id, 'debug_pix_confirmed', req, {
+          status: 'processing',
+          transactionId: transactionId,
+          method: 'debug',
+          details: pixData
+        });
+      }
+
+      res.json({
+        success: true,
+        message: 'PIX confirmado (DEBUG) e enviado para processamento blockchain',
+        data: {
+          transactionId: result.id,
+          status: result.status,
+          metadata: result.metadata
+        }
+      });
+
+    } catch (error) {
+      console.error('Erro ao confirmar PIX (DEBUG):', error);
+      res.status(500).json({
+        success: false,
+        message: 'Erro ao confirmar PIX',
+        error: error.message
+      });
+    }
+  }
+
+  /**
+   * Webhook para receber confirmações de PIX do provedor
+   */
+  async handlePixWebhook(req, res) {
+    try {
+      // Validar assinatura do webhook (implementar conforme provedor)
+      const signature = req.headers['x-webhook-signature'];
+      
+      // TODO: Validar assinatura quando integrar com provedor real
+      // if (!validateWebhookSignature(signature, req.body)) {
+      //   return res.status(401).json({ success: false, message: 'Invalid signature' });
+      // }
+
+      const { 
+        transactionId, 
+        pixId, 
+        status,
+        payerDocument,
+        payerName,
+        paidAmount 
+      } = req.body;
+
+      console.log(`📨 Webhook PIX recebido: ${transactionId} - Status: ${status}`);
+
+      // Processar apenas se o PIX foi confirmado
+      if (status === 'confirmed' || status === 'approved') {
+        const pixData = {
+          pixId,
+          payerDocument,
+          payerName,
+          paidAmount
+        };
+
+        // Confirmar pagamento e enviar para fila
+        await this.depositService.confirmPixPayment(transactionId, pixData);
+
+        res.json({
+          success: true,
+          message: 'Webhook processado com sucesso'
+        });
+      } else {
+        console.log(`⚠️ PIX não confirmado: ${status}`);
+        res.json({
+          success: true,
+          message: 'Webhook recebido mas PIX não está confirmado'
+        });
+      }
+
+    } catch (error) {
+      console.error('Erro ao processar webhook PIX:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Erro ao processar webhook',
+        error: error.message
+      });
+    }
+  }
 }
 
 module.exports = DepositController;
+
 
 
 

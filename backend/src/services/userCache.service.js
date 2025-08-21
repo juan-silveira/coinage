@@ -157,7 +157,7 @@ class UserCacheService {
       // console.log(`✅ Cache atualizado para usuário: ${postgresData.email || userId}`);
       return combinedData;
     } catch (error) {
-      console.error(`❌ Erro ao carregar dados do cache para usuário ${userId}:`, error);
+      // console.error(`❌ Erro ao carregar dados do cache para usuário ${userId}:`, error);
       throw error;
     }
   }
@@ -267,7 +267,7 @@ class UserCacheService {
         loadedAt: new Date().toISOString()
       };
     } catch (error) {
-      console.error(`❌ Erro ao carregar dados PostgreSQL para usuário ${userId}:`, error);
+      // console.error(`❌ Erro ao carregar dados PostgreSQL para usuário ${userId}:`, error);
       throw error;
     }
   }
@@ -276,6 +276,8 @@ class UserCacheService {
    * Carrega dados da Blockchain
    */
   async loadBlockchainData(publicKey) {
+    let cachedData = null;
+    
     try {
       console.log(`🔍 [UserCacheService] loadBlockchainData chamado com publicKey: ${publicKey}`);
       
@@ -286,31 +288,84 @@ class UserCacheService {
           tokenBalances: [],
           network: 'testnet',
           totalTokens: 0,
+          syncStatus: 'error',
+          syncError: 'Endereço público não fornecido',
           loadedAt: new Date().toISOString()
         };
       }
 
+      // Tentar obter dados em cache antes
+      try {
+        const balanceSyncService = require('./balanceSync.service');
+        cachedData = await balanceSyncService.getCache('user', publicKey, 'testnet');
+      } catch (cacheError) {
+        console.warn('⚠️ [UserCacheService] Erro ao buscar cache:', cacheError.message);
+      }
+
       console.log(`🚀 [UserCacheService] Chamando blockchainService.getUserBalances(${publicKey})`);
-      // Usar o serviço blockchain existente
+      // Usar o serviço blockchain existente (já corrigido para manter cache)
       const balanceData = await blockchainService.getUserBalances(publicKey);
       console.log(`✅ [UserCacheService] Dados recebidos do blockchainService:`, balanceData);
       
-      // Calcular categorias para o dashboard
-      const categories = this.calculateCategories(balanceData);
+      // Se os dados vieram da blockchain com sucesso, calcular categorias
+      if (balanceData && balanceData.syncStatus !== 'error') {
+        const categories = this.calculateCategories(balanceData);
+        
+        return {
+          ...balanceData,
+          categories,
+          loadedAt: new Date().toISOString()
+        };
+      }
       
+      // Se houve erro mas temos cache, usar cache
+      if (balanceData && balanceData.syncStatus === 'error' && balanceData.fromCache) {
+        const categories = this.calculateCategories(balanceData);
+        
+        return {
+          ...balanceData,
+          categories,
+          loadedAt: new Date().toISOString()
+        };
+      }
+      
+      // Se não temos dados válidos nem cache, retornar o que veio do blockchainService
       return {
         ...balanceData,
-        categories,
+        categories: this.calculateCategories({ balances: {}, tokenBalances: [] }),
         loadedAt: new Date().toISOString()
       };
+
     } catch (error) {
-      console.error(`❌ Erro ao carregar dados blockchain para ${publicKey}:`, error);
+      // console.error(`❌ Erro ao carregar dados blockchain para ${publicKey}:`, error);
+      
+      // Se temos dados em cache, usar eles
+      if (cachedData && cachedData.balances) {
+        // console.log(`📦 [UserCacheService] Usando dados em cache devido ao erro`);
+        const categories = this.calculateCategories(cachedData.balances);
+        
+        return {
+          ...cachedData.balances,
+          categories,
+          syncStatus: 'error',
+          syncError: error.message,
+          fromCache: true,
+          lastSuccessfulSync: cachedData.lastUpdated,
+          loadedAt: new Date().toISOString()
+        };
+      }
+      
+      // Se não temos cache, retornar estrutura mínima com erro
       return {
         balances: {},
         tokenBalances: [],
+        balancesTable: {},
         network: 'testnet',
         totalTokens: 0,
-        error: error.message,
+        syncStatus: 'error',
+        syncError: error.message,
+        fromCache: false,
+        categories: this.calculateCategories({ balances: {}, tokenBalances: [] }),
         loadedAt: new Date().toISOString()
       };
     }

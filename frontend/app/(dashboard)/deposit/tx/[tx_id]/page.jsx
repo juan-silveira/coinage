@@ -8,6 +8,8 @@ import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import useAuthStore from "@/store/authStore";
 import { useAlertContext } from "@/contexts/AlertContext";
 import useDarkmode from "@/hooks/useDarkMode";
+import depositService from "@/services/depositService";
+// Fallback para mock se o serviço real falhar
 import mockDepositService from "@/services/mockDepositService";
 
 const DepositConfirmationPage = () => {
@@ -76,6 +78,45 @@ const DepositConfirmationPage = () => {
   // Função para ir ao dashboard
   const handleGoToDashboard = () => {
     router.push('/dashboard');
+  };
+
+  // DEBUG: Função para confirmar PIX manualmente
+  const handleDebugConfirmPix = async () => {
+    if (!txId) return;
+    
+    try {
+      setLoading(true);
+      
+      // Chamar API de debug
+      const response = await fetch(`/api/deposits/debug/confirm-pix/${txId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${user?.token || ''}`
+        },
+        body: JSON.stringify({
+          amount: transaction?.amount || 100
+        })
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        showSuccess('PIX Confirmado (DEBUG)', 'O pagamento foi confirmado e enviado para processamento blockchain');
+        
+        // Recarregar dados da transação
+        setTimeout(() => {
+          window.location.reload();
+        }, 2000);
+      } else {
+        showError('Erro ao confirmar PIX', data.message);
+      }
+    } catch (error) {
+      console.error('Erro ao confirmar PIX (DEBUG):', error);
+      showError('Erro', 'Não foi possível confirmar o PIX');
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Renderizar loading
@@ -304,21 +345,50 @@ const DepositConfirmationPage = () => {
 
           {/* Informações Adicionais */}
           {isPending && (
-            <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg">
-              <div className="flex items-start space-x-3">
-                <Icon icon="heroicons:information-circle" className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
-                <div>
-                  <h3 className="text-sm font-medium text-blue-800 dark:text-blue-200 mb-1">
-                    Aguardando Confirmação
-                  </h3>
-                  <p className="text-sm text-blue-700 dark:text-blue-300">
-                    Sua transação está sendo processada na blockchain Azore. 
-                    Isso pode levar alguns minutos. Você pode verificar o status 
-                    atualizando esta página ou aguardar a confirmação automática.
-                  </p>
+            <>
+              <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg">
+                <div className="flex items-start space-x-3">
+                  <Icon icon="heroicons:information-circle" className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <h3 className="text-sm font-medium text-blue-800 dark:text-blue-200 mb-1">
+                      Aguardando Confirmação
+                    </h3>
+                    <p className="text-sm text-blue-700 dark:text-blue-300">
+                      Sua transação está sendo processada na blockchain Azore. 
+                      Isso pode levar alguns minutos. Você pode verificar o status 
+                      atualizando esta página ou aguardar a confirmação automática.
+                    </p>
+                  </div>
                 </div>
               </div>
-            </div>
+
+              {/* Botão DEBUG - Apenas em desenvolvimento */}
+              {process.env.NODE_ENV === 'development' && (
+                <div className="mt-4 p-4 bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-start space-x-3">
+                      <Icon icon="heroicons:bug-ant" className="w-5 h-5 text-yellow-600 dark:text-yellow-400 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <h3 className="text-sm font-medium text-yellow-800 dark:text-yellow-200 mb-1">
+                          Modo Debug
+                        </h3>
+                        <p className="text-sm text-yellow-700 dark:text-yellow-300">
+                          Confirmar PIX manualmente para testes
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      onClick={handleDebugConfirmPix}
+                      disabled={loading}
+                      className="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 flex items-center"
+                    >
+                      <Icon icon="heroicons:check-circle" className="w-4 h-4 mr-2" />
+                      Confirmar PIX (DEBUG)
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </>
           )}
 
           {isConfirmed && (
@@ -331,7 +401,7 @@ const DepositConfirmationPage = () => {
                   </h3>
                   <p className="text-sm text-green-700 dark:text-green-300">
                     Seu depósito foi processado e confirmado na blockchain Azore. 
-                    Os tokens AZE foram creditados na sua carteira. 
+                    Os tokens cBRL foram creditados na sua carteira. 
                     Você pode verificar a transação no explorer clicando no botão acima.
                   </p>
                 </div>

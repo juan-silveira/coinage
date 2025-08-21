@@ -331,16 +331,28 @@ const useCacheData = () => {
             setBalances(newBalanceData);
             setCacheLoaded(true);
           } else {
-            // Erro ao carregar balances
-            setBalances(getEmptyBalances());
+            // Erro ao carregar balances - manter dados anteriores se existirem
+            console.warn('❌ Erro ao carregar balances, mantendo dados anteriores');
+            if (!balances || Object.keys(balances.balancesTable || {}).length === 0) {
+              setBalances(getEmptyBalances());
+            }
+            // Não zera se já temos dados
           }
         } else {
-          // PublicKey não encontrada
-          setBalances(getEmptyBalances());
+          // PublicKey não encontrada - manter dados anteriores se existirem
+          console.warn('❌ PublicKey não encontrada, mantendo dados anteriores');
+          if (!balances || Object.keys(balances.balancesTable || {}).length === 0) {
+            setBalances(getEmptyBalances());
+          }
+          // Não zera se já temos dados
         }
       } else {
-        // Resposta inválida
-        setBalances(getEmptyBalances());
+        // Resposta inválida - manter dados anteriores se existirem
+        console.warn('❌ Resposta inválida, mantendo dados anteriores');
+        if (!balances || Object.keys(balances.balancesTable || {}).length === 0) {
+          setBalances(getEmptyBalances());
+        }
+        // Não zera se já temos dados
       }
     } catch (error) {
       // Se for erro 401 em modo silent, não mostrar erro
@@ -351,16 +363,21 @@ const useCacheData = () => {
       
       // Log apenas erros que não sejam 401 em silent
       if (!(error.response?.status === 401 && reason === 'silent')) {
-        console.error('❌ [CacheData] Erro ao carregar dados do cache:', {
-          error: error.message,
-          status: error.response?.status,
-          url: error.config?.url,
-          userEmail: user?.email,
-          reason: reason
-        });
+        // console.error('❌ [CacheData] Erro ao carregar dados do cache:', {
+        //   error: error.message,
+        //   status: error.response?.status,
+        //   url: error.config?.url,
+        //   userEmail: user?.email,
+        //   reason: reason
+        // });
       }
       
-      setBalances(getEmptyBalances());
+      // Erro crítico - manter dados anteriores se existirem
+      // console.error('❌ Erro crítico ao carregar dados, mantendo dados anteriores se existirem');
+      if (!balances || Object.keys(balances.balancesTable || {}).length === 0) {
+        setBalances(getEmptyBalances());
+      }
+      // Não zera se já temos dados
     } finally {
       // Parar loading com timeout para dar tempo de mostrar a mudança
       if (reason === 'silent') {
@@ -382,8 +399,10 @@ const useCacheData = () => {
     if (user?.email) {
       loadCacheData('initial');
     } else {
-      // Limpar dados se não há usuário
-      setBalances(getEmptyBalances());
+      // Limpar dados apenas se não há usuário e não temos dados salvos
+      if (!balances || Object.keys(balances.balancesTable || {}).length === 0) {
+        setBalances(getEmptyBalances());
+      }
       setCachedUser(null);
       setLoading(false);
     }

@@ -237,6 +237,75 @@ class DepositService {
   }
 
   /**
+   * Confirmar pagamento PIX e enviar para processamento blockchain
+   */
+  async confirmPixPayment(transactionId, pixData) {
+    try {
+      console.log(`💳 Confirmando pagamento PIX para transação ${transactionId}`);
+      
+      // Buscar transação
+      const transaction = await this.prisma.transaction.findUnique({
+        where: { id: transactionId }
+      });
+
+      if (!transaction) {
+        throw new Error('Transação não encontrada');
+      }
+
+      // Verificar se já foi confirmado (evitar duplicação)
+      if (transaction.metadata?.pix_confirmed) {
+        console.log(`✅ PIX já confirmado para transação ${transactionId}`);
+        return transaction;
+      }
+
+      // Atualizar transação com dados do PIX confirmado
+      const updatedTransaction = await this.prisma.transaction.update({
+        where: { id: transactionId },
+        data: {
+          status: 'processing',
+          metadata: {
+            ...transaction.metadata,
+            pix_confirmed: true,
+            pix_confirmation_date: new Date().toISOString(),
+            pix_id: pixData.pixId,
+            pix_payer_document: pixData.payerDocument,
+            pix_payer_name: pixData.payerName,
+            pix_paid_amount: pixData.paidAmount
+          }
+        }
+      });
+
+      console.log(`✅ PIX confirmado para transação ${transactionId}`);
+
+      // Enviar para fila de processamento blockchain
+      if (this.rabbitMQChannel) {
+        const message = {
+          transactionId: transactionId,
+          userId: transaction.user_id,
+          amount: transaction.amount,
+          type: 'deposit_mint',
+          currentRetry: 0,
+          timestamp: new Date().toISOString()
+        };
+
+        await this.rabbitMQChannel.sendToQueue(
+          'deposits.processing',
+          Buffer.from(JSON.stringify(message)),
+          { persistent: true }
+        );
+
+        console.log(`📤 Transação ${transactionId} enviada para processamento blockchain`);
+      }
+
+      return updatedTransaction;
+
+    } catch (error) {
+      console.error('❌ Erro ao confirmar PIX:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Listar depósitos de um usuário
    */
   async getUserDeposits(userId, page = 1, limit = 10, status = null) {
@@ -292,27 +361,105 @@ class DepositService {
    * Processar depósito da fila (chamado pelo worker)
    */
   async processDepositFromQueue(depositMessage) {
+    const maxRetries = depositMessage.retryCount || 0;
+    const currentRetry = depositMessage.currentRetry || 0;
+    
     try {
-      console.log(`🔄 Processando depósito da fila: ${depositMessage.transactionId}`);
+      console.log(`🔄 Processando depósito da fila: ${depositMessage.transactionId} (Tentativa ${currentRetry + 1})`);
       
-      // Aqui você implementaria a lógica de mint na blockchain
-      // Por exemplo, chamar o contrato inteligente para mintar tokens
-      
-      // Simular processamento na blockchain
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // Gerar hash simulado da transação
-      const blockchainTxHash = `0x${Math.random().toString(16).substr(2, 64)}`;
-      const blockNumber = Math.floor(Math.random() * 1000000) + 1;
-      const gasUsed = Math.floor(Math.random() * 100000) + 21000;
-      
-      // Confirmar depósito
-      await this.confirmDeposit(
-        depositMessage.transactionId,
-        blockchainTxHash,
-        blockNumber,
-        gasUsed
-      );
+      // Buscar dados da transação
+      const transaction = await this.prisma.transaction.findUnique({
+        where: { id: depositMessage.transactionId },
+        include: { user: true }
+      });
+
+      if (!transaction) {
+        throw new Error(`Transação não encontrada: ${depositMessage.transactionId}`);
+      }
+
+      // VALIDAÇÃO CRÍTICA: Verificar se o PIX foi confirmado
+      if (!transaction.metadata?.pix_confirmed) {
+        console.log(`⚠️ PIX ainda não confirmado para transação ${transaction.id}`);
+        throw new Error('PIX payment not confirmed yet');
+      }
+
+      // Verificar se é um depósito confirmado
+      if (transaction.type !== 'deposit' || transaction.status !== 'processing') {
+        console.log(`⚠️ Transação ${transaction.id} não está pronta para processamento`);
+        return;
+      }
+
+      // Verificar se já foi processado (evitar duplicação)
+      if (transaction.blockchain_data?.tx_hash) {
+        console.log(`✅ Transação ${transaction.id} já foi processada na blockchain`);
+        return;
+      }
+
+      // Obter endereço da carteira do usuário
+      const userWallet = transaction.user.public_key;
+      if (!userWallet) {
+        throw new Error(`Usuário ${transaction.user.id} não possui carteira configurada`);
+      }
+
+      // Configurações do token cBRL
+      const TOKEN_CONTRACT_ADDRESS = process.env.CBRL_CONTRACT_ADDRESS || '0x0A8c73967e4Eee8ffA06484C3fBf65E6Ae3b9804';
+      if (!TOKEN_CONTRACT_ADDRESS || !process.env.ADMIN_WALLET_PRIVATE_KEY) {
+        // Se não configurado, usar simulação
+        console.warn('⚠️ Contrato cBRL não configurado, usando simulação');
+        
+        // Simular processamento na blockchain
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        // Gerar hash simulado da transação
+        const blockchainTxHash = `0x${Math.random().toString(16).substr(2, 64)}`;
+        const blockNumber = Math.floor(Math.random() * 1000000) + 1;
+        const gasUsed = Math.floor(Math.random() * 100000) + 21000;
+        
+        // Confirmar depósito com dados simulados
+        await this.confirmDeposit(
+          depositMessage.transactionId,
+          blockchainTxHash,
+          blockNumber,
+          gasUsed
+        );
+      } else {
+        // Executar mint real na blockchain
+        const blockchainService = require('./blockchain.service');
+        const { loadLocalABI } = require('../contracts');
+        const { ethers } = require('ethers');
+
+        // Carregar ABI do token
+        const tokenABI = loadLocalABI('default_token_abi');
+
+        // Calcular quantidade a mintar (valor do depósito menos taxas)
+        const amountToMint = transaction.amount; // Já descontadas as taxas
+        const amountInWei = ethers.parseUnits(amountToMint.toString(), 18);
+
+        console.log(`🏭 Mintando ${amountToMint} cBRL para ${userWallet}`);
+
+        // Executar mint na blockchain
+        const mintResult = await blockchainService.executeContractFunction(
+          TOKEN_CONTRACT_ADDRESS,
+          tokenABI,
+          'mint',
+          [userWallet, amountInWei],
+          'testnet', // ou usar transaction.network se disponível
+          {
+            privateKey: process.env.ADMIN_WALLET_PRIVATE_KEY,
+            gasLimit: 200000
+          }
+        );
+
+        console.log(`✅ Mint executado: ${mintResult.transactionHash}`);
+        
+        // Confirmar depósito com dados reais da blockchain
+        await this.confirmDeposit(
+          depositMessage.transactionId,
+          mintResult.transactionHash,
+          mintResult.blockNumber,
+          mintResult.gasUsed
+        );
+      }
 
       console.log(`✅ Depósito processado com sucesso: ${depositMessage.transactionId}`);
 

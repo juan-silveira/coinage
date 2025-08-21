@@ -48,6 +48,7 @@ const workersRoutes = require('./routes/workers.routes');
 // TEMPORARIAMENTE DESABILITADO - cBRL service removido
 // const pixRoutes = require('./routes/pix.routes');
 const profileRoutes = require('./routes/profile.routes');
+const backupRoutes = require('./routes/backup.routes');
 
 // Importar serviços
 const contractService = require('./services/contract.service');
@@ -600,6 +601,9 @@ app.use('/api/workers', workersRoutes);
 
 // Rotas do Profile
 app.use('/api/profile', profileRoutes);
+
+// Backup routes (public - no authentication required)
+app.use('/api/backup', backupRoutes);
 
 // Middleware de tratamento de erros 404
 app.use('*', (req, res) => {

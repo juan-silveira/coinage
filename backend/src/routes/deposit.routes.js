@@ -33,7 +33,22 @@ router.get('/status/:transactionId', authenticateApiKey, depositController.getDe
  */
 router.get('/user/:userId', authenticateApiKey, depositController.getUserDeposits.bind(depositController));
 
+/**
+ * @route   POST /api/deposits/debug/confirm-pix/:transactionId
+ * @desc    DEBUG: Confirmar pagamento PIX manualmente (apenas desenvolvimento)
+ * @access  Private
+ */
+router.post('/debug/confirm-pix/:transactionId', authenticateApiKey, depositController.debugConfirmPix.bind(depositController));
+
+/**
+ * @route   POST /api/deposits/webhook/pix
+ * @desc    Webhook para receber confirmações de PIX do provedor
+ * @access  Public (validado por assinatura)
+ */
+router.post('/webhook/pix', depositController.handlePixWebhook.bind(depositController));
+
 module.exports = router;
+
 
 
 
