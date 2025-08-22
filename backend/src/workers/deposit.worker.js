@@ -1,6 +1,7 @@
 const rabbitmqConfig = require('../config/rabbitmq');
 const blockchainQueueService = require('../services/blockchainQueue.service');
 const DepositService = require('../services/deposit.service');
+const mintService = require('../services/mint.service');
 
 class DepositWorker {
   constructor() {
@@ -26,8 +27,9 @@ class DepositWorker {
         await rabbitmqConfig.initialize();
       }
 
-      // Inicializar serviço de fila
+      // Inicializar serviços
       await blockchainQueueService.initialize();
+      await mintService.initialize();
 
       // Configurar consumidores
       await this.setupConsumers();

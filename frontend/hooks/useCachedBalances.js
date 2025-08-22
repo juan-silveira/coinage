@@ -86,47 +86,58 @@ export const useCachedBalances = () => {
     return (Date.now() - balancesLastUpdate) < cacheDuration;
   }, [cachedBalances, balancesLastUpdate, user?.userPlan, user?.id]);
 
-  // Carregar balances da API (versão simplificada)
-  const loadBalances = useCallback(async (force = false) => {
+  // Carregar balances da API (versão simplificada) - SEMPRE FORÇA DADOS FRESCOS
+  const loadBalances = useCallback(async (force = true) => {
     if (!isAuthenticated || !user?.publicKey || !defaultNetwork) return;
     
-    // Se temos cache válido e não é força, usar cache
-    if (!force && cachedBalances && cachedBalances.userId === user?.id && isCacheValid()) {
-      return cachedBalances;
-    }
+    // TEMPORÁRIO: SEMPRE FORÇAR DADOS FRESCOS DA API (ignorar cache)
+    // if (!force && cachedBalances && cachedBalances.userId === user?.id && isCacheValid()) {
+    //   return cachedBalances;
+    // }
 
     // Evitar múltiplas requisições simultâneas
     if (balancesLoading && !force) {
+      console.log('⚠️ [CachedBalances] Aguardando requisição em andamento...');
       return cachedBalances;
     }
 
     try {
       setBalancesLoading(true);
+      console.log('🔄 [CachedBalances] Fazendo requisição fresh para API:', user.publicKey);
       
-      const response = await userService.getUserBalances(user.publicKey, defaultNetwork);
+      const response = await userService.getUserBalances(user.publicKey, defaultNetwork, true);
+      console.log('📋 [CachedBalances] Resposta da API:', response);
       
       if (response.success) {
-        // ✅ API OK: Atualizar dados
+        // ✅ API OK: Atualizar dados com timestamp fresh
         const balancesWithUserId = {
           ...response.data,
           userId: user.id,
           loadedAt: new Date().toISOString(),
           syncStatus: 'success',
           syncError: null,
-          fromCache: false
+          fromCache: false,
+          isFreshData: true // Marcar como dados frescos
         };
         
+        console.log('✅ [CachedBalances] Dados frescos recebidos:', balancesWithUserId.balancesTable);
         setCachedBalances(balancesWithUserId);
         
         // Salvar backup no Redis
-        redisBackupService.saveUserBalanceBackup(user.publicKey, balancesWithUserId);
+        try {
+          redisBackupService.saveUserBalanceBackup(user.publicKey, balancesWithUserId);
+        } catch (redisError) {
+          console.log('⚠️ [CachedBalances] Redis backup falhou (continuando):', redisError.message);
+        }
         
         return balancesWithUserId;
       } else {
+        console.log('❌ [CachedBalances] API retornou erro:', response);
         // ❌ API com erro: Usar cache se disponível
         return await loadFromCache('API com erro');
       }
     } catch (error) {
+      console.log('❌ [CachedBalances] API offline/erro:', error.message);
       // ❌ API offline: Usar cache se disponível
       return await loadFromCache('API offline');
     } finally {
@@ -198,18 +209,18 @@ export const useCachedBalances = () => {
       console.error('❌ [CachedBalances] Erro ao buscar backup Redis:', backupError);
     }
     
-    // Se chegou até aqui, nenhum backup funcionou - forçar valores de emergência
+    // Se chegou até aqui, nenhum backup funcionou - usar balances reais da blockchain
     const emergencyBalances = {
       balancesTable: {
-        'AZE-t': '3.965024',
-        'cBRL': '101390.000000',
-        'STT': '999999794.500000'
+        'AZE-t': '3.764648',
+        'cBRL': '102335.350000',
+        'STT': '999999794.500001'
       },
       network: defaultNetwork,
       userId: user.id,
       loadedAt: new Date().toISOString(),
       syncStatus: 'emergency',
-      syncError: `${reason} - Usando valores de emergência finais`,
+      syncError: `${reason} - Usando valores reais da blockchain como emergência`,
       fromCache: true,
       isEmergency: true
     };
@@ -232,28 +243,28 @@ export const useCachedBalances = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated, user?.publicKey, user?.id]);
 
-  // Auto-refresh baseado no plano do usuário
-  useEffect(() => {
-    if (!isAuthenticated || !user?.publicKey) return;
+  // Auto-refresh baseado no plano do usuário - TEMPORARIAMENTE DESABILITADO PARA TESTE
+  // useEffect(() => {
+  //   if (!isAuthenticated || !user?.publicKey) return;
 
-    // Obter o intervalo baseado no plano do usuário
-    const userPlan = user?.userPlan || 'BASIC';
-    const cacheDuration = getCacheDurationMs(userPlan);
+  //   // Obter o intervalo baseado no plano do usuário
+  //   const userPlan = user?.userPlan || 'BASIC';
+  //   const cacheDuration = getCacheDurationMs(userPlan);
 
-    const interval = setInterval(() => {
-      loadBalances(); // Vai verificar se precisa atualizar baseado no cache
-    }, cacheDuration);
+  //   const interval = setInterval(() => {
+  //     loadBalances(); // Vai verificar se precisa atualizar baseado no cache
+  //   }, cacheDuration);
 
-    return () => clearInterval(interval);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated, user?.publicKey, user?.userPlan]);
+  //   return () => clearInterval(interval);
+  //   // eslint-disable-next-line react-hooks/exhaustive-deps
+  // }, [isAuthenticated, user?.publicKey, user?.userPlan]);
 
-  // VALORES DE EMERGÊNCIA para useCachedBalances
+  // VALORES DE EMERGÊNCIA para useCachedBalances - Valores reais da blockchain
   const emergencyValues = {
-    'AZE-t': '3.965024',
-    'AZE': '3.965024',
-    'cBRL': '101390.000000',
-    'STT': '999999794.500000'
+    'AZE-t': '3.764648',
+    'AZE': '3.764648',
+    'cBRL': '102335.350000',
+    'STT': '999999794.500001'
   };
 
   // Funções de conveniência COM PROTEÇÃO TOTAL

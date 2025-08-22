@@ -3,7 +3,6 @@ import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
-import Textinput from "@/components/ui/Textinput";
 import Modal from "@/components/ui/Modal";
 import Icon from "@/components/ui/Icon";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
@@ -12,14 +11,13 @@ import { useAlertContext } from "@/contexts/AlertContext";
 import useDarkmode from "@/hooks/useDarkMode";
 import useCacheData from "@/hooks/useCacheData";
 import useCurrencyMask from "@/hooks/useCurrencyMask";
-import mockDepositService from "@/services/mockDepositService";
-import mockPixService from "@/services/mockPixService";
+// Removed mock services - using only real API
 
 const DepositPage = () => {
   useDocumentTitle('Depósito', 'Coinage', true);
 
   const router = useRouter();
-  const { user } = useAuthStore();
+  const { user, accessToken } = useAuthStore();
   const { showSuccess, showError } = useAlertContext();
   const [isDark] = useDarkmode();
   const { cachedUser } = useCacheData();
@@ -27,6 +25,10 @@ const DepositPage = () => {
   // Estados do wizard
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  
+  // Estados para cálculo de taxas
+  const [feeCalculation, setFeeCalculation] = useState(null);
+  const [loadingFees, setLoadingFees] = useState(false);
 
   // Estados do modal
   const [showTokenModal, setShowTokenModal] = useState(false);
@@ -46,9 +48,37 @@ const DepositPage = () => {
     return isValidAmountHook();
   };
 
+  // Função para calcular taxas (usando valores fixos)
+  const calculateFees = async (amount) => {
+    if (!amount || amount < 10) {
+      setFeeCalculation(null);
+      return;
+    }
+
+    setLoadingFees(true);
+    
+    // Usar taxas fixas sem chamar API
+    const defaultFee = 3.0; // Taxa fixa R$ 3,00
+    setFeeCalculation({
+      desiredAmount: amount,
+      fee: defaultFee,
+      feePercent: 0.001,
+      totalAmount: amount + defaultFee,
+      netAmount: amount, // Valor que vai receber em cBRL
+      grossAmount: amount + defaultFee,
+      isVip: false,
+      vipLevel: 0
+    });
+    
+    setLoadingFees(false);
+  };
+
   // Função para continuar para o próximo passo
-  const handleContinue = () => {
+  const handleContinue = async () => {
     if (isValidAmount()) {
+      const amount = getNumericValue();
+      // Calcular taxas localmente sem API
+      calculateFees(amount);
       setCurrentStep(2);
     } else {
       showError("Por favor, insira um valor válido de pelo menos R$ 10,00");
@@ -79,39 +109,47 @@ const DepositPage = () => {
         return;
       }
       
-      // Primeiro, criar a transação de depósito
-      const depositResponse = await mockDepositService.createDeposit({
-        amount: amount,
-        userId: user?.id || 'mock-user-123',
+      // DESENVOLVIMENTO: Criar depósito via API sem JWT (v2)
+      console.log('🚀 Iniciando depósito com valor:', amount, 'userId:', user?.id || '5e8fd1b6-9969-44a8-bcb5-0dd832b1d973');
+      const response = await fetch('/api/deposits/dev', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          amount: amount,
+          userId: user?.id || '5e8fd1b6-9969-44a8-bcb5-0dd832b1d973', // Fallback para desenvolvimento
+          paymentMethod: 'pix'
+        })
       });
 
-      if (depositResponse.success) {
-        // Depois, criar o pagamento PIX
-        const pixResponse = await mockPixService.createPixPayment({
-          amount: amount,
-          transactionId: depositResponse.transaction.id,
-          userId: user?.id || 'mock-user-123',
-          autoSimulate: false, // Não simular pagamento automaticamente
-        });
-
-        if (pixResponse.success) {
+      console.log('📡 Resposta do servidor:', response.status, response.ok);
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('✅ Dados recebidos:', data);
+        
+        if (data.success) {
           showSuccess(
             "Depósito iniciado com sucesso!",
             "Redirecionando para pagamento PIX..."
           );
           
           // Redirecionar para a página de pagamento PIX
-          if (pixResponse.payment?.id) {
-            router.push(`/deposit/pix/${pixResponse.payment.id}`);
+          if (data.data?.pixPaymentId) {
+            router.push(`/deposit/pix/${data.data.pixPaymentId}`);
+          } else if (data.data?.transactionId) {
+            router.push(`/deposit/tx/${data.data.transactionId}`);
           } else {
             setCurrentStep(1);
             clearValue();
           }
         } else {
-          showError("Erro ao criar pagamento PIX", pixResponse.message);
+          showError('Erro no depósito', data.message || 'Erro desconhecido');
         }
       } else {
-        showError("Erro ao processar depósito", depositResponse.message);
+        const errorData = await response.json().catch(() => ({}));
+        showError('Erro na API', errorData.message || 'Erro de comunicação com a API');
       }
     } catch (error) {
       console.error("Erro no depósito:", error);
@@ -234,50 +272,70 @@ const DepositPage = () => {
 
             <div className="max-w-md mx-auto">
               <Card className="p-6">
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-600 dark:text-gray-400">
-                      Valor:
-                    </span>
-                    <span className="text-xl font-bold text-gray-900 dark:text-white">
-                      {formatDisplayValue(depositAmount)}
-                    </span>
-                  </div>
-
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-600 dark:text-gray-400">
-                      Taxa de processamento:
-                    </span>
-                    <span className="text-gray-900 dark:text-white">
-                      R$ 2,50
-                    </span>
-                  </div>
-
-                  <hr className="border-gray-200 dark:border-gray-700" />
-
-                  <div className="flex justify-between items-center">
-                    <span className="text-lg font-semibold text-gray-900 dark:text-white">
-                      Total:
-                    </span>
-                    <span className="text-xl font-bold text-primary-600">
-                      {(() => {
-                        const amount = getNumericValue() || 0;
-                        const total = amount + 2.5;
-                        return total.toLocaleString("pt-BR", {
-                          style: "currency",
-                          currency: "BRL",
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2
-                        });
-                      })()}
-                    </span>
-                  </div>
-
-                  <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg">
-                    <p className="text-sm text-blue-800 dark:text-blue-200">
-                      <strong>Importante:</strong> O valor será convertido para cBRL na blockchain Azore após a confirmação do pagamento.
+                {loadingFees ? (
+                  <div className="text-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500 mx-auto"></div>
+                    <p className="text-gray-600 dark:text-gray-400 mt-2">
+                      Calculando taxas...
                     </p>
                   </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600 dark:text-gray-400">
+                        Valor Desejado:
+                      </span>
+                      <span className="text-lg font-semibold text-gray-900 dark:text-white">
+                        {formatDisplayValue(depositAmount)}
+                      </span>
+                    </div>
+
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600 dark:text-gray-400">
+                        Taxa (R$ 3,00 fixa):
+                      </span>
+                      <span className="text-gray-900 dark:text-white">
+                        {feeCalculation?.fee ? `R$ ${feeCalculation.fee.toFixed(2)}` : 'R$ 3,00'}
+                        {feeCalculation?.isVip && (
+                          <span className="ml-1 text-xs text-yellow-600 dark:text-yellow-400">
+                            VIP {feeCalculation.vipLevel}
+                          </span>
+                        )}
+                      </span>
+                    </div>
+
+                    <hr className="border-gray-200 dark:border-gray-700" />
+
+                    <div className="flex justify-between items-center">
+                      <span className="text-lg font-semibold text-red-600 dark:text-red-400">
+                        Valor Total a Pagar:
+                      </span>
+                      <span className="text-xl font-bold text-red-600 dark:text-red-400">
+                        {feeCalculation?.totalAmount ? 
+                          `R$ ${feeCalculation.totalAmount.toFixed(2)}` : 
+                          'R$ --,--'
+                        }
+                      </span>
+                    </div>
+
+                    <div className="flex justify-between items-center">
+                      <span className="text-lg font-semibold text-green-600 dark:text-green-400">
+                        Valor Final (cBRL):
+                      </span>
+                      <span className="text-xl font-bold text-green-600 dark:text-green-400">
+                        {feeCalculation?.netAmount ? 
+                          `${feeCalculation.netAmount.toFixed(2)} cBRL` : 
+                          '--,-- cBRL'
+                        }
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg">
+                  <p className="text-sm text-blue-800 dark:text-blue-200">
+                    <strong>Importante:</strong> O valor será convertido para cBRL na blockchain Azore após a confirmação do pagamento.
+                  </p>
                 </div>
               </Card>
             </div>

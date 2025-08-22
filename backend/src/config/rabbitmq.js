@@ -194,11 +194,16 @@ class RabbitMQConfig {
         console.log(`✅ Queue created: ${queueConfig.name}`);
       }
       
+      // Criar fila de mint
+      await this.channel.assertQueue('blockchain.mint', { durable: true });
+      console.log('✅ Queue created: blockchain.mint');
+
       // Bindings para filas principais
       await this.channel.bindQueue(this.queues.BLOCKCHAIN_TRANSACTIONS.name, this.exchanges.BLOCKCHAIN, 'transaction.*');
       await this.channel.bindQueue(this.queues.DEPOSITS_PROCESSING.name, this.exchanges.BLOCKCHAIN, 'deposit.*');
       await this.channel.bindQueue(this.queues.WITHDRAWALS_PROCESSING.name, this.exchanges.BLOCKCHAIN, 'withdrawal.*');
       await this.channel.bindQueue(this.queues.CONTRACT_OPERATIONS.name, this.exchanges.BLOCKCHAIN, 'contract.*');
+      await this.channel.bindQueue('blockchain.mint', this.exchanges.BLOCKCHAIN, 'transaction.mint');
       
       // Bindings para notificações
       await this.channel.bindQueue(this.queues.NOTIFICATIONS_EMAIL.name, this.exchanges.NOTIFICATIONS, 'email.*');

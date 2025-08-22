@@ -389,6 +389,254 @@ app.use('/api/test/email', testEmailRoutes);
 app.use('/api/test-simple', testSimpleRoutes);
 // app.use('/api/debug', debugUserRoutes); // Temporariamente desabilitado
 
+// TESTE: Rota de mint dev diretamente no app.js (sem middleware)
+app.get('/api/mint-dev/by-deposit/:depositTransactionId', async (req, res) => {
+  try {
+    console.log('🧪 MINT-DEV: Chamada direta no app.js, sem middleware');
+    const { depositTransactionId } = req.params;
+    
+    const MintTransactionService = require('./services/mintTransaction.service');
+    const mintService = new MintTransactionService();
+    
+    const mintTransaction = await mintService.getMintByDepositId(depositTransactionId);
+    
+    if (!mintTransaction) {
+      return res.json({
+        success: true,
+        message: 'Nenhuma transação de mint encontrada para este depósito',
+        data: null
+      });
+    }
+
+    res.json({
+      success: true,
+      data: mintTransaction
+    });
+  } catch (error) {
+    console.error('❌ MINT-DEV: Erro:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro interno ao buscar transação de mint',
+      error: error.message
+    });
+  }
+});
+
+// ========================================
+// DEPOSIT APIs - Estrutura organizada
+// ========================================
+
+// 1. POST /api/deposit - Criar depósito
+app.post('/api/deposit', async (req, res) => {
+  try {
+    console.log('💰 [DEPOSIT] Criando novo depósito');
+    const { userId, amount, currency = 'BRL', paymentMethod = 'pix' } = req.body;
+    
+    if (!userId || !amount) {
+      return res.status(400).json({
+        success: false,
+        message: 'userId e amount são obrigatórios'
+      });
+    }
+    
+    const prismaConfig = require('./config/prisma');
+    const { v4: uuidv4 } = require('uuid');
+    const prisma = prismaConfig.getPrisma();
+    
+    // Criar transação de depósito
+    const depositTransaction = await prisma.transaction.create({
+      data: {
+        id: uuidv4(),
+        userId: userId,
+        companyId: '9ab5ecaa-ad9e-4372-a5de-8b3c56cd8757', // Navi company ID
+        transactionType: 'deposit',
+        status: 'pending',
+        amount: parseFloat(amount),
+        currency: currency,
+        metadata: {
+          payment_method: paymentMethod,
+          created_at: new Date().toISOString()
+        }
+      }
+    });
+    
+    // Gerar dados PIX mock
+    const pixPaymentId = `pix_${depositTransaction.id.split('-')[0]}_${Date.now()}`;
+    const pixData = {
+      pixPaymentId,
+      transactionId: depositTransaction.id,
+      amount: amount,
+      status: 'pending',
+      qrCode: `00020126580014br.gov.bcb.pix2536pix-qr.mercadopago.com/instore/o/v2/${pixPaymentId}5204000053039865802BR5925Coinage Tecnologia6009Sao Paulo62070503***6304OZ0H`,
+      pixKey: 'contato@coinage.com.br',
+      expiresAt: new Date(Date.now() + 30 * 60 * 1000).toISOString(), // 30 min
+      createdAt: new Date().toISOString()
+    };
+    
+    console.log(`✅ [DEPOSIT] Depósito criado: ${depositTransaction.id}`);
+    
+    res.json({
+      success: true,
+      message: 'Depósito criado com sucesso',
+      data: {
+        transactionId: depositTransaction.id,
+        amount: amount,
+        status: 'pending',
+        pixPaymentId: pixPaymentId,
+        pixData: pixData
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ [DEPOSIT] Erro:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro ao criar depósito',
+      error: error.message
+    });
+  }
+});
+
+// 2. POST /api/deposit/pix - Confirmar PIX
+app.post('/api/deposit/pix', async (req, res) => {
+  try {
+    console.log('🔵 [PIX] Confirmando pagamento PIX');
+    const { transactionId, pixPaymentId, paidAmount } = req.body;
+    
+    if (!transactionId) {
+      return res.status(400).json({
+        success: false,
+        message: 'transactionId é obrigatório'
+      });
+    }
+    
+    const prismaConfig = require('./config/prisma');
+    const prisma = prismaConfig.getPrisma();
+    
+    // Confirmar PIX (não tem blockchain)
+    const depositTransaction = await prisma.transaction.update({
+      where: { id: transactionId },
+      data: {
+        status: 'confirmed',
+        confirmedAt: new Date(),
+        metadata: {
+          ...((await prisma.transaction.findUnique({ where: { id: transactionId } }))?.metadata || {}),
+          pix_confirmed: true,
+          pix_confirmation_date: new Date().toISOString(),
+          pix_payment_id: pixPaymentId || `pix-${Date.now()}`,
+          pix_payer_document: '000.000.000-00',
+          pix_payer_name: 'Usuario Teste',
+          pix_paid_amount: paidAmount || 0
+        }
+      }
+    });
+    
+    console.log(`✅ [PIX] PIX confirmado: ${transactionId}`);
+    
+    res.json({
+      success: true,
+      message: 'PIX confirmado com sucesso',
+      data: {
+        transactionId: transactionId,
+        status: 'confirmed',
+        pixConfirmed: true,
+        readyForMint: true
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ [PIX] Erro:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro ao confirmar PIX',
+      error: error.message
+    });
+  }
+});
+
+// 3. POST /api/deposit/mint - Executar mint na blockchain
+app.post('/api/deposit/mint', async (req, res) => {
+  try {
+    console.log('⛓️ [MINT] Executando mint na blockchain');
+    const { transactionId } = req.body;
+    
+    if (!transactionId) {
+      return res.status(400).json({
+        success: false,
+        message: 'transactionId é obrigatório'
+      });
+    }
+    
+    const prismaConfig = require('./config/prisma');
+    const MintTransactionService = require('./services/mintTransaction.service');
+    const prisma = prismaConfig.getPrisma();
+    const mintService = new MintTransactionService();
+    
+    // Buscar depósito confirmado
+    const depositTransaction = await prisma.transaction.findUnique({
+      where: { id: transactionId }
+    });
+    
+    if (!depositTransaction) {
+      return res.status(404).json({
+        success: false,
+        message: 'Depósito não encontrado'
+      });
+    }
+    
+    if (depositTransaction.status !== 'confirmed') {
+      return res.status(400).json({
+        success: false,
+        message: 'Depósito deve estar confirmado antes do mint'
+      });
+    }
+    
+    // Buscar endereço real do usuário
+    const user = await prisma.user.findUnique({
+      where: { id: depositTransaction.userId },
+      select: { publicKey: true, email: true }
+    });
+    
+    if (!user || !user.publicKey) {
+      throw new Error('Usuário não encontrado ou sem endereço de carteira');
+    }
+    
+    console.log(`🔑 [MINT] Endereço do usuário: ${user.publicKey} (${user.email})`);
+    
+    // Criar transação de mint REAL
+    console.log(`🏭 [MINT] Criando mint REAL para ${depositTransaction.amount} cBRL`);
+    const mintTransaction = await mintService.createMintTransaction(
+      transactionId,
+      depositTransaction.userId,
+      depositTransaction.amount.toString(),
+      user.publicKey
+    );
+    
+    console.log(`✅ [MINT] Mint REAL criado: ${mintTransaction.id}`);
+    
+    res.json({
+      success: true,
+      message: 'Mint executado na blockchain',
+      data: {
+        mintTransactionId: mintTransaction.id,
+        depositTransactionId: transactionId,
+        amount: depositTransaction.amount,
+        recipientAddress: user.publicKey,
+        status: 'pending',
+        network: 'testnet'
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ [MINT] Erro:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro ao executar mint',
+      error: error.message
+    });
+  }
+});
+
 // Rotas de empresas (com autenticação JWT e rate limiting)
 app.use('/api/companies', authenticateJWT, apiRateLimiter, addUserInfo, logAuthenticatedRequest, companyRoutes);
 
@@ -461,8 +709,18 @@ app.use('/api/transactions', transactionRoutes);
 
 // Rotas de depósitos (com autenticação JWT e email confirmado)
 const depositRoutes = require('./routes/deposit.routes');
+const mintRoutes = require('./routes/mint.routes');
+const pixRoutes = require('./routes/pix.routes');
 const { requireEmailConfirmation } = require('./middleware/emailConfirmed.middleware');
-app.use('/api/deposits', requireEmailConfirmation, depositRoutes);
+// IMPORTANTE: Rotas de desenvolvimento SEM autenticação devem vir ANTES
+app.use('/api/pix/dev', pixRoutes);
+app.use('/api/deposits/dev', depositRoutes);
+app.use('/api/mint/dev', mintRoutes);
+
+// Rotas com autenticação JWT
+app.use('/api/deposits', authenticateJWT, depositRoutes);
+app.use('/api/mint', authenticateJWT, mintRoutes);
+app.use('/api/pix', authenticateJWT, pixRoutes);
 
 // Rotas de saques (com autenticação JWT e email confirmado)
 const withdrawRoutes = require('./routes/withdraw.routes');

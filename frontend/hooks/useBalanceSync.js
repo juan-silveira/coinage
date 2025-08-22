@@ -803,26 +803,26 @@ const useBalanceSync = (onBalanceUpdate = null) => {
     //   }
     // }
     
-    // Configurar intervalo automático
+    // Configurar intervalo automático - TEMPORARIAMENTE DESABILITADO PARA TESTE
     if (syncIntervalRef.current) {
       clearInterval(syncIntervalRef.current);
     }
     
-    syncIntervalRef.current = setInterval(async () => {
-      // PROTEÇÃO: SEMPRE verificar autenticação antes de sync
-      if (user?.publicKey && user?.id && isAuthenticated) {
-        try {
-          await syncBalances(false, true); // bypassActiveCheck=true para forçar
-        } catch (error) {
-          console.error('❌ [BalanceSync] Erro na sincronização automática (continuando ativo):', {
-            error: error.message,
-            status: error.response?.status,
-            timestamp: new Date().toISOString()
-          });
-          // NÃO parar o serviço, apenas logar o erro
-        }
-      }
-    }, getSyncIntervalMs(user?.userPlan || 'BASIC'));
+    // syncIntervalRef.current = setInterval(async () => {
+    //   // PROTEÇÃO: SEMPRE verificar autenticação antes de sync
+    //   if (user?.publicKey && user?.id && isAuthenticated) {
+    //     try {
+    //       await syncBalances(false, true); // bypassActiveCheck=true para forçar
+    //     } catch (error) {
+    //       console.error('❌ [BalanceSync] Erro na sincronização automática (continuando ativo):', {
+    //         error: error.message,
+    //         status: error.response?.status,
+    //         timestamp: new Date().toISOString()
+    //       });
+    //       // NÃO parar o serviço, apenas logar o erro
+    //     }
+    //   }
+    // }, getSyncIntervalMs(user?.userPlan || 'BASIC'));
 
     // Sincronização iniciada silenciosamente
   }, [user?.publicKey, syncBalances]);

@@ -73,11 +73,15 @@ services:
   rabbitmq:
     image: rabbitmq:3-management-alpine
     container_name: coinage_rabbitmq
+    environment:
+      - RABBITMQ_DEFAULT_USER=coinage_user
+      - RABBITMQ_DEFAULT_PASS=coinage_password
     env_file:
       - .env
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
     ports:
+      - "5672:5672"    # AMQP
       - "15672:15672"  # Management UI
     networks:
       - coinage_network

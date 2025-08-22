@@ -154,25 +154,25 @@ api.interceptors.response.use(
       //   hasRefreshToken: !!refreshToken
       // });
       
-      // IMPORTANTE: Não fazer logout automático em endpoints de sincronização
+      // IMPORTANTE: Não fazer logout automático em endpoints de sincronização, mas permitir renovação de token
       const isSyncRequest = originalRequest?.url?.includes('/balance-sync/') || 
                            originalRequest?.url?.includes('/notifications/') ||
                            originalRequest?.url?.includes('azorescan.com');
       
       if (isSyncRequest) {
-        // console.log('⚠️ [API] Erro 401 em requisição de sync - NÃO fazendo logout automático');
+        // console.log('⚠️ [API] Erro 401 em requisição de sync - tentando renovar token silenciosamente');
         
-        // Para notificações, tentar refresh token silenciosamente
-        if (isAuthenticated && refreshToken && originalRequest?.url?.includes('/notifications/')) {
+        // Para endpoints de sync (balance-sync, notifications), tentar refresh token silenciosamente
+        if (isAuthenticated && refreshToken) {
           try {
-            // console.log('🔄 [API] Tentando renovar token para notificações...');
+            // console.log('🔄 [API] Tentando renovar token para sync...');
             const response = await axios.post(`${API_BASE_URL}/api/auth/refresh`, {
               refreshToken
             });
 
             const { accessToken: newAccessToken, refreshToken: newRefreshToken } = response.data.data;
             
-            // console.log('✅ [API] Token renovado para notificações');
+            // console.log('✅ [API] Token renovado para sync');
             // Atualizar tokens no store
             useAuthStore.getState().setTokens(newAccessToken, newRefreshToken);
             
@@ -180,7 +180,7 @@ api.interceptors.response.use(
             originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
             return api(originalRequest);
           } catch (refreshError) {
-            // console.warn('⚠️ [API] Falha no refresh para notificações - continuando sem notificações');
+            // console.warn('⚠️ [API] Falha no refresh para sync - continuando sem fazer logout');
             // Não fazer logout, apenas rejeitar a requisição
             return Promise.reject(error);
           }

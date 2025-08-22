@@ -245,7 +245,7 @@ const DigitalAssetsCard = () => {
           ))}
         </div>
         
-        {/* Espaçador para manter altura similar ao TransactionHistoryTable quando fechado */}
+        {/* Espaçador para manter altura similar ao LastTransactions quando fechado */}
         {activeIndex === null && (
           <div className="responsive-spacer flex items-center justify-center">
             <style jsx>{`
