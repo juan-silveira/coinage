@@ -84,7 +84,7 @@ class DepositService {
       });
 
       // MOCK: Criar dados PIX simulados
-      const pixPaymentId = `pix_${transaction.id.substring(0, 8)}_${Date.now()}`;
+      const pixPaymentId = `pix_${transaction.id}_${Date.now()}`;
       const pixData = {
         pixPaymentId,
         transactionId: transaction.id,

@@ -101,6 +101,69 @@ const CacheRefreshMiddleware = require('./middleware/cacheRefresh.middleware');
 // Criar aplicação Express
 const app = express();
 
+// ====== ENDPOINTS PÚBLICOS (SEM AUTENTICAÇÃO) ======
+
+// Endpoint público para buscar transação por UUID parcial (FORA do /api para evitar middleware)
+app.get('/search-deposit/:partialId', async (req, res) => {
+  try {
+    const { partialId } = req.params;
+    
+    console.log(`🔍 [SEARCH] Buscando transação com UUID parcial: ${partialId}`);
+    
+    // Buscar transações que começam com o ID parcial
+    const transactions = await prisma.transaction.findMany({
+      where: {
+        id: {
+          startsWith: partialId
+        },
+        transactionType: 'deposit'
+      },
+      orderBy: {
+        createdAt: 'desc'
+      },
+      take: 1 // Pegar apenas a mais recente
+    });
+    
+    if (transactions.length > 0) {
+      const transaction = transactions[0];
+      console.log(`✅ [SEARCH] Transação encontrada: ${transaction.id}`);
+      
+      res.json({
+        success: true,
+        data: {
+          id: transaction.id,
+          status: transaction.status,
+          amount: String(transaction.amount),
+          currency: transaction.currency,
+          transactionType: transaction.transactionType,
+          createdAt: transaction.createdAt,
+          confirmedAt: transaction.confirmedAt,
+          txHash: transaction.txHash,
+          blockNumber: transaction.blockNumber,
+          gasUsed: transaction.gasUsed,
+          metadata: transaction.metadata
+        }
+      });
+    } else {
+      console.log(`❌ [SEARCH] Nenhuma transação encontrada iniciando com: ${partialId}`);
+      res.status(404).json({
+        success: false,
+        message: `Nenhuma transação de depósito encontrada iniciando com: ${partialId}`
+      });
+    }
+    
+  } catch (error) {
+    console.error('❌ [SEARCH] Erro na busca:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro interno do servidor',
+      error: error.message
+    });
+  }
+});
+
+// ====== INÍCIO DOS MIDDLEWARES ======
+
 // Middlewares de segurança
 app.use(helmet());
 
@@ -443,6 +506,18 @@ app.post('/api/deposit', async (req, res) => {
     const { v4: uuidv4 } = require('uuid');
     const prisma = prismaConfig.getPrisma();
     
+    // Buscar taxa do usuário na tabela user_taxes
+    const userTax = await prisma.userTaxes.findUnique({
+      where: { userId: userId },
+      select: { depositFee: true }
+    });
+    
+    const netAmount = parseFloat(amount); // Valor que o usuário vai receber (ex: 100.00)
+    const feeAmount = userTax?.depositFee || 3.0; // Taxa padrão se não encontrar
+    const totalAmount = netAmount + feeAmount; // Valor total do PIX (ex: 103.00)
+    
+    console.log(`💰 [DEPOSIT] Valores calculados: Net=${netAmount}, Fee=${feeAmount}, Total=${totalAmount}`);
+    
     // Criar transação de depósito
     const depositTransaction = await prisma.transaction.create({
       data: {
@@ -451,21 +526,28 @@ app.post('/api/deposit', async (req, res) => {
         companyId: '9ab5ecaa-ad9e-4372-a5de-8b3c56cd8757', // Navi company ID
         transactionType: 'deposit',
         status: 'pending',
-        amount: parseFloat(amount),
+        amount: netAmount, // Valor líquido que será mintado
         currency: currency,
         metadata: {
           payment_method: paymentMethod,
+          net_amount: netAmount,
+          fee_amount: feeAmount,
+          total_amount: totalAmount,
           created_at: new Date().toISOString()
         }
       }
     });
     
-    // Gerar dados PIX mock
-    const pixPaymentId = `pix_${depositTransaction.id.split('-')[0]}_${Date.now()}`;
+    // Gerar dados PIX com valor total (incluindo taxa)
+    const pixPaymentId = `pix_${depositTransaction.id}_${Date.now()}`;
+    console.log(`🔍 [DEBUG] TransactionID: ${depositTransaction.id}`);
+    console.log(`🔍 [DEBUG] PixPaymentID: ${pixPaymentId}`);
     const pixData = {
       pixPaymentId,
       transactionId: depositTransaction.id,
-      amount: amount,
+      amount: totalAmount, // PIX mostra valor total (net + fee)
+      netAmount: netAmount, // Valor líquido para referência
+      feeAmount: feeAmount, // Taxa para referência
       status: 'pending',
       qrCode: `00020126580014br.gov.bcb.pix2536pix-qr.mercadopago.com/instore/o/v2/${pixPaymentId}5204000053039865802BR5925Coinage Tecnologia6009Sao Paulo62070503***6304OZ0H`,
       pixKey: 'contato@coinage.com.br',
@@ -473,14 +555,16 @@ app.post('/api/deposit', async (req, res) => {
       createdAt: new Date().toISOString()
     };
     
-    console.log(`✅ [DEPOSIT] Depósito criado: ${depositTransaction.id}`);
+    console.log(`✅ [DEPOSIT] Depósito criado: ${depositTransaction.id} (Net: ${netAmount}, Total PIX: ${totalAmount})`);
     
     res.json({
       success: true,
       message: 'Depósito criado com sucesso',
       data: {
         transactionId: depositTransaction.id,
-        amount: amount,
+        amount: netAmount, // Valor que será mintado
+        totalAmount: totalAmount, // Valor total do PIX
+        feeAmount: feeAmount, // Taxa cobrada
         status: 'pending',
         pixPaymentId: pixPaymentId,
         pixData: pixData
@@ -533,6 +617,39 @@ app.post('/api/deposit/pix', async (req, res) => {
     
     console.log(`✅ [PIX] PIX confirmado: ${transactionId}`);
     
+    // AUTO-DISPARAR MINT APÓS CONFIRMAÇÃO PIX
+    console.log('🚀 [AUTO-MINT] Disparando mint automaticamente após confirmação PIX...');
+    
+    try {
+      // Buscar dados da transação confirmada
+      const confirmedTransaction = await prisma.transaction.findUnique({
+        where: { id: transactionId },
+        include: { user: { select: { publicKey: true, email: true } } }
+      });
+      
+      if (!confirmedTransaction || !confirmedTransaction.user?.publicKey) {
+        console.error('❌ [AUTO-MINT] Usuário não encontrado ou sem endereço de carteira');
+        // Não falha a confirmação PIX por isso
+      } else {
+        // Executar mint automaticamente
+        const MintTransactionService = require('./services/mintTransaction.service');
+        const mintService = new MintTransactionService();
+        
+        console.log(`🏭 [AUTO-MINT] Criando mint REAL para ${confirmedTransaction.amount} cBRL`);
+        const mintTransaction = await mintService.createMintTransaction(
+          transactionId,
+          confirmedTransaction.userId,
+          confirmedTransaction.amount.toString(),
+          confirmedTransaction.user.publicKey
+        );
+        
+        console.log(`✅ [AUTO-MINT] Mint REAL criado automaticamente: ${mintTransaction.id}`);
+      }
+    } catch (mintError) {
+      console.error('❌ [AUTO-MINT] Erro ao executar mint automático:', mintError);
+      // Não falha a confirmação PIX por causa do erro no mint
+    }
+    
     res.json({
       success: true,
       message: 'PIX confirmado com sucesso',
@@ -540,7 +657,8 @@ app.post('/api/deposit/pix', async (req, res) => {
         transactionId: transactionId,
         status: 'confirmed',
         pixConfirmed: true,
-        readyForMint: true
+        readyForMint: true,
+        autoMintTriggered: true
       }
     });
     

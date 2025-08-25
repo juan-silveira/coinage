@@ -70,19 +70,40 @@ const DepositPage = () => {
       // Usar função do hook para obter valor numérico
       const amount = getNumericValue();
       
-      const response = await api.post("/api/deposits", {
+      const response = await api.post("/api/deposit", {
         amount: amount,
         userId: user?.id,
       });
 
+      console.log('🔍 [DEPOSIT-DEBUG] Resposta completa do backend:', response);
+      console.log('🔍 [DEPOSIT-DEBUG] response.data:', response.data);
+      console.log('🔍 [DEPOSIT-DEBUG] response.data.success:', response.data.success);
+
       if (response.data.success) {
+        console.log('✅ [DEPOSIT] Sucesso! Dados:', response.data);
+        const { data } = response.data;
+        
+        // PEGAR APENAS O CAMPO QUE IMPORTA: transactionId (UUID do PostgreSQL)
+        const realTransactionId = data.transactionId;
+        console.log('🔍 [DEPOSIT] UUID real da transação:', realTransactionId);
+        
+        if (!realTransactionId || realTransactionId.startsWith('pix_')) {
+          console.error('❌ [DEPOSIT] TransactionId inválido:', realTransactionId);
+          showError('Erro', 'ID da transação inválido recebido do backend');
+          return;
+        }
+        
         showSuccess(
-          "Depósito iniciado com sucesso!",
-          "A transação foi enviada para processamento."
+          "Depósito criado com sucesso!",
+          `Valor: R$ ${data.amount} | PIX: R$ ${data.totalAmount} (taxa: R$ ${data.feeAmount})`
         );
-        setCurrentStep(1);
-        clearValue();
+        
+        // REDIRECIONAR USANDO APENAS O UUID REAL DO BANCO
+        console.log('🔄 [DEPOSIT] Redirecionando para:', `/deposit/pix/${realTransactionId}`);
+        window.location.href = `/deposit/pix/${realTransactionId}`;
       } else {
+        console.error('❌ [DEPOSIT-DEBUG] Sucesso = false!');
+        console.error('❌ [DEPOSIT-DEBUG] Mensagem de erro:', response.data.message);
         showError("Erro ao processar depósito", response.data.message);
       }
     } catch (error) {

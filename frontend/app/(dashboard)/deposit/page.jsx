@@ -135,12 +135,13 @@ const DepositPage = () => {
             "Redirecionando para pagamento PIX..."
           );
           
-          // Redirecionar para a página de pagamento PIX
-          if (data.data?.pixPaymentId) {
-            router.push(`/deposit/pix/${data.data.pixPaymentId}`);
-          } else if (data.data?.transactionId) {
-            router.push(`/deposit/tx/${data.data.transactionId}`);
+          // USAR APENAS O UUID REAL DO BANCO - NUNCA MAIS pixPaymentId
+          if (data.data?.transactionId) {
+            console.log('🔄 [DEPOSIT] Redirecionando para PIX com UUID real:', data.data.transactionId);
+            router.push(`/deposit/pix/${data.data.transactionId}`);
           } else {
+            console.error('❌ [DEPOSIT] TransactionId não encontrado!', data.data);
+            showError('Erro', 'ID da transação não encontrado na resposta');
             setCurrentStep(1);
             clearValue();
           }

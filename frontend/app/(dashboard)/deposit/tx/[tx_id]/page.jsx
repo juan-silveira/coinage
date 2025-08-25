@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
@@ -22,9 +22,14 @@ const DepositConfirmationPage = () => {
   const [transaction, setTransaction] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [processingMint] = useState(false);
-  const [mintStatus, setMintStatus] = useState('');
+  const [processingMint, setProcessingMint] = useState(true);
+  const [mintStatus, setMintStatus] = useState('Processando depósito...');
   const [mintTransaction, setMintTransaction] = useState(null);
+  const [blockchainDetails, setBlockchainDetails] = useState(null);
+  
+  // Ref para controlar o polling
+  const pollingInterval = useRef(null);
+  const shouldStopPolling = useRef(false);
 
   // Função para buscar transação de mint vinculada
   const fetchMintTransaction = useCallback(async (depositTxId) => {
@@ -42,13 +47,50 @@ const DepositConfirmationPage = () => {
           if (data.data) {
             // Mint transaction encontrada
             setMintTransaction(data.data);
-            setMintStatus(data.data.status);
+            
+            // Atualizar status baseado no resultado
+            if (data.data.status === 'confirmed') {
+              console.log('🎉 [FETCH-MINT] STATUS CONFIRMED DETECTADO!');
+              console.log('🎉 [FETCH-MINT] TX Hash disponível:', data.data.txHash);
+              console.log('🎉 [FETCH-MINT] Parando polling...');
+              
+              setMintStatus('Depósito concluído com sucesso!');
+              setProcessingMint(false); // Parar processamento quando confirmado
+              shouldStopPolling.current = true; // PARAR POLLING
+              
+              // Limpar o intervalo imediatamente
+              if (pollingInterval.current) {
+                clearInterval(pollingInterval.current);
+                pollingInterval.current = null;
+              }
+              
+              console.log('🎉 [FETCH-MINT] Estados atualizados - UI deve mudar para VERDE agora!');
+              console.log('🎉 [FETCH-MINT] Dados completos da transação:', JSON.stringify(data.data, null, 2));
+            } else if (data.data.status === 'failed') {
+              setMintStatus('Falha no processamento do depósito');
+              setProcessingMint(false); // Parar processamento quando falha
+              shouldStopPolling.current = true; // PARAR POLLING
+              
+              // Limpar o intervalo imediatamente
+              if (pollingInterval.current) {
+                clearInterval(pollingInterval.current);
+                pollingInterval.current = null;
+              }
+              
+              console.log('❌ [FETCH-MINT] Depósito falhou! PARANDO POLLING.', data.data);
+            } else {
+              setMintStatus('Processando depósito na blockchain...');
+              setProcessingMint(true); // Continuar processamento se pending
+              console.log('⏳ [FETCH-MINT] Status ainda:', data.data.status, '- continuando polling...');
+            }
+            
             console.log('✅ Transação de mint encontrada:', data.data);
           } else {
             // Nenhuma transação de mint ainda
             console.log('ℹ️ Nenhuma transação de mint encontrada ainda');
             setMintTransaction(null);
-            setMintStatus('');
+            setMintStatus('Aguardando processamento do depósito...');
+            setProcessingMint(true);
           }
         } else {
           console.error('❌ Erro na API de mint:', data.message);
@@ -135,9 +177,19 @@ const DepositConfirmationPage = () => {
   }, [txId, fetchMintTransaction]);
 
   // Função para abrir transação no explorer
-  const openInExplorer = (txHash) => {
+  const openInExplorer = (txHash, network) => {
     if (txHash) {
-      window.open(`https://azorescan.com/tx/${txHash}`, '_blank');
+      // Detectar se é testnet ou mainnet
+      const isTestnet = network === 'testnet' || (mintTransaction && mintTransaction.network === 'testnet');
+      const explorerUrl = isTestnet 
+        ? `https://floripa.azorescan.com/tx/${txHash}`
+        : `https://azorescan.com/tx/${txHash}`;
+      
+      console.log('🔍 [EXPLORER] Abrindo transação:', txHash);
+      console.log('🔍 [EXPLORER] Rede detectada:', isTestnet ? 'testnet' : 'mainnet');
+      console.log('🔍 [EXPLORER] URL:', explorerUrl);
+      
+      window.open(explorerUrl, '_blank');
     }
   };
 
@@ -162,21 +214,75 @@ const DepositConfirmationPage = () => {
     router.push('/dashboard');
   };
 
-  // Polling para atualizar status do mint
+  // Polling controlado por ref
   useEffect(() => {
-    if (!mintTransaction || mintTransaction.status !== 'pending') return;
+    if (!txId) return;
 
-    const pollMintStatus = async () => {
+    console.log('🚀 [POLLING] Iniciando polling para transação:', txId);
+    shouldStopPolling.current = false; // Reset flag
+    
+    const pollTransactionStatus = async () => {
+      // Verificar se deve parar antes de fazer requisição
+      if (shouldStopPolling.current) {
+        console.log('🛑 [POLLING] Flag ativada - parando polling');
+        if (pollingInterval.current) {
+          clearInterval(pollingInterval.current);
+          pollingInterval.current = null;
+        }
+        return;
+      }
+
+      // Verificar se já confirmado antes de fazer nova requisição
+      if (mintTransaction && mintTransaction.status === 'confirmed') {
+        console.log('🛑 [POLLING] Transação já confirmada - parando polling');
+        shouldStopPolling.current = true;
+        if (pollingInterval.current) {
+          clearInterval(pollingInterval.current);
+          pollingInterval.current = null;
+        }
+        return;
+      }
+
       try {
+        console.log('🔄 [POLLING] Fazendo requisição...');
         await fetchMintTransaction(txId);
       } catch (error) {
-        console.error('Erro no polling do mint:', error);
+        console.error('❌ [POLLING] Erro no polling:', error);
       }
     };
 
-    const interval = setInterval(pollMintStatus, 5000); // Poll a cada 5 segundos
-    return () => clearInterval(interval);
-  }, [mintTransaction, txId, fetchMintTransaction]);
+    // Primeira requisição imediatamente
+    pollTransactionStatus();
+    
+    // Polling contínuo apenas se ainda não confirmado
+    if (!mintTransaction || mintTransaction.status !== 'confirmed') {
+      pollingInterval.current = setInterval(pollTransactionStatus, 3000);
+      console.log('⏰ [POLLING] Interval ativo');
+    }
+
+    // Cleanup
+    return () => {
+      console.log('🧹 [POLLING] Cleanup - parando interval');
+      if (pollingInterval.current) {
+        clearInterval(pollingInterval.current);
+        pollingInterval.current = null;
+      }
+      shouldStopPolling.current = true;
+    };
+  }, [txId, mintTransaction?.status]); // Adicionado status como dependência para parar quando confirmado
+
+  // useEffect específico para parar polling quando confirmado
+  useEffect(() => {
+    if (mintTransaction && mintTransaction.status === 'confirmed') {
+      console.log('🛑 [STATUS-CHECK] Transação confirmada - parando polling definitivamente');
+      shouldStopPolling.current = true;
+      if (pollingInterval.current) {
+        clearInterval(pollingInterval.current);
+        pollingInterval.current = null;
+        console.log('🛑 [STATUS-CHECK] Polling parado com sucesso');
+      }
+    }
+  }, [mintTransaction?.status]);
 
   // DEBUG: Função para confirmar PIX manualmente
   const handleDebugConfirmPix = async () => {
@@ -338,6 +444,14 @@ const DepositConfirmationPage = () => {
   if (transaction) {
     const isConfirmed = transaction.status === 'confirmed';
     const isPending = transaction.status === 'pending';
+    
+    // DEBUG: Log dos estados na renderização
+    console.log('🔍 [RENDER] Estados atuais:');
+    console.log('🔍 [RENDER] processingMint:', processingMint);
+    console.log('🔍 [RENDER] mintTransaction:', mintTransaction);
+    console.log('🔍 [RENDER] mintTransaction.status:', mintTransaction?.status);
+    console.log('🔍 [RENDER] isConfirmed:', isConfirmed);
+    console.log('🔍 [RENDER] isPending:', isPending);
 
     return (
       <div className="min-h-screen py-8">
@@ -345,18 +459,18 @@ const DepositConfirmationPage = () => {
           {/* Header */}
           <div className="text-center mb-8">
             <div className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 ${
-              isConfirmed ? 'bg-green-100 dark:bg-green-900/30' : 
+              mintTransaction && mintTransaction.status === 'confirmed' ? 'bg-green-100 dark:bg-green-900/30' :
               (isPending || processingMint) ? 'bg-yellow-100 dark:bg-yellow-900/30' : 
               'bg-red-100 dark:bg-red-900/30'
             }`}>
               <Icon 
                 icon={
-                  isConfirmed ? "heroicons:check-circle" : 
+                  mintTransaction && mintTransaction.status === 'confirmed' ? "heroicons:check-circle" :
                   (isPending || processingMint) ? "heroicons:arrow-path" : 
                   "heroicons:x-circle"
                 } 
                 className={`w-10 h-10 ${
-                  isConfirmed ? 'text-green-600 dark:text-green-400' : 
+                  mintTransaction && mintTransaction.status === 'confirmed' ? 'text-green-600 dark:text-green-400' :
                   (isPending || processingMint) ? 'text-yellow-600 dark:text-yellow-400 animate-spin' : 
                   'text-red-600 dark:text-red-400'
                 }`} 
@@ -364,7 +478,8 @@ const DepositConfirmationPage = () => {
             </div>
             
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-              {processingMint ? 'Processando Mint...' :
+              {mintTransaction && mintTransaction.status === 'confirmed' ? 'Depósito Concluído!' :
+               processingMint ? 'Processando Depósito...' :
                isConfirmed ? 'Depósito Confirmado!' : 
                isPending ? 'Depósito em Processamento' : 
                'Depósito Falhou'}
@@ -373,19 +488,19 @@ const DepositConfirmationPage = () => {
             <p className="text-gray-600 dark:text-gray-400">
               {processingMint ? mintStatus :
                isConfirmed ? 'Seu depósito foi processado com sucesso na blockchain' : 
-               isPending ? 'Processando PIX e executando mint de cBRL automaticamente...' : 
+               isPending ? 'Processando PIX e executando conversão de cBRL automaticamente...' : 
                'Houve um problema ao processar seu depósito'}
             </p>
           </div>
 
-          {/* Loading do Processo Automático */}
-          {processingMint && (
+          {/* Loading do Processo Automático - só mostrar se ainda processando */}
+          {processingMint && !(mintTransaction && mintTransaction.status === 'confirmed') && (
             <div className="mb-8 p-6 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg">
               <div className="flex items-center space-x-4">
                 <Icon icon="heroicons:arrow-path" className="w-8 h-8 text-blue-600 dark:text-blue-400 animate-spin flex-shrink-0" />
                 <div className="flex-1">
                   <h3 className="text-lg font-semibold text-blue-800 dark:text-blue-200 mb-1">
-                    Processamento Automático
+                    Processando Depósito
                   </h3>
                   <p className="text-blue-700 dark:text-blue-300">
                     {mintStatus}
@@ -393,8 +508,8 @@ const DepositConfirmationPage = () => {
                   <div className="mt-3 w-full bg-blue-200 dark:bg-blue-800 rounded-full h-2">
                     <div className="bg-blue-600 dark:bg-blue-400 h-2 rounded-full animate-pulse" style={{
                       width: mintStatus.includes('PIX') ? '33%' : 
-                             mintStatus.includes('mint') ? '66%' : 
-                             mintStatus.includes('concluído') ? '100%' : '10%'
+                             mintStatus.includes('depósito') || mintStatus.includes('blockchain') ? '66%' : 
+                             mintStatus.includes('concluído') || mintStatus.includes('sucesso') ? '100%' : '10%'
                     }}></div>
                   </div>
                 </div>
@@ -402,109 +517,134 @@ const DepositConfirmationPage = () => {
             </div>
           )}
 
-          {/* Detalhes da Transação */}
-          <Card className="mb-6">
-            <div className="p-6">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
-                Detalhes da Transação
-              </h2>
-              
-              <div className="space-y-4">
-                {/* ID da Transação */}
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600 dark:text-gray-400 font-medium">
-                    ID da Transação:
-                  </span>
-                  <span className="font-mono text-sm text-gray-900 dark:text-white">
-                    {transaction.id}
-                  </span>
-                </div>
-
-                {/* Valor */}
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600 dark:text-gray-400 font-medium">
-                    Valor:
-                  </span>
-                  <span className="text-lg font-bold text-gray-900 dark:text-white">
-                    R$ {transaction.amount?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                  </span>
-                </div>
-
-                {/* Status */}
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600 dark:text-gray-400 font-medium">
-                    Status:
-                  </span>
-                  <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                    isConfirmed ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : 
-                    isPending ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400' : 
-                    'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
-                  }`}>
-                    {isConfirmed ? 'Confirmado' : 
-                     isPending ? 'Pendente' : 
-                     'Falhou'}
-                  </span>
-                </div>
-
-                {/* Data de Criação */}
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600 dark:text-gray-400 font-medium">
-                    Data:
-                  </span>
-                  <span className="text-gray-900 dark:text-white">
-                    {new Date(transaction.createdAt).toLocaleString('pt-BR')}
-                  </span>
-                </div>
-
-                {/* Hash da Transação (se confirmado) */}
-                {transaction.blockchainData?.transactionHash && (
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-600 dark:text-gray-400 font-medium">
-                      Hash da Transação:
-                    </span>
-                    <div className="flex items-center space-x-2">
-                      <span className="font-mono text-xs text-gray-900 dark:text-white max-w-32 truncate">
-                        {transaction.blockchainData.transactionHash}
+          {/* Se concluído, mostrar apenas um card simplificado com dados da blockchain */}
+          {mintTransaction && mintTransaction.status === 'confirmed' ? (
+            <Card className="mb-6">
+              <div className="p-6">
+                <div className="space-y-4">
+                  {/* Transaction Hash - prioritizando txHash */}
+                  {mintTransaction.txHash && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600 dark:text-gray-400 font-medium">
+                        Tx Hash:
                       </span>
-                      <Button
-                        onClick={() => copyTransactionHash(transaction.blockchainData.transactionHash)}
-                        className="p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                      >
-                        <Icon icon="heroicons:clipboard-document" className="w-4 h-4" />
-                      </Button>
+                      <div className="flex items-center space-x-2">
+                        <span className="font-mono text-xs text-gray-900 dark:text-white">
+                          {`${mintTransaction.txHash.slice(0, 10)}...${mintTransaction.txHash.slice(-8)}`}
+                        </span>
+                        <Button
+                          onClick={() => copyTransactionHash(mintTransaction.txHash)}
+                          className="p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                          title="Copiar hash"
+                        >
+                          <Icon icon="heroicons:clipboard-document" className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          onClick={() => openInExplorer(mintTransaction.txHash, mintTransaction.network)}
+                          className="p-1 text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-200"
+                          title="Ver no explorer"
+                        >
+                          <Icon icon="heroicons:arrow-top-right-on-square" className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
-                {/* Bloco (se confirmado) */}
-                {transaction.blockchainData?.blockNumber && (
+                  {/* Número do Bloco */}
+                  {(mintTransaction.blockNumber || mintTransaction.block_number || mintTransaction.blockchainData?.blockNumber) && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600 dark:text-gray-400 font-medium">
+                        Bloco:
+                      </span>
+                      <span className="font-mono text-gray-900 dark:text-white">
+                        {mintTransaction.blockNumber || mintTransaction.block_number || mintTransaction.blockchainData?.blockNumber}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Quantidade */}
                   <div className="flex justify-between items-center">
                     <span className="text-gray-600 dark:text-gray-400 font-medium">
-                      Bloco:
+                      Quantidade:
                     </span>
-                    <span className="font-mono text-gray-900 dark:text-white">
-                      {transaction.blockchainData.blockNumber}
+                    <span className="text-lg font-bold text-primary-600 dark:text-primary-400">
+                      {mintTransaction.amount} {mintTransaction.tokenSymbol || 'cBRL'}
                     </span>
                   </div>
-                )}
 
-                {/* Gas Used (se confirmado) */}
-                {transaction.blockchainData?.gasUsed && (
+                  {/* Hora */}
                   <div className="flex justify-between items-center">
                     <span className="text-gray-600 dark:text-gray-400 font-medium">
-                      Gas Utilizado:
+                      Hora:
                     </span>
-                    <span className="font-mono text-gray-900 dark:text-white">
-                      {transaction.blockchainData.gasUsed.toLocaleString()}
+                    <span className="text-gray-900 dark:text-white">
+                      {new Date(mintTransaction.createdAt).toLocaleString('pt-BR')}
                     </span>
                   </div>
-                )}
+                </div>
               </div>
-            </div>
-          </Card>
+            </Card>
+          ) : (
+            /* Se ainda processando, mostrar detalhes completos */
+            <Card className="mb-6">
+              <div className="p-6">
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+                  Detalhes da Transação
+                </h2>
+                
+                <div className="space-y-4">
+                  {/* ID da Transação */}
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600 dark:text-gray-400 font-medium">
+                      ID da Transação:
+                    </span>
+                    <span className="font-mono text-sm text-gray-900 dark:text-white">
+                      {transaction.id}
+                    </span>
+                  </div>
 
-          {/* Informações do Mint cBRL */}
-          {mintTransaction && (
+                  {/* Valor */}
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600 dark:text-gray-400 font-medium">
+                      Valor:
+                    </span>
+                    <span className="text-lg font-bold text-gray-900 dark:text-white">
+                      R$ {transaction.amount?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </span>
+                  </div>
+
+                  {/* Status */}
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600 dark:text-gray-400 font-medium">
+                      Status:
+                    </span>
+                    <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                      mintTransaction && mintTransaction.status === 'confirmed' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : 
+                      processingMint ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400' : 
+                      'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
+                    }`}>
+                      {mintTransaction && mintTransaction.status === 'confirmed' ? 'Confirmado' : 
+                       processingMint ? 'Processando' : 
+                       'Falhou'}
+                    </span>
+                  </div>
+
+                  {/* Data de Criação */}
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600 dark:text-gray-400 font-medium">
+                      Data:
+                    </span>
+                    <span className="text-gray-900 dark:text-white">
+                      {new Date(transaction.createdAt).toLocaleString('pt-BR')}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </Card>
+          )}
+
+          {/* Informações do Mint cBRL - só mostrar se ainda processando */}
+          {mintTransaction && mintTransaction.status !== 'confirmed' && (
             <Card className="mb-6">
               <div className="p-6">
                 <div className="flex items-center mb-4">
@@ -535,22 +675,38 @@ const DepositConfirmationPage = () => {
                   <div>
                     <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
                       {mintTransaction.status === 'success' 
-                        ? 'Mint de cBRL Realizado' 
+                        ? '🎉 Conversão para cBRL Concluída!' 
                         : mintTransaction.status === 'failed'
-                        ? 'Falha no Mint de cBRL'
-                        : 'Processando Mint de cBRL'}
+                        ? 'Falha na Conversão para cBRL'
+                        : 'Processando Conversão para cBRL'}
                     </h2>
                     <p className="text-sm text-gray-600 dark:text-gray-400">
-                      Status: {mintTransaction.status}
+                      {mintTransaction.status === 'success' 
+                        ? 'Tokens cBRL creditados com sucesso na blockchain'
+                        : mintTransaction.status === 'failed'
+                        ? 'Ocorreu um erro durante o processamento'
+                        : 'Aguardando confirmação na rede Azore...'}
                     </p>
                   </div>
                 </div>
                 
+                {/* Badge de destaque para transação bem-sucedida */}
+                {mintTransaction.status === 'success' && (
+                  <div className="mb-4 p-3 bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-900/20 dark:to-blue-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                    <div className="flex items-center">
+                      <Icon icon="heroicons:sparkles" className="w-5 h-5 text-green-600 dark:text-green-400 mr-2" />
+                      <p className="text-green-800 dark:text-green-200 font-medium">
+                        Transação confirmada na blockchain Azore!
+                      </p>
+                    </div>
+                  </div>
+                )}
+                
                 <div className="space-y-4">
-                  {/* ID da Transação Mint */}
+                  {/* ID da Transação de Conversão */}
                   <div className="flex justify-between items-center">
                     <span className="text-gray-600 dark:text-gray-400 font-medium">
-                      ID da Transação Mint:
+                      ID da Transação de Conversão:
                     </span>
                     <span className="font-mono text-xs text-gray-900 dark:text-white">
                       {mintTransaction.id}
@@ -596,8 +752,9 @@ const DepositConfirmationPage = () => {
                           <Icon icon="heroicons:clipboard-document" className="w-4 h-4" />
                         </Button>
                         <Button
-                          onClick={() => openInExplorer(mintTransaction.blockchainData.transactionHash)}
+                          onClick={() => openInExplorer(mintTransaction.blockchainData.transactionHash, mintTransaction.network)}
                           className="p-1 text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-200"
+                          title="Ver no explorer"
                         >
                           <Icon icon="heroicons:arrow-top-right-on-square" className="w-4 h-4" />
                         </Button>
@@ -669,54 +826,77 @@ const DepositConfirmationPage = () => {
               <div className="flex items-center">
                 <Icon icon="heroicons:arrow-path" className="w-5 h-5 text-yellow-600 dark:text-yellow-400 animate-spin mr-3" />
                 <p className="text-yellow-800 dark:text-yellow-200">
-                  Processando mint na blockchain... Aguarde enquanto a transação é confirmada.
+                  Processando conversão na blockchain... Aguarde enquanto a transação é confirmada.
                 </p>
               </div>
             </div>
           )}
 
-          {/* Ações */}
-          <div className="flex flex-col sm:flex-row justify-center space-y-3 sm:space-y-0 sm:space-x-4">
-            {/* Ver Mint no Explorer (se mint foi bem-sucedido) */}
-            {mintTransaction?.status === 'success' && mintTransaction.blockchainData?.transactionHash && (
+          {/* Ações - simplificado quando concluído */}
+          {mintTransaction && mintTransaction.status === 'confirmed' ? (
+            <div className="flex justify-center space-x-4 mb-6">
+              {/* Botão do Explorer destacado */}
+              {mintTransaction.txHash && (
+                <Button
+                  onClick={() => openInExplorer(mintTransaction.txHash, mintTransaction.network)}
+                  className="bg-transparent border-2 border-primary-500 text-primary-500 hover:bg-primary-500 hover:text-white px-6 py-3 flex items-center justify-center rounded-lg"
+                >
+                  <Icon icon="heroicons:arrow-top-right-on-square" className="w-5 h-5 mr-2" />
+                  Ver no Explorer
+                </Button>
+              )}
+
+              {/* Novo Depósito */}
               <Button
-                onClick={() => openInExplorer(mintTransaction.blockchainData.transactionHash)}
-                className="bg-green-500 hover:bg-green-600 text-white px-6 py-3 flex items-center justify-center"
+                onClick={handleNewDeposit}
+                className="bg-primary-500 hover:bg-primary-600 text-white px-6 py-3 flex items-center justify-center"
               >
-                <Icon icon="heroicons:arrow-top-right-on-square" className="w-5 h-5 mr-2" />
-                Ver Mint no Explorer
+                <Icon icon="heroicons:plus" className="w-5 h-5 mr-2" />
+                Novo Depósito
               </Button>
-            )}
 
-            {/* Ver no Explorer (se confirmado) */}
-            {transaction.blockchainData?.transactionHash && (
+              {/* Dashboard */}
               <Button
-                onClick={() => openInExplorer(transaction.blockchainData.transactionHash)}
-                className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 flex items-center justify-center"
+                onClick={handleGoToDashboard}
+                className="bg-slate-500 hover:bg-slate-600 text-white px-6 py-3 flex items-center justify-center"
               >
-                <Icon icon="heroicons:arrow-top-right-on-square" className="w-5 h-5 mr-2" />
-                Ver Depósito no Explorer
+                <Icon icon="heroicons:home" className="w-5 h-5 mr-2" />
+                Dashboard
               </Button>
-            )}
+            </div>
+          ) : (
+            /* Ações normais quando ainda processando */
+            <div className="flex flex-col sm:flex-row justify-center space-y-3 sm:space-y-0 sm:space-x-4">
+              {/* Ver Conversão no Explorer (se conversão foi bem-sucedida) */}
+              {mintTransaction?.status === 'confirmed' && mintTransaction.blockchainData?.transactionHash && (
+                <Button
+                  onClick={() => openInExplorer(mintTransaction.blockchainData.transactionHash, mintTransaction.network)}
+                  className="bg-green-500 hover:bg-green-600 text-white px-6 py-3 flex items-center justify-center"
+                >
+                  <Icon icon="heroicons:arrow-top-right-on-square" className="w-5 h-5 mr-2" />
+                  Ver Conversão no Explorer
+                </Button>
+              )}
 
-            {/* Novo Depósito */}
-            <Button
-              onClick={handleNewDeposit}
-              className="bg-primary-500 hover:bg-primary-600 text-white px-6 py-3 flex items-center justify-center"
-            >
-              <Icon icon="heroicons:plus" className="w-5 h-5 mr-2" />
-              Novo Depósito
-            </Button>
+              {/* Novo Depósito */}
+              <Button
+                onClick={handleNewDeposit}
+                className="bg-primary-500 hover:bg-primary-600 text-white px-6 py-3 flex items-center justify-center"
+              >
+                <Icon icon="heroicons:plus" className="w-5 h-5 mr-2" />
+                Novo Depósito
+              </Button>
 
-            {/* Ir ao Dashboard */}
-            <Button
-              onClick={handleGoToDashboard}
-              className="bg-slate-500 hover:bg-slate-600 text-white px-6 py-3 flex items-center justify-center"
-            >
-              <Icon icon="heroicons:home" className="w-5 h-5 mr-2" />
-              Dashboard
-            </Button>
-          </div>
+              {/* Ir ao Dashboard */}
+              <Button
+                onClick={handleGoToDashboard}
+                className="bg-slate-500 hover:bg-slate-600 text-white px-6 py-3 flex items-center justify-center"
+              >
+                <Icon icon="heroicons:home" className="w-5 h-5 mr-2" />
+                Dashboard
+              </Button>
+            </div>
+          )}
 
           {/* Informações Adicionais */}
           {isPending && (
@@ -768,7 +948,7 @@ const DepositConfirmationPage = () => {
                       className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 flex items-center justify-center"
                     >
                       <Icon icon="heroicons:sparkles" className="w-4 h-4 mr-2" />
-                      PIX + Mint Automático
+                      PIX + Conversão Automática
                     </Button>
                   </div>
                 </div>
@@ -776,7 +956,7 @@ const DepositConfirmationPage = () => {
             </>
           )}
 
-          {isConfirmed && (
+          {mintTransaction && mintTransaction.status === 'confirmed' && (
             <div className="mt-6 p-4 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-lg">
               <div className="flex items-start space-x-3">
                 <Icon icon="heroicons:check-circle" className="w-5 h-5 text-green-600 dark:text-green-400 mt-0.5 flex-shrink-0" />
@@ -786,13 +966,8 @@ const DepositConfirmationPage = () => {
                   </h3>
                   <p className="text-sm text-green-700 dark:text-green-300">
                     Seu depósito foi processado e confirmado na blockchain Azore.
-                    {transaction.metadata?.mint?.success && (
-                      <> Os tokens cBRL foram automaticamente mintados e creditados na sua carteira.</>
-                    )}
-                    {!transaction.metadata?.mint?.success && (
-                      <> O saldo foi atualizado na sua conta.</>
-                    )}
-                    {' '}Você pode verificar as transações no explorer clicando nos botões acima.
+                    Os tokens cBRL foram automaticamente convertidos e creditados na sua carteira.
+                    Você pode verificar as transações no explorer clicando nos botões acima.
                   </p>
                 </div>
               </div>
