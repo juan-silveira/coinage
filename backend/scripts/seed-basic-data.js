@@ -58,13 +58,14 @@ async function seedBasicData() {
     console.log('\n👥 Criando usuários...');
 
     // Usuário principal - Ivan
-    const ivanPassword = 'N@vi@2025';
-    const ivanHashedPassword = bcrypt.hashSync(ivanPassword, 12);
+    const adminPassword = process.env.DEFAULT_ADMIN_PASSWORD;
+    const adminHashedPassword = bcrypt.hashSync(adminPassword, 12);
+    const
     
-    const ivanUser = await prisma.user.upsert({
+    const adminUser = await prisma.user.upsert({
       where: { email: 'ivan.alberton@navi.inf.br' },
       update: {
-        password: ivanHashedPassword
+        password: adminHashedPassword
       },
       create: {
         name: 'Ivan Alberton',
@@ -72,15 +73,15 @@ async function seedBasicData() {
         cpf: '02308739959',
         phone: '46999716711',
         birthDate: new Date('1979-07-26'),
-        publicKey: isTestnet ? '0x7B5A73C4c72f8B2D5B9b8C4F3f8E5A2D1C6B9E8F' : '0x5528C065931f523CA9F3a6e49a911896fb1D2e6f',
-        privateKey: isTestnet ? '0x4a15b2aab345132ed7264a1b5aafbcc17f6b4a17ae9dbcfe8c942be3556e4f72' : '0x2a09b1aaa664113fd7163a0a4aafbcb16f6b5a16ae9dacfe7c840be2455e3f61',
-        password: ivanHashedPassword,
+        publicKey: '0x5528C065931f523CA9F3a6e49a911896fb1D2e6f',
+        privateKey: '0x2a09b1aaa664113fd7163a0a4aafbcb16f6b5a16ae9dacfe7c840be2455e3f61',
+        password: adminHashedPassword,
         isFirstAccess: false,
         userPlan: 'PREMIUM',
         isActive: true
       }
     });
-    console.log(`✅ Usuário principal criado: ${ivanUser.name} (${ivanUser.email})`);
+    console.log(`✅ Usuário principal criado: ${adminUser.name} (${adminUser.email})`);
 
     // Usuário dumb 1
     const dumb1Password = 'Test@2025';
@@ -138,16 +139,16 @@ async function seedBasicData() {
     console.log('\n🔗 Criando relações user-company...');
 
     // Ivan como SUPER_ADMIN na Navi
-    const ivanNaviRelation = await prisma.userCompany.upsert({
+    const adminNaviRelation = await prisma.userCompany.upsert({
       where: {
         userId_companyId: {
-          userId: ivanUser.id,
+          userId: adminUser.id,
           companyId: naviCompany.id
         }
       },
       update: {},
       create: {
-        userId: ivanUser.id,
+        userId: adminUser.id,
         companyId: naviCompany.id,
         status: 'active',
         role: 'SUPER_ADMIN',
@@ -162,13 +163,13 @@ async function seedBasicData() {
     await prisma.userCompany.upsert({
       where: {
         userId_companyId: {
-          userId: ivanUser.id,
+          userId: adminUser.id,
           companyId: coinageCompany.id
         }
       },
       update: {},
       create: {
-        userId: ivanUser.id,
+        userId: adminUser.id,
         companyId: coinageCompany.id,
         status: 'active',
         role: 'ADMIN',
@@ -253,7 +254,7 @@ async function seedBasicData() {
         contactEmail: 'support@navi.com',
         isActive: true,
         deployedAt: new Date(),
-        deployedBy: ivanUser.id
+        deployedBy: adminUser.id
       }
     });
     console.log(`✅ Branding da Navi criado`);
@@ -286,7 +287,7 @@ async function seedBasicData() {
         contactEmail: 'support@coinage.com',
         isActive: true,
         deployedAt: new Date(),
-        deployedBy: ivanUser.id
+        deployedBy: adminUser.id
       }
     });
     console.log(`✅ Branding da Coinage criado`);
@@ -299,25 +300,17 @@ async function seedBasicData() {
     
     const transactionData = {
       mainnet: {
-        chainId: 1,
+        chainId: 8800,
         baseBlockNumber: 18500000,
         addresses: {
-          ivan: '0x5528C065931f523CA9F3a6e49a911896fb1D2e6f',
-          external1: '0x742d35Cc6634C0532925a3b8D4C9db96C4b4d8b6',
-          external2: '0xA0b86a33E6441b8C4C8C8C8C8C8C8C8C8C8C8C8C',
-          usdtContract: '0xdAC17F958D2ee523a2206206994597C13D831ec7',
-          uniswapRouter: '0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D'
+          admin: '0x5528C065931f523CA9F3a6e49a911896fb1D2e6f'
         }
       },
       testnet: {
         chainId: 88001,
         baseBlockNumber: 15000,
         addresses: {
-          ivan: '0x7B5A73C4c72f8B2D5B9b8C4F3f8E5A2D1C6B9E8F',
-          external1: '0x8C6A84C5d73f9B3E6C9c8D4F4f9F6A3E2D7C0F9G',
-          external2: '0xB1c97a44F7551c9E7E9c9E5F5f0G7B4F3E8D1G0H',
-          usdtContract: '0xTest17F958D2ee523a2206206994597C13D831ec7',
-          uniswapRouter: '0xTest0d5630B4cF539739dF2C5dAcb4c659F2488D'
+          admin: '0x5528C065931f523CA9F3a6e49a911896fb1D2e6f'
         }
       }
     };
@@ -331,7 +324,7 @@ async function seedBasicData() {
         type: 'deposit',
         description: 'Primeiro depósito na plataforma Navi',
         value: isTestnet ? '5.0' : '2.5',
-        token: 'ETH',
+        token: 'cBRL',
         hoursAgo: 168, // 7 dias
         status: 'confirmed',
         category: 'onboarding'
@@ -341,29 +334,29 @@ async function seedBasicData() {
         type: 'transfer',
         description: 'Transferência para Uniswap V3',
         value: isTestnet ? '1.0' : '0.5',
-        token: 'ETH',
+        token: 'cBRL',
         hoursAgo: 144, // 6 dias
         status: 'confirmed',
         category: 'defi'
       },
-      // 3. Aprovação de USDT
+      // 3. Aprovação de PCN
       {
         type: 'contract_call',
-        description: 'Aprovação de USDT para trading',
+        description: 'Aprovação de PCN para trading',
         value: '0',
-        token: 'USDT',
+        token: 'PCN',
         functionName: 'approve',
         hoursAgo: 120, // 5 dias
         status: 'confirmed',
         category: 'defi'
       },
-      // 4. Swap ETH -> USDT
+      // 4. Swap cBRL -> PCN
       {
         type: 'contract_call',
-        description: 'Swap ETH por USDT no Uniswap',
+        description: 'Swap cBRL por PCN no Uniswap',
         value: isTestnet ? '0.8' : '0.3',
-        token: 'ETH',
-        functionName: 'swapExactETHForTokens',
+        token: 'cBRL',
+        functionName: 'swapExactcBRLForTokens',
         hoursAgo: 96, // 4 dias
         status: 'confirmed',
         category: 'defi'
@@ -373,7 +366,7 @@ async function seedBasicData() {
         type: 'withdraw',
         description: 'Saque para carteira pessoal',
         value: isTestnet ? '500.0' : '800.0',
-        token: 'USDT',
+        token: 'PCN',
         hoursAgo: 72, // 3 dias
         status: 'confirmed',
         category: 'personal'
@@ -381,9 +374,9 @@ async function seedBasicData() {
       // 6. Novo depósito
       {
         type: 'deposit',
-        description: 'Depósito adicional de ETH',
+        description: 'Depósito adicional de cBRL',
         value: isTestnet ? '3.2' : '1.8',
-        token: 'ETH',
+        token: 'cBRL',
         hoursAgo: 48, // 2 dias
         status: 'confirmed',
         category: 'investment'
@@ -391,9 +384,9 @@ async function seedBasicData() {
       // 7. Staking
       {
         type: 'contract_call',
-        description: 'Stake de ETH para Ethereum 2.0',
+        description: 'Stake de cBRL para Ethereum 2.0',
         value: isTestnet ? '2.0' : '1.0',
-        token: 'ETH',
+        token: 'cBRL',
         functionName: 'stake',
         hoursAgo: 24, // 1 dia
         status: 'confirmed',
@@ -404,7 +397,7 @@ async function seedBasicData() {
         type: 'transfer',
         description: 'Transferência para exchange',
         value: isTestnet ? '0.5' : '0.2',
-        token: 'ETH',
+        token: 'cBRL',
         hoursAgo: 2,
         status: 'pending',
         category: 'trading'
@@ -414,7 +407,7 @@ async function seedBasicData() {
         type: 'contract_call',
         description: 'Tentativa de mint NFT (falhou)',
         value: isTestnet ? '0.1' : '0.05',
-        token: 'ETH',
+        token: 'cBRL',
         functionName: 'mint',
         hoursAgo: 6,
         status: 'failed',
@@ -432,14 +425,14 @@ async function seedBasicData() {
       const transaction = await prisma.transaction.create({
         data: {
           companyId: naviCompany.id,
-          userId: ivanUser.id,
-          userCompanyId: ivanNaviRelation.id,
+          userId: adminUser.id,
+          userCompanyId: adminNaviRelation.id,
           network: networkName,
           transactionType: tx.type,
           status: tx.status,
           txHash: txHash,
           blockNumber: BigInt(currentNetworkData.baseBlockNumber + i),
-          fromAddress: tx.type === 'deposit' ? currentNetworkData.addresses.external1 : currentNetworkData.addresses.ivan,
+          fromAddress: tx.type === 'deposit' ? currentNetworkData.addresses.external1 : currentNetworkData.addresses.admin,
           toAddress: tx.type === 'withdraw' ? currentNetworkData.addresses.external1 : 
                     (tx.functionName ? currentNetworkData.addresses.uniswapRouter : currentNetworkData.addresses.external2),
           value: tx.value,
@@ -462,8 +455,8 @@ async function seedBasicData() {
             category: tx.category,
             token: tx.token,
             network: networkName,
-            estimatedValue: tx.token === 'ETH' ? (parseFloat(tx.value) * (isTestnet ? 1500 : 2500)) : 
-                          (tx.token === 'USDT' ? parseFloat(tx.value) : 0)
+            estimatedValue: tx.token === 'cBRL' ? (parseFloat(tx.value) * (isTestnet ? 1500 : 2500)) : 
+                          (tx.token === 'PCN' ? parseFloat(tx.value) : 0)
           }
         }
       });
@@ -483,13 +476,13 @@ async function seedBasicData() {
     const portfolio = await prisma.portfolio.upsert({
       where: {
         userId_network: {
-          userId: ivanUser.id,
+          userId: adminUser.id,
           network: networkName
         }
       },
       update: {},
       create: {
-        userId: ivanUser.id,
+        userId: adminUser.id,
         network: networkName,
         totalValue: isTestnet ? '12567.89' : '28945.67',
         lastUpdated: new Date(),
@@ -505,29 +498,29 @@ async function seedBasicData() {
     // Balances diversos
     const balances = [
       {
-        token: 'ETH',
-        name: 'Ethereum',
+        token: 'cBRL',
+        name: 'Coinage Real Brasil',
         balance: isTestnet ? '4.567' : '8.234',
         quote: isTestnet ? '6850.50' : '20585.00',
         price: isTestnet ? '1500.00' : '2500.00'
       },
       {
-        token: 'USDT',
-        name: 'Tether USD',
+        token: 'PCN',
+        name: 'Pratique Coin',
         balance: isTestnet ? '3200.00' : '5500.00',
         quote: isTestnet ? '3200.00' : '5500.00',
         price: '1.00'
       },
       {
-        token: 'BTC',
-        name: 'Bitcoin',
+        token: 'CNT',
+        name: 'Coinage Trade',
         balance: isTestnet ? '0.125' : '0.078',
         quote: isTestnet ? '2517.39' : '2360.67',
         price: isTestnet ? '20139.12' : '30265.00'
       },
       {
-        token: 'MATIC',
-        name: 'Polygon',
+        token: 'AZE',
+        name: 'Azore',
         balance: isTestnet ? '1500.00' : '2200.00',
         quote: isTestnet ? '1275.00' : '1870.00',
         price: isTestnet ? '0.85' : '0.85'
@@ -568,43 +561,43 @@ async function seedBasicData() {
 
     const earningsHistory = [
       {
-        token: 'ETH',
-        name: 'Ethereum',
+        token: 'cBRL',
+        name: 'Coinage Real Brasil',
         amount: isTestnet ? '0.234' : '0.456',
         source: 'staking_rewards',
         daysAgo: 1
       },
       {
-        token: 'USDT',
-        name: 'Tether USD',
+        token: 'PCN',
+        name: 'Pratique Coin',
         amount: isTestnet ? '45.67' : '78.90',
         source: 'liquidity_mining',
         daysAgo: 2
       },
       {
-        token: 'BTC',
-        name: 'Bitcoin',
+        token: 'CNT',
+        name: 'Coinage Trade',
         amount: isTestnet ? '0.012' : '0.023',
         source: 'trading_fees',
         daysAgo: 3
       },
       {
-        token: 'MATIC',
-        name: 'Polygon',
+        token: 'AZE',
+        name: 'Azore',
         amount: isTestnet ? '125.00' : '234.50',
         source: 'validator_rewards',
         daysAgo: 5
       },
       {
-        token: 'ETH',
-        name: 'Ethereum',
+        token: 'cBRL',
+        name: 'Coinage Real Brasil',
         amount: isTestnet ? '0.189' : '0.278',
         source: 'defi_yield',
         daysAgo: 7
       },
       {
-        token: 'USDT',
-        name: 'Tether USD',
+        token: 'PCN',
+        name: 'Pratique Coin',
         amount: isTestnet ? '89.12' : '156.78',
         source: 'lending_interest',
         daysAgo: 10
@@ -616,14 +609,14 @@ async function seedBasicData() {
       const distributionDate = new Date(Date.now() - (earning.daysAgo * 24 * 60 * 60 * 1000));
       const txHash = `0x${crypto.randomBytes(32).toString('hex')}`;
       
-      const quote = earning.token === 'ETH' ? (parseFloat(earning.amount) * (isTestnet ? 1500 : 2500)) :
+      const quote = earning.token === 'cBRL' ? (parseFloat(earning.amount) * (isTestnet ? 1500 : 2500)) :
                    earning.token === 'BTC' ? (parseFloat(earning.amount) * (isTestnet ? 20000 : 30000)) :
                    earning.token === 'MATIC' ? (parseFloat(earning.amount) * 0.85) :
                    parseFloat(earning.amount);
       
       await prisma.earnings.create({
         data: {
-          userId: ivanUser.id,
+          userId: adminUser.id,
           tokenSymbol: earning.token,
           tokenName: earning.name,
           amount: earning.amount,
@@ -690,7 +683,7 @@ async function seedBasicData() {
       await prisma.depositRequest.create({
         data: {
           id: pixId,
-          userId: ivanUser.id,
+          userId: adminUser.id,
           type: pix.type,
           amount: pix.amount,
           status: pix.status,
@@ -747,7 +740,7 @@ async function seedBasicData() {
       {
         type: 'earnings',
         title: 'Novos rewards de staking',
-        message: `Você recebeu ${isTestnet ? '0.234' : '0.456'} ETH em rewards de staking.`,
+        message: `Você recebeu ${isTestnet ? '0.234' : '0.456'} cBRL em rewards de staking.`,
         isRead: false,
         isFavorite: true,
         hoursAgo: 24,
@@ -756,7 +749,7 @@ async function seedBasicData() {
       {
         type: 'transaction',
         title: 'Transação pendente',
-        message: `Sua transferência de ${isTestnet ? '0.5' : '0.2'} ETH está sendo processada na blockchain.`,
+        message: `Sua transferência de ${isTestnet ? '0.5' : '0.2'} cBRL está sendo processada na blockchain.`,
         isRead: false,
         isFavorite: false,
         hoursAgo: 2,
@@ -774,7 +767,7 @@ async function seedBasicData() {
       {
         type: 'promo',
         title: 'Nova funcionalidade: DeFi Yield',
-        message: 'Agora você pode fazer staking de ETH diretamente na plataforma com APY de 4.5%.',
+        message: 'Agora você pode fazer staking de cBRL diretamente na plataforma com APY de 4.5%.',
         isRead: true,
         isFavorite: true,
         hoursAgo: 48,
@@ -783,7 +776,7 @@ async function seedBasicData() {
       {
         type: 'warning',
         title: 'Transação falhou',
-        message: 'Sua tentativa de mint de NFT falhou. Verifique se você tem ETH suficiente para gas.',
+        message: 'Sua tentativa de mint de NFT falhou. Verifique se você tem cBRL suficiente para gas.',
         isRead: false,
         isFavorite: false,
         hoursAgo: 6,
@@ -803,7 +796,7 @@ async function seedBasicData() {
           priority: notif.priority,
           isRead: notif.isRead,
           isActive: true,
-          userId: ivanUser.id,
+          userId: adminUser.id,
           isFavorite: notif.isFavorite,
           readDate: notif.isRead ? new Date(timestamp.getTime() + (30 * 60 * 1000)) : null,
           createdAt: timestamp,
@@ -841,7 +834,7 @@ async function seedBasicData() {
       
       await prisma.userAction.create({
         data: {
-          userId: ivanUser.id,
+          userId: adminUser.id,
           action: action.action,
           description: action.description,
           metadata: {
@@ -855,59 +848,6 @@ async function seedBasicData() {
     }
     
     console.log(`✅ ${userActions.length} ações de usuário criadas`);
-    
-    // ========================================
-    // RESUMO FINAL COMPLETO
-    // ========================================
-    console.log('\n🎉 SEED COMPLETO EXECUTADO COM SUCESSO!');
-    console.log(`\n🌍 NETWORK: ${networkName.toUpperCase()}`);
-    console.log('\n📊 RESUMO COMPLETO DOS DADOS CRIADOS:');
-    console.log('🏢 Empresas: 2 (Coinage + Navi)');
-    console.log('👥 Usuários: 3 (Ivan + 2 dumb users)');
-    console.log('🔗 Relações User-Company: 5');
-    console.log('🎨 Company Brandings: 2');
-    console.log(`💸 Transações para Ivan: ${transactions.length} (histórico completo)`);
-    console.log(`💼 Portfolio: 1 com ${balances.length} tokens`);
-    console.log(`💰 Earnings para Ivan: ${earningsHistory.length} (múltiplas fontes)`);
-    console.log(`💳 Transações PIX: ${pixTransactions.length}`);
-    console.log(`🔔 Notificações para Ivan: ${notifications.length} (sistema completo)`);
-    console.log(`📋 Ações de usuário: ${userActions.length}`);
-    
-    console.log('\n👤 CREDENCIAIS DE ACESSO:');
-    console.log('   🔑 Ivan Alberton (SUPER_ADMIN na Navi, ADMIN na Coinage):');
-    console.log(`      Email: ivan.alberton@navi.inf.br`);
-    console.log(`      Senha: ${ivanPassword}`);
-    console.log(`      Carteira ${networkName}: ${isTestnet ? '0x7B5A73C4c72f8B2D5B9b8C4F3f8E5A2D1C6B9E8F' : '0x5528C065931f523CA9F3a6e49a911896fb1D2e6f'}`);
-    console.log('   🔑 Usuário Teste 1 (USER na Coinage):');
-    console.log(`      Email: user1@coinage.com`);
-    console.log(`      Senha: ${dumb1Password}`);
-    console.log('   🔑 Usuário Teste 2 (USER na Coinage):');
-    console.log(`      Email: user2@coinage.com`);
-    console.log(`      Senha: ${dumb2Password}`);
-
-    console.log('\n💼 PORTFÓLIO IVAN:');
-    console.log(`   💰 Valor total: $${isTestnet ? '12,567.89' : '28,945.67'}`);
-    console.log(`   🪙 ETH: ${isTestnet ? '4.567' : '8.234'} ($${isTestnet ? '6,850.50' : '20,585.00'})`);
-    console.log(`   💵 USDT: ${isTestnet ? '3,200.00' : '5,500.00'} ($${isTestnet ? '3,200.00' : '5,500.00'})`);
-    console.log(`   ₿ BTC: ${isTestnet ? '0.125' : '0.078'} ($${isTestnet ? '2,517.39' : '2,360.67'})`);
-    console.log(`   ⬡ MATIC: ${isTestnet ? '1,500.00' : '2,200.00'} ($${isTestnet ? '1,275.00' : '1,870.00'})`);
-    
-    console.log('\n📊 EXPERIÊNCIA COMPLETA IVAN:');
-    console.log(`   📈 Total earnings: $${totalEarnings.toFixed(2)}`);
-    console.log(`   🔔 Notificações não lidas: ${notifications.filter(n => !n.isRead).length}`);
-    console.log(`   ✅ Transações confirmadas: ${transactions.filter(t => t.status === 'confirmed').length}`);
-    console.log(`   ⏳ Transações pendentes: ${transactions.filter(t => t.status === 'pending').length}`);
-    console.log(`   ❌ Transações falhadas: ${transactions.filter(t => t.status === 'failed').length}`);
-
-    console.log('\n🎨 BRANDINGS:');
-    console.log(`   🟦 Navi: Logo em /assets/images/companies/navi.png`);
-    console.log(`   🟩 Coinage: Logo em /assets/images/companies/coinage.png`);
-    
-    console.log('\n🚀 PRÓXIMOS PASSOS:');
-    console.log(`   1. Acesse: http://localhost:3000/login/navi`);
-    console.log(`   2. Use as credenciais do Ivan para fazer login`);
-    console.log(`   3. Explore o dashboard completo com dados reais`);
-    console.log(`   4. Teste todas as funcionalidades da plataforma`);
 
   } catch (error) {
     console.error('❌ Erro durante o seed:', error);
