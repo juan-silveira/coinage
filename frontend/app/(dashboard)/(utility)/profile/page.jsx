@@ -15,7 +15,7 @@ import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useAlertContext } from "@/contexts/AlertContext";
 import api from "@/services/api";
 
-const profile = () => {
+const Profile = () => {
   // Hook para gerenciar título da aba com contagem de notificações
   useDocumentTitle('Perfil do Usuário', 'Coinage', true);
   
@@ -300,4 +300,4 @@ const profile = () => {
   );
 };
 
-export default profile;
+export default Profile;

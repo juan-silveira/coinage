@@ -58,9 +58,8 @@ async function seedBasicData() {
     console.log('\n👥 Criando usuários...');
 
     // Usuário principal - Ivan
-    const adminPassword = process.env.DEFAULT_ADMIN_PASSWORD;
+    const adminPassword = process.env.DEFAULT_ADMIN_PASSWORD || 'N@vi@2025';
     const adminHashedPassword = bcrypt.hashSync(adminPassword, 12);
-    const
     
     const adminUser = await prisma.user.upsert({
       where: { email: 'ivan.alberton@navi.inf.br' },

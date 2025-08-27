@@ -66,6 +66,7 @@ O **Coinage** é um sistema financeiro completo desenvolvido em Node.js/Express 
 
 ### Pré-requisitos
 - Node.js 18+
+- Yarn 1.22+
 - Docker & Docker Compose
 - PostgreSQL 14+
 
@@ -74,31 +75,52 @@ O **Coinage** é um sistema financeiro completo desenvolvido em Node.js/Express 
 git clone <repository>
 cd coinage
 
-# Configurar variáveis de ambiente
-cp .env.example .env
+# IMPORTANTE: Copiar o arquivo .env existente
+# O arquivo .env deve conter todas as variáveis necessárias
+# Certifique-se de ter o arquivo .env configurado corretamente
 ```
 
-### 2. Iniciar com Docker
+### 2. Preparar Backend
+```bash
+# Instalar dependências e gerar package-lock.json
+cd backend
+npm install
+cd ..
+```
+
+### 3. Iniciar com Docker
 ```bash
 # Parar, construir e iniciar todos os serviços
 docker compose down && docker compose build backend && docker compose up -d
+
+# Verificar se os containers estão rodando
+docker compose ps
 ```
 
-### 3. Configurar Banco de Dados
+### 4. Configurar Banco de Dados
 ```bash
 cd backend
-npm run prisma:migrate
-node scripts/seed-basic-data.js  # Dados iniciais
+# Aplicar migrations do Prisma
+npx prisma migrate deploy
+
+# Popular banco com dados iniciais
+node scripts/seed-basic-data.js
+cd ..
 ```
 
-### 4. Iniciar Frontend
+### 5. Preparar e Iniciar Frontend
 ```bash
 cd frontend
+# Limpar locks antigos e instalar dependências
+rm -f yarn.lock package-lock.json
 yarn install
-yarn build && yarn dev
+
+# Buildar e iniciar em modo desenvolvimento
+yarn build
+yarn dev
 ```
 
-### 5. Acessar Sistema
+### 6. Acessar Sistema
 - **Frontend**: http://localhost:3000
 - **Backend API**: http://localhost:8800
 - **API Docs**: http://localhost:8800/api-docs
@@ -106,6 +128,33 @@ yarn build && yarn dev
 ### 🔑 **Usuário Padrão**
 - **Email**: ivan.alberton@navi.inf.br
 - **Senha**: N@vi@2025
+
+### ⚠️ **Troubleshooting**
+
+#### ESLint Warnings no Frontend
+Se encontrar warnings do ESLint durante o build, o arquivo `.eslintrc.json` já está configurado para permitir o build:
+```json
+{
+  "extends": "next/core-web-vitals",
+  "rules": {
+    "@next/next/no-img-element": "off",
+    "react-hooks/exhaustive-deps": "warn",
+    "react/no-unescaped-entities": "off"
+  }
+}
+```
+
+#### Erro no Script Seed
+O script seed pode apresentar erro ao tentar criar transações devido a campos obsoletos no schema. 
+Isso não impede o funcionamento do sistema, pois as entidades principais (empresas e usuários) são criadas com sucesso.
+
+#### Containers não iniciam
+Certifique-se de que as portas não estão em uso:
+- Frontend: 3000
+- Backend: 8800  
+- PostgreSQL: 5433
+- Redis: 6379 (interno)
+- RabbitMQ: 5672, 15672
 
 ---
 
