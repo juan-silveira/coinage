@@ -58,7 +58,7 @@ async function seedBasicData() {
     console.log('\n👥 Criando usuários...');
 
     // Usuário principal - Ivan
-    const adminPassword = process.env.DEFAULT_ADMIN_PASSWORD || 'N@vi@2025';
+    const adminPassword = process.env.ADMIN_PASSWORD;
     const adminHashedPassword = bcrypt.hashSync(adminPassword, 12);
     
     const adminUser = await prisma.user.upsert({
@@ -67,13 +67,13 @@ async function seedBasicData() {
         password: adminHashedPassword
       },
       create: {
-        name: 'Ivan Alberton',
-        email: 'ivan.alberton@navi.inf.br',
-        cpf: '02308739959',
-        phone: '46999716711',
-        birthDate: new Date('1979-07-26'),
-        publicKey: '0x5528C065931f523CA9F3a6e49a911896fb1D2e6f',
-        privateKey: '0x2a09b1aaa664113fd7163a0a4aafbcb16f6b5a16ae9dacfe7c840be2455e3f61',
+        name: process.env.ADMIN_NAME,
+        email: process.env.ADMIN_EMAIL,
+        cpf: process.env.ADMIN_CPF,
+        phone: process.env.ADMIN_PHONE,
+        birthDate: new Date(process.env.ADMIN_BIRTH_DATE),
+        publicKey: process.env.ADMIN_WALLET_PUBLIC_KEY,
+        privateKey: process.env.ADMIN_WALLET_PRIVATE_KEY,
         password: adminHashedPassword,
         isFirstAccess: false,
         userPlan: 'PREMIUM',
