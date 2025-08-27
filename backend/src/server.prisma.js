@@ -222,6 +222,16 @@ const startServer = () => {
     console.log('');
     console.log('🎉 Sistema iniciado com Prisma!');
     console.log('📝 Nota: Alguns serviços podem não estar disponíveis até a migração completa');
+    
+    // Inicializar MintWorker
+    try {
+      const mintWorker = require('./workers/mint.worker');
+      await mintWorker.start();
+      console.log('🏭 MintWorker inicializado com sucesso');
+    } catch (error) {
+      console.error('❌ Erro ao inicializar MintWorker:', error.message);
+    }
+    
     console.log('');
     
     startServer();

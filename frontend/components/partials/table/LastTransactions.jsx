@@ -6,7 +6,7 @@ import useCacheData from "@/hooks/useCacheData";
 import useTransactions from "@/hooks/useTransactions";
 import useConfig from "@/hooks/useConfig";
 
-const TransactionHistoryTable = () => {
+const LastTransactions = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(5);
   const { balances } = useCacheData();
@@ -116,8 +116,15 @@ const TransactionHistoryTable = () => {
 
   return (
     <Card 
-      title="Histórico de Transações" 
-      subtitle="Confira abaixo o histórico de transações"
+      title="Últimas Transações" 
+      subtitle="Confira abaixo as 5 últimas transações"
+      headerslot={
+        <div className="flex items-center space-x-2">
+          {/* <Button> */}
+            <Icon icon="heroicons-outline:arrow-down-circle" />
+          {/* </Button> */}
+        </div>
+      }
     >
       <div className="space-y-4">
         {/* Loading/Error States */}
@@ -324,4 +331,4 @@ const TransactionHistoryTable = () => {
   );
 };
 
-export default TransactionHistoryTable;
+export default LastTransactions;

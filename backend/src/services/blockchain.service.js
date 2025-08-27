@@ -1,6 +1,7 @@
 const { ethers } = require('ethers');
 const blockchainConfig = require('../config/blockchain');
 const azorescanService = require('./azorescan.service');
+const { loadLocalABI, DEFAULT_CONTRACT_TYPES } = require('../contracts');
 
 // Import fetch para Node.js (disponível a partir do Node.js 18)
 const fetch = globalThis.fetch || require('node-fetch');
@@ -324,6 +325,81 @@ class BlockchainService {
   }
 
   /**
+   * Executa uma função em um contrato inteligente
+   * @param {string} contractAddress - Endereço do contrato
+   * @param {Array} abi - ABI do contrato
+   * @param {string} functionName - Nome da função a executar
+   * @param {Array} params - Parâmetros da função
+   * @param {string} network - Rede para executar
+   * @param {Object} options - Opções adicionais (privateKey, gasPrice, etc)
+   * @returns {Promise<Object>} Resultado da transação
+   */
+  async executeContractFunction(contractAddress, abi, functionName, params = [], network = 'testnet', options = {}) {
+    try {
+      // Validar endereço do contrato
+      if (!ethers.isAddress(contractAddress)) {
+        throw new Error('Endereço do contrato inválido');
+      }
+
+      // Obter provider e wallet
+      const provider = this.config.getProvider(network);
+      
+      // Usar private key das variáveis de ambiente ou das opções
+      const privateKey = options.privateKey || process.env.ADMIN_WALLET_PRIVATE_KEY;
+      if (!privateKey) {
+        throw new Error('Private key não configurada');
+      }
+
+      const wallet = new ethers.Wallet(privateKey, provider);
+      
+      // Criar instância do contrato
+      const contract = new ethers.Contract(contractAddress, abi, wallet);
+      
+      // Verificar se a função existe
+      if (!contract[functionName]) {
+        throw new Error(`Função ${functionName} não encontrada no contrato`);
+      }
+
+      console.log(`🚀 Executando ${functionName} no contrato ${contractAddress}`);
+      console.log(`📊 Parâmetros:`, params);
+
+      // Configurar opções da transação
+      const txOptions = {};
+      if (options.gasPrice) {
+        txOptions.gasPrice = ethers.parseUnits(options.gasPrice.toString(), 'gwei');
+      }
+      if (options.gasLimit) {
+        txOptions.gasLimit = options.gasLimit;
+      }
+
+      // Executar função
+      const tx = await contract[functionName](...params, txOptions);
+      
+      console.log(`📝 Transação enviada: ${tx.hash}`);
+      
+      // Aguardar confirmação
+      const receipt = await tx.wait();
+      
+      console.log(`✅ Transação confirmada no bloco ${receipt.blockNumber}`);
+
+      return {
+        transactionHash: receipt.hash,
+        blockNumber: receipt.blockNumber,
+        gasUsed: receipt.gasUsed.toString(),
+        status: receipt.status === 1 ? 'success' : 'failed',
+        from: tx.from,
+        to: tx.to,
+        contractAddress: contractAddress,
+        functionName: functionName,
+        network: network
+      };
+    } catch (error) {
+      console.error(`❌ Erro ao executar função ${functionName}:`, error);
+      throw new Error(`Erro ao executar função do contrato: ${error.message}`);
+    }
+  }
+
+  /**
    * Obtém saldos completos de um usuário (AZE + todos os tokens ERC-20)
    * Usa o Azorescan Service para buscar dados da blockchain
    * @param {string} publicKey - Endereço público do usuário
@@ -331,24 +407,20 @@ class BlockchainService {
    * @returns {Promise<Object>} Saldos completos formatados para o cache
    */
   async getUserBalances(publicKey, network = 'testnet') {
+    console.log(`🔄 Obtendo saldos completos para ${publicKey} na ${network}`);
+    
     try {
-      console.log(`🔄 Obtendo saldos completos para ${publicKey} na ${network}`);
-      
       // Usar o serviço Azorescan para obter todos os saldos
       const azorescanResponse = await azorescanService.getCompleteBalances(publicKey, network);
       
       if (!azorescanResponse.success) {
         console.warn(`⚠️ Erro no Azorescan: ${azorescanResponse.error}`);
-        return {
-          balances: {},
-          tokenBalances: [],
-          balancesTable: {},
-          network,
-          totalTokens: 0,
-          error: azorescanResponse.error,
-          address: publicKey,
-          timestamp: new Date().toISOString()
-        };
+        
+        // IMPORTANT: NÃO tentar cache aqui pois não temos userId
+        // O fallback será feito no frontend ou no controlador que tem acesso ao userId
+        
+        // Retornar estrutura com erro indicando que não foi possível obter dados
+        throw new Error(`Azorescan API error: ${azorescanResponse.error}`);
       }
 
       const azorescanData = azorescanResponse.data;
@@ -362,6 +434,8 @@ class BlockchainService {
         totalTokens: azorescanData.totalTokens || 0,
         address: publicKey,
         azeBalance: azorescanData.azeBalance,
+        syncStatus: 'success',
+        syncError: null,
         timestamp: new Date().toISOString(),
         fromCache: false
       };
@@ -369,21 +443,15 @@ class BlockchainService {
       console.log(`✅ Saldos obtidos: ${result.totalTokens} tokens`);
       console.log(`📊 Tokens disponíveis:`, Object.keys(result.balances));
       
+      // NÃO salvar cache aqui pois não temos userId
+      // O cache será gerenciado pelo balanceSync.controller que tem acesso ao userId
+      
       return result;
     } catch (error) {
       console.error(`❌ Erro ao obter saldos do usuário ${publicKey}:`, error.message);
       
-      // Retornar estrutura vazia em caso de erro
-      return {
-        balances: {},
-        tokenBalances: [],
-        balancesTable: {},
-        network,
-        totalTokens: 0,
-        error: error.message,
-        address: publicKey,
-        timestamp: new Date().toISOString()
-      };
+      // Repassar o erro para que o controlador possa lidar com fallback
+      throw error;
     }
   }
 }

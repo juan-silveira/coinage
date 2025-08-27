@@ -1,5 +1,6 @@
 const DepositService = require('../services/deposit.service');
 const userActionsService = require('../services/userActions.service');
+const userTaxesService = require('../services/userTaxes.service');
 
 class DepositController {
   constructor() {
@@ -137,7 +138,9 @@ class DepositController {
         data: {
           transactionId: result.transactionId,
           amount: result.amount,
-          status: result.status
+          status: result.status,
+          pixPaymentId: result.pixPaymentId,
+          pixData: result.pixData
         }
       });
 
@@ -268,9 +271,289 @@ class DepositController {
       });
     }
   }
+
+  /**
+   * DEBUG: Confirmar PIX manualmente (apenas para desenvolvimento)
+   */
+  async debugConfirmPix(req, res) {
+    try {
+      // Verificar se está em ambiente de desenvolvimento
+      if (process.env.NODE_ENV === 'production') {
+        return res.status(403).json({
+          success: false,
+          message: 'Este endpoint está disponível apenas em desenvolvimento'
+        });
+      }
+
+      const { transactionId } = req.params;
+      
+      console.log(`🐛 DEBUG: Confirmando PIX manualmente para transação ${transactionId}`);
+
+      // Dados simulados do PIX
+      const pixData = {
+        pixId: `PIX_DEBUG_${Date.now()}`,
+        payerDocument: '12345678900',
+        payerName: 'Debug Test User',
+        paidAmount: req.body.amount || 100.00
+      };
+
+      // Confirmar pagamento PIX e enviar para fila
+      const result = await this.depositService.confirmPixPayment(transactionId, pixData);
+
+      // Registrar ação de debug
+      if (result.user_id) {
+        await userActionsService.logFinancial(result.user_id, 'debug_pix_confirmed', req, {
+          status: 'processing',
+          transactionId: transactionId,
+          method: 'debug',
+          details: pixData
+        });
+      }
+
+      res.json({
+        success: true,
+        message: 'PIX confirmado (DEBUG) e enviado para processamento blockchain',
+        data: {
+          transactionId: result.id,
+          status: result.status,
+          metadata: result.metadata
+        }
+      });
+
+    } catch (error) {
+      console.error('Erro ao confirmar PIX (DEBUG):', error);
+      res.status(500).json({
+        success: false,
+        message: 'Erro ao confirmar PIX',
+        error: error.message
+      });
+    }
+  }
+
+  /**
+   * Webhook para receber confirmações de PIX do provedor
+   */
+  async handlePixWebhook(req, res) {
+    try {
+      // Validar assinatura do webhook (implementar conforme provedor)
+      const signature = req.headers['x-webhook-signature'];
+      
+      // TODO: Validar assinatura quando integrar com provedor real
+      // if (!validateWebhookSignature(signature, req.body)) {
+      //   return res.status(401).json({ success: false, message: 'Invalid signature' });
+      // }
+
+      const { 
+        transactionId, 
+        pixId, 
+        status,
+        payerDocument,
+        payerName,
+        paidAmount 
+      } = req.body;
+
+      console.log(`📨 Webhook PIX recebido: ${transactionId} - Status: ${status}`);
+
+      // Processar apenas se o PIX foi confirmado
+      if (status === 'confirmed' || status === 'approved') {
+        const pixData = {
+          pixId,
+          payerDocument,
+          payerName,
+          paidAmount
+        };
+
+        // Confirmar pagamento e enviar para fila
+        await this.depositService.confirmPixPayment(transactionId, pixData);
+
+        res.json({
+          success: true,
+          message: 'Webhook processado com sucesso'
+        });
+      } else {
+        console.log(`⚠️ PIX não confirmado: ${status}`);
+        res.json({
+          success: true,
+          message: 'Webhook recebido mas PIX não está confirmado'
+        });
+      }
+
+    } catch (error) {
+      console.error('Erro ao processar webhook PIX:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Erro ao processar webhook',
+        error: error.message
+      });
+    }
+  }
+
+  /**
+   * DEBUG: Completar depósito simulando PIX confirmado + mint automático
+   */
+  async debugCompleteDeposit(req, res) {
+    try {
+      // Verificar se está em ambiente de desenvolvimento
+      if (process.env.NODE_ENV === 'production') {
+        return res.status(403).json({
+          success: false,
+          message: 'Este endpoint está disponível apenas em desenvolvimento'
+        });
+      }
+
+      const { transactionId } = req.params;
+      const { amount } = req.body;
+
+      console.log(`🧪 [DEBUG] Completando depósito: ${transactionId}`);
+
+      await this.depositService.init();
+
+      // 1. Primeiro confirmar o PIX
+      await this.depositService.confirmPixPayment(transactionId, {
+        pixId: `pix-debug-${Date.now()}`,
+        payerDocument: '000.000.000-00',
+        payerName: 'Teste Debug',
+        paidAmount: amount || 100
+      });
+
+      console.log(`✅ [DEBUG] PIX confirmado para ${transactionId}`);
+
+      // 2. Confirmar depósito PIX (sem dados blockchain) e disparar mint automático
+      const result = await this.depositService.confirmDeposit(
+        transactionId,
+        {
+          pixId: `pix-debug-${Date.now()}`,
+          payerDocument: '000.000.000-00',
+          payerName: 'Teste Debug',
+          paidAmount: amount || 100
+        }
+      );
+
+      console.log(`✅ [DEBUG] Depósito confirmado e mint executado para ${transactionId}`);
+
+      res.json({
+        success: true,
+        message: 'Depósito PIX confirmado e mint automático executado (DEBUG)',
+        data: {
+          deposit: {
+            transactionId: result.id,
+            status: result.status,
+            amount: result.amount,
+            currency: result.currency,
+            type: 'deposit'
+          },
+          mint: result.metadata?.linkedMint || null
+        }
+      });
+
+    } catch (error) {
+      console.error('❌ [DEBUG] Erro ao completar depósito:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Erro ao completar depósito (DEBUG)',
+        error: error.message
+      });
+    }
+  }
+
+  /**
+   * Calcular taxas de depósito para um usuário
+   */
+  async calculateDepositFees(req, res) {
+    try {
+      const { userId, amount } = req.body;
+      
+      // Validações
+      if (!userId || !amount || amount <= 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'ID do usuário e valor são obrigatórios'
+        });
+      }
+
+      // Calcular taxas
+      const feeCalculation = await userTaxesService.calculateDepositFee(userId, parseFloat(amount));
+      
+      res.json({
+        success: true,
+        message: 'Taxas calculadas com sucesso',
+        data: {
+          amount: parseFloat(amount),
+          fee: feeCalculation.fee,
+          feePercent: feeCalculation.feePercent,
+          netAmount: feeCalculation.netAmount,
+          minFee: feeCalculation.minFee,
+          maxFee: feeCalculation.maxFee,
+          isVip: feeCalculation.isVip,
+          vipLevel: feeCalculation.vipLevel,
+          breakdown: {
+            'Valor bruto': `R$ ${amount.toFixed(2)}`,
+            'Taxa': `R$ ${feeCalculation.fee.toFixed(2)} (${feeCalculation.feePercent}%)`,
+            'Valor líquido': `R$ ${feeCalculation.netAmount.toFixed(2)}`,
+            'cBRL a receber': `${feeCalculation.netAmount.toFixed(2)} cBRL`
+          }
+        }
+      });
+
+    } catch (error) {
+      console.error('Erro ao calcular taxas de depósito:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Erro interno do servidor',
+        error: error.message
+      });
+    }
+  }
+
+  /**
+   * Obter taxas do usuário
+   */
+  async getUserTaxes(req, res) {
+    try {
+      const { userId } = req.params;
+      
+      if (!userId) {
+        return res.status(400).json({
+          success: false,
+          message: 'ID do usuário é obrigatório'
+        });
+      }
+
+      const userTaxes = await userTaxesService.getUserTaxes(userId);
+      
+      res.json({
+        success: true,
+        data: {
+          depositFeePercent: userTaxes.depositFeePercent,
+          withdrawFeePercent: userTaxes.withdrawFeePercent,
+          minDepositFee: userTaxes.minDepositFee,
+          maxDepositFee: userTaxes.maxDepositFee,
+          minWithdrawFee: userTaxes.minWithdrawFee,
+          maxWithdrawFee: userTaxes.maxWithdrawFee,
+          exchangeFeePercent: userTaxes.exchangeFeePercent,
+          transferFeePercent: userTaxes.transferFeePercent,
+          gasSubsidyEnabled: userTaxes.gasSubsidyEnabled,
+          gasSubsidyPercent: userTaxes.gasSubsidyPercent,
+          isVip: userTaxes.isVip,
+          vipLevel: userTaxes.vipLevel,
+          validFrom: userTaxes.validFrom,
+          validUntil: userTaxes.validUntil
+        }
+      });
+
+    } catch (error) {
+      console.error('Erro ao obter taxas do usuário:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Erro interno do servidor',
+        error: error.message
+      });
+    }
+  }
 }
 
 module.exports = DepositController;
+
 
 
 

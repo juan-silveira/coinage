@@ -8,13 +8,13 @@ import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import useAuthStore from "@/store/authStore";
 import { useAlertContext } from "@/contexts/AlertContext";
 import useDarkmode from "@/hooks/useDarkMode";
-import usePixPaymentMonitor from "@/hooks/usePixPaymentMonitor";
-import mockPixService from "@/services/mockPixService";
+// import usePixPaymentMonitor from "@/hooks/usePixPaymentMonitor"; // Removido - usando lógica local
+// Removed mock service - using only real API
 
 const PixPaymentPage = () => {
   const params = useParams();
   const router = useRouter();
-  const paymentId = params.payment_id;
+  const transactionId = params.payment_id; // UUID real do PostgreSQL
   
   useDocumentTitle('Pagamento PIX', 'Coinage', true);
 
@@ -30,68 +30,160 @@ const PixPaymentPage = () => {
   const [hasShownPaidAlert, setHasShownPaidAlert] = useState(false);
   const [hasShownExpiredAlert, setHasShownExpiredAlert] = useState(false);
 
-  // Hook para monitorar pagamento
-  const {
-    status,
-    loading: monitorLoading,
-    error: monitorError,
-    timeRemaining,
-    timeRemainingFormatted,
-    forcePayment,
-    redirectToTransaction
-  } = usePixPaymentMonitor(paymentId, {
-    autoRedirect: false, // Não redirecionar automaticamente
-    onPaid: (paymentData) => {
-      console.log('Pagamento PIX confirmado:', paymentData);
-      if (!hasShownPaidAlert) {
-        setHasShownPaidAlert(true);
-        showSuccess('Pagamento confirmado!', 'Redirecionando para processamento na blockchain...');
-        
-        // Aguardar um pouco antes de redirecionar
-        setTimeout(() => {
-          redirectToTransaction();
-        }, 2000);
-      }
-    },
-    onExpired: (paymentData) => {
-      console.log('Pagamento PIX expirado:', paymentData);
-      if (!hasShownExpiredAlert) {
-        setHasShownExpiredAlert(true);
-        showError('Pagamento expirado', 'O tempo para pagamento expirou. Crie um novo depósito.');
-      }
+  // Estado local para simular monitoramento (sem usar hook problemático)
+  const [status, setStatus] = useState('pending');
+  const [monitorLoading, setMonitorLoading] = useState(false);
+  const [monitorError, setMonitorError] = useState(null);
+  const [timeRemaining, setTimeRemaining] = useState(1800); // 30 minutos
+  const [processingMint, setProcessingMint] = useState(false);
+  const [mintStatus, setMintStatus] = useState('');
+  
+  // Formatação do tempo
+  const timeRemainingFormatted = `${Math.floor(timeRemaining / 60)}:${(timeRemaining % 60).toString().padStart(2, '0')}`;
+  
+  // Função para forçar pagamento (desenvolvimento) - REDIRECIONA IMEDIATAMENTE
+  const forcePayment = async () => {
+    try {
+      console.log('🔥 [PIX-DEBUG] Clique no botão - redirecionando IMEDIATAMENTE para processamento');
+      
+      // REDIRECIONAR IMEDIATAMENTE SEM DELAY
+      router.push(`/deposit/tx/${transactionId}`);
+      
+      // Processar PIX em background (não bloquear o redirecionamento)
+      setTimeout(async () => {
+        try {
+          console.log('🔄 [PIX-BACKGROUND] Confirmando PIX no backend para transactionId:', transactionId);
+          
+          const response = await fetch('http://localhost:8800/api/deposit/pix', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              transactionId: transactionId,
+              pixPaymentId: transactionId,
+              paidAmount: payment?.amount || 0
+            })
+          });
+          
+          const result = await response.json();
+          console.log('✅ [PIX-BACKGROUND] PIX processado em background:', result);
+        } catch (error) {
+          console.error('❌ [PIX-BACKGROUND] Erro ao processar PIX em background:', error);
+        }
+      }, 100); // Processar PIX em background após redirecionamento
+      
+    } catch (error) {
+      console.error('❌ [PIX] Erro no redirecionamento:', error);
+      showError('Erro', 'Erro ao redirecionar para processamento');
     }
-  });
+  };
+  
+  // Função para redirecionar para transação
+  const redirectToTransaction = () => {
+    router.push(`/deposit/tx/${transactionId}`);
+  };
+
+  // Timer countdown
+  useEffect(() => {
+    if (status === 'pending') {
+      const interval = setInterval(() => {
+        setTimeRemaining(prev => {
+          if (prev <= 1) {
+            setStatus('expired');
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+      
+      return () => clearInterval(interval);
+    }
+  }, [status]); // Removido timeRemaining para evitar loop
 
   // Buscar dados do pagamento
   useEffect(() => {
     const fetchPayment = async () => {
-      if (!paymentId) return;
+      if (!transactionId) return;
+
+      console.log('🚀 [PIX] Recebeu transactionId:', transactionId);
+      console.log('🚀 [PIX] Tipo do transactionId:', typeof transactionId);
+      console.log('🚀 [PIX] Comprimento do transactionId:', transactionId?.length);
+      
+      // VERIFICAR SE É UM UUID VÁLIDO DO POSTGRES
+      if (!transactionId || transactionId.startsWith('pix_')) {
+        console.error('❌ [PIX] TransactionId inválido detectado:', transactionId);
+        setError(`ID da transação inválido: ${transactionId}. Esperado UUID do PostgreSQL.`);
+        setLoading(false);
+        return;
+      }
 
       try {
         setLoading(true);
-        const response = await mockPixService.getPayment(paymentId);
         
-        if (response.success) {
-          setPayment(response.payment);
+        // BUSCAR DIRETAMENTE NO POSTGRES USANDO UUID REAL
+        const apiUrl = `http://localhost:8800/api/deposits/dev/status/${transactionId}`;
+        console.log('🔍 [PIX] Fazendo requisição para:', apiUrl);
+        
+        const response = await fetch(apiUrl);
+        
+        if (response.ok) {
+          const backendData = await response.json();
+          console.log('✅ [PIX] Resposta do backend:', backendData);
+          
+          if (backendData.success && backendData.data) {
+            const transaction = backendData.data;
+            
+            // Construir dados PIX baseados na transação REAL do banco
+            const netAmount = parseFloat(transaction.amount) || 0;
+            const totalAmount = transaction.metadata?.total_amount || (netAmount + 3);
+            const feeAmount = transaction.metadata?.fee_amount || 3;
+            
+            const pixData = {
+              transactionId: transaction.id,
+              status: transaction.status === 'confirmed' ? 'paid' : 'pending',
+              amount: totalAmount, // Valor total do PIX
+              netAmount: netAmount, // Valor líquido
+              feeAmount: feeAmount, // Taxa
+              pixKey: 'contato@coinage.com.br',
+              qrCode: `00020126580014br.gov.bcb.pix2536pix-qr.mercadopago.com/instore/o/v2/${transactionId}5204000053039865802BR5925Coinage Tecnologia6009Sao Paulo62070503***6304OZ0H`,
+              createdAt: transaction.createdAt,
+              expiresAt: new Date(new Date(transaction.createdAt).getTime() + 30 * 60 * 1000).toISOString(),
+              bankData: {
+                name: 'Coinage Tecnologia Ltda',
+                cnpj: '12.345.678/0001-90',
+                bank: 'Banco Inter',
+                agency: '0001',
+                account: '1234567-8'
+              }
+            };
+            
+            console.log('✅ [PIX] Dados PIX construídos:', pixData);
+            setPayment(pixData);
+            
+          } else {
+            throw new Error('Transação não encontrada no backend');
+          }
         } else {
-          setError(response.message || 'Pagamento PIX não encontrado');
+          throw new Error(`Erro na API: ${response.status} - Transação não encontrada`);
         }
+        
       } catch (error) {
-        console.error('Erro ao buscar pagamento PIX:', error);
-        setError('Erro ao carregar dados do pagamento');
+        console.error('❌ [PIX] Erro ao buscar dados da transação:', error);
+        setError(`Erro ao carregar transação ${transactionId}: ${error.message}`);
       } finally {
         setLoading(false);
       }
     };
 
     fetchPayment();
-  }, [paymentId]);
+  }, [transactionId]);
 
-  // Resetar estados de alert quando paymentId mudar
+  // Resetar estados de alert quando transactionId mudar
   useEffect(() => {
     setHasShownPaidAlert(false);
     setHasShownExpiredAlert(false);
-  }, [paymentId]);
+  }, [transactionId]);
 
   // Função para copiar chave PIX
   const copyPixKey = async () => {
@@ -193,7 +285,7 @@ const PixPaymentPage = () => {
                 icon={
                   isPaid ? "heroicons:check-circle" : 
                   isExpired ? "heroicons:x-circle" : 
-                  "heroicons:credit-card"
+                  "fa6-brands:pix"
                 } 
                 className={`w-10 h-10 ${
                   isPaid ? 'text-green-600 dark:text-green-400' : 
@@ -224,8 +316,12 @@ const PixPaymentPage = () => {
                   <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
                     Status do Pagamento
                   </h2>
-                  <span className="px-3 py-1 bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400 rounded-full text-sm font-medium">
-                    Aguardando Pagamento
+                  <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                    processingMint 
+                      ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400'
+                      : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
+                  }`}>
+                    {processingMint ? 'Processando Mint' : 'Aguardando Pagamento'}
                   </span>
                 </div>
                 
@@ -249,21 +345,45 @@ const PixPaymentPage = () => {
                   ></div>
                 </div>
 
-                {/* Botão para forçar pagamento (debug) */}
+                {/* Botão para forçar pagamento (debug) - só funciona se amount > 0 */}
                 <div className="text-center">
                   <Button
                     onClick={forcePayment}
-                    disabled={monitorLoading}
-                    className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 text-sm"
+                    disabled={monitorLoading || payment.amount === 0 || payment.error}
+                    className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 text-sm disabled:bg-gray-400"
                   >
                     {monitorLoading ? (
                       <Icon icon="heroicons:arrow-path" className="w-4 h-4 animate-spin mr-2" />
                     ) : (
                       <Icon icon="heroicons:check" className="w-4 h-4 mr-2" />
                     )}
-                    Simular Pagamento (Debug)
+                    {processingMint ? 'Processando...' : 'PIX + Mint Automático (Debug)'}
                   </Button>
                 </div>
+                
+                {/* Status do Processamento Mint */}
+                {processingMint && (
+                  <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg">
+                    <div className="flex items-center space-x-3">
+                      <Icon icon="heroicons:arrow-path" className="w-6 h-6 text-blue-600 dark:text-blue-400 animate-spin flex-shrink-0" />
+                      <div className="flex-1">
+                        <h3 className="text-sm font-semibold text-blue-800 dark:text-blue-200 mb-1">
+                          Processamento Blockchain
+                        </h3>
+                        <p className="text-sm text-blue-700 dark:text-blue-300">
+                          {mintStatus}
+                        </p>
+                        <div className="mt-2 w-full bg-blue-200 dark:bg-blue-800 rounded-full h-1.5">
+                          <div className="bg-blue-600 dark:bg-blue-400 h-1.5 rounded-full animate-pulse" style={{
+                            width: mintStatus.includes('PIX') ? '33%' : 
+                                   mintStatus.includes('mint') ? '66%' : 
+                                   mintStatus.includes('concluído') ? '100%' : '10%'
+                          }}></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </Card>
           )}
@@ -276,13 +396,46 @@ const PixPaymentPage = () => {
               </h2>
               
               <div className="space-y-4">
+                {/* Erro nos dados */}
+                {(payment.error || payment.amount === 0) && (
+                  <div className="p-4 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg mb-4">
+                    <div className="flex items-center space-x-3">
+                      <Icon icon="heroicons:exclamation-triangle" className="w-6 h-6 text-red-600 dark:text-red-400 flex-shrink-0" />
+                      <div className="flex-1">
+                        <h3 className="text-sm font-semibold text-red-800 dark:text-red-200 mb-1">
+                          Erro nos dados do pagamento
+                        </h3>
+                        <p className="text-sm text-red-700 dark:text-red-300 mb-2">
+                          {payment.error || 'Dados do pagamento não encontrados ou valor inválido (R$ 0,00)'}
+                        </p>
+                        {payment.solution && (
+                          <p className="text-sm text-red-600 dark:text-red-400 font-medium mb-3">
+                            💡 {payment.solution}
+                          </p>
+                        )}
+                        {payment.instructions && (
+                          <div className="text-sm text-red-700 dark:text-red-300">
+                            <p className="font-medium mb-2">📋 Como resolver:</p>
+                            <ul className="list-disc list-inside space-y-1 ml-4">
+                              {payment.instructions.map((instruction, index) => (
+                                <li key={index}>{instruction}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Valor */}
                 <div className="flex justify-between items-center">
                   <span className="text-gray-600 dark:text-gray-400 font-medium">
                     Valor:
                   </span>
-                  <span className="text-2xl font-bold text-gray-900 dark:text-white">
+                  <span className={`text-2xl font-bold ${payment.amount === 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-white'}`}>
                     R$ {payment.amount?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    {payment.amount === 0 && <span className="text-sm ml-2">(ERRO)</span>}
                   </span>
                 </div>
 
@@ -321,8 +474,55 @@ const PixPaymentPage = () => {
             </div>
           </Card>
 
+          {/* Informações da Instituição */}
+          <Card className="mb-6">
+            <div className="p-6">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                Informações da Instituição
+              </h2>
+              
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600 dark:text-gray-400 font-medium">
+                    Instituição:
+                  </span>
+                  <span className="text-gray-900 dark:text-white">
+                    {payment.bankData?.bank || 'Banco Inter'}
+                  </span>
+                </div>
+                
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600 dark:text-gray-400 font-medium">
+                    Tipo de Conta:
+                  </span>
+                  <span className="text-gray-900 dark:text-white">
+                    {payment.bankData?.agency || '0001'} / {payment.bankData?.account || '1234567-8'}
+                  </span>
+                </div>
+                
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600 dark:text-gray-400 font-medium">
+                    Beneficiário:
+                  </span>
+                  <span className="text-gray-900 dark:text-white">
+                    {payment.bankData?.name || 'Coinage Tecnologia Ltda'}
+                  </span>
+                </div>
+                
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600 dark:text-gray-400 font-medium">
+                    CNPJ:
+                  </span>
+                  <span className="font-mono text-gray-900 dark:text-white">
+                    {payment.bankData?.cnpj || '12.345.678/0001-90'}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </Card>
+
           {/* QR Code */}
-          {isPending && (
+          {isPending && payment.amount > 0 && !payment.error && (
             <Card className="mb-6">
               <div className="p-6 text-center">
                 <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
@@ -353,7 +553,7 @@ const PixPaymentPage = () => {
           )}
 
           {/* Chave PIX */}
-          {isPending && (
+          {/* {isPending && (
             <Card className="mb-6">
               <div className="p-6">
                 <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
@@ -379,54 +579,7 @@ const PixPaymentPage = () => {
                 </p>
               </div>
             </Card>
-          )}
-
-          {/* Informações da Instituição */}
-          <Card className="mb-6">
-            <div className="p-6">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                Informações da Instituição
-              </h2>
-              
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600 dark:text-gray-400 font-medium">
-                    Instituição:
-                  </span>
-                  <span className="text-gray-900 dark:text-white">
-                    {payment.metadata.institution}
-                  </span>
-                </div>
-                
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600 dark:text-gray-400 font-medium">
-                    Tipo de Conta:
-                  </span>
-                  <span className="text-gray-900 dark:text-white">
-                    {payment.metadata.accountType}
-                  </span>
-                </div>
-                
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600 dark:text-gray-400 font-medium">
-                    Beneficiário:
-                  </span>
-                  <span className="text-gray-900 dark:text-white">
-                    {payment.metadata.beneficiary}
-                  </span>
-                </div>
-                
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600 dark:text-gray-400 font-medium">
-                    CNPJ:
-                  </span>
-                  <span className="font-mono text-gray-900 dark:text-white">
-                    {payment.metadata.cnpj}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </Card>
+          )} */}
 
           {/* Ações */}
           <div className="flex flex-col sm:flex-row justify-center space-y-3 sm:space-y-0 sm:space-x-4">
@@ -482,7 +635,7 @@ const PixPaymentPage = () => {
                   </h3>
                   <ul className="text-sm text-blue-700 dark:text-blue-300 space-y-1">
                     <li>• Abra o aplicativo do seu banco</li>
-                    <li>• Escolha a opção "PIX" ou "Pagar"</li>
+                    <li>• Escolha a opção &quot;PIX&quot; ou &quot;Pagar&quot;</li>
                     <li>• Escaneie o QR Code ou cole a chave PIX</li>
                     <li>• Confirme o valor e os dados</li>
                     <li>• Realize o pagamento</li>
@@ -500,6 +653,7 @@ const PixPaymentPage = () => {
 };
 
 export default PixPaymentPage;
+
 
 
 

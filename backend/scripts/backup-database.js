@@ -69,21 +69,21 @@ class DatabaseBackup {
       // Tentar primeiro com Docker
       try {
         await execPromise(dockerCommand);
-        console.log('✅ Backup realizado via Docker container');
+        // console.log('✅ Backup realizado via Docker container');
       } catch (dockerError) {
         // Se falhar, tentar comando direto
-        console.log('⚠️ Docker não disponível, tentando backup direto...');
+        // console.log('⚠️ Docker não disponível, tentando backup direto...');
         await execPromise(command);
-        console.log('✅ Backup realizado diretamente');
+        // console.log('✅ Backup realizado diretamente');
       }
 
       // Verificar tamanho do arquivo
       const stats = fs.statSync(filepath);
       const sizeMB = (stats.size / 1024 / 1024).toFixed(2);
       
-      console.log(`✅ Backup concluído com sucesso!`);
-      console.log(`   Tamanho: ${sizeMB} MB`);
-      console.log(`   Local: ${filepath}`);
+      // console.log(`✅ Backup concluído com sucesso!`);
+      // console.log(`   Tamanho: ${sizeMB} MB`);
+      // console.log(`   Local: ${filepath}`);
       
       return { success: true, filepath, size: sizeMB };
     } catch (error) {

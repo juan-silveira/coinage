@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import mockDepositService from '@/services/mockDepositService';
+import useAuthStore from '@/store/authStore';
+// Removed mock service - using only real API
 
 /**
  * Hook para aguardar confirmação de depósito
@@ -8,6 +9,7 @@ import mockDepositService from '@/services/mockDepositService';
  */
 const useDepositConfirmation = (transactionId, options = {}) => {
   const router = useRouter();
+  const { accessToken } = useAuthStore();
   const {
     autoRedirect = true,
     redirectPath = '/deposit/tx',
@@ -30,10 +32,15 @@ const useDepositConfirmation = (transactionId, options = {}) => {
 
     try {
       setLoading(true);
-      const response = await mockDepositService.getTransaction(transactionId);
+      const response = await fetch(`/api/deposits/status/${transactionId}`, {
+        headers: {
+          'Authorization': `Bearer ${accessToken || ''}`
+        }
+      });
+      const data = response.ok ? await response.json() : { success: false };
       
-      if (response.success) {
-        const tx = response.transaction;
+      if (data.success) {
+        const tx = data.transaction;
         const newStatus = tx.status;
         
         setTransaction(tx);

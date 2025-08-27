@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Teste de Saldos - Coinage</title>
+    <meta charset="UTF-8">
+</head>
+<body>
+    <h1>🧪 Teste de Saldos do Frontend</h1>
+    
+    <div>
+        <button onclick="clearAllCaches()">🗑️ Limpar Caches</button>
+        <button onclick="testAPI()">🔍 Testar API Diretamente</button>
+        <button onclick="forceReload()">🔄 Recarregar Página</button>
+    </div>
+    
+    <div id="results" style="margin-top: 20px; padding: 10px; border: 1px solid #ccc;">
+        <p>Clique nos botões acima para testar...</p>
+    </div>
+
+    <script>
+        function log(message) {
+            const results = document.getElementById('results');
+            results.innerHTML += '<br>' + new Date().toLocaleTimeString() + ': ' + message;
+            console.log(message);
+        }
+
+        function clearAllCaches() {
+            log('🧹 Limpando todos os caches...');
+            
+            // Limpar localStorage
+            let clearedLS = 0;
+            for (let i = localStorage.length - 1; i >= 0; i--) {
+                const key = localStorage.key(i);
+                if (key && (key.includes('balance') || key.includes('cache') || key.includes('auth') || key.includes('coinage'))) {
+                    localStorage.removeItem(key);
+                    clearedLS++;
+                    log('🗑️ localStorage removido: ' + key);
+                }
+            }
+            
+            // Limpar sessionStorage
+            let clearedSS = 0;
+            for (let i = sessionStorage.length - 1; i >= 0; i--) {
+                const key = sessionStorage.key(i);
+                if (key && (key.includes('balance') || key.includes('cache') || key.includes('auth') || key.includes('coinage'))) {
+                    sessionStorage.removeItem(key);
+                    clearedSS++;
+                    log('🗑️ sessionStorage removido: ' + key);
+                }
+            }
+            
+            log('✅ Caches limpos: ' + clearedLS + ' localStorage + ' + clearedSS + ' sessionStorage');
+        }
+
+        async function testAPI() {
+            log('🔍 Testando API diretamente...');
+            
+            try {
+                const response = await fetch('http://localhost:8800/api/balance-sync/fresh?address=0x5528C065931f523CA9F3a6e49a911896fb1D2e6f&network=testnet', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        // Note: em produção você precisaria de um token válido
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    log('✅ API Response: ' + JSON.stringify(data.data?.balancesTable || {}, null, 2));
+                } else {
+                    log('❌ API Error: ' + response.status + ' - ' + await response.text());
+                }
+            } catch (error) {
+                log('❌ API Request failed: ' + error.message);
+            }
+        }
+
+        function forceReload() {
+            log('🔄 Recarregando página...');
+            setTimeout(() => {
+                window.location.href = 'http://localhost:3000/dashboard';
+            }, 1000);
+        }
+
+        // Auto-executar limpeza ao carregar
+        window.onload = function() {
+            log('🚀 Página de teste carregada');
+            log('📝 Para testar completamente:');
+            log('1. Clique em "Limpar Caches"');
+            log('2. Vá para http://localhost:3000/dashboard');
+            log('3. Abra o console do navegador (F12)');
+            log('4. Procure pelos logs: [CachedBalances]');
+        };
+    </script>
+</body>
+</html>

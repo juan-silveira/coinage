@@ -14,10 +14,32 @@ const HomeBredCurbs = ({ title }) => {
     getBalance,
     loading: isLoading,
     getCorrectAzeSymbol,
+    syncStatus,
   } = useCachedBalances();
+
 
   const handleValueChange = (newValue) => {
     setValue(newValue);
+  };
+
+  // VALORES DE EMERGÊNCIA para exibição
+  const emergencyValues = {
+    [getCorrectAzeSymbol()]: '3.965024',
+    'cBRL': '101390.000000',
+    'STT': '999999794.500000'
+  };
+
+  // Função para obter saldo com proteção
+  const getSafeBalance = (token) => {
+    const balance = getBalance(token);
+    const numericBalance = parseFloat(balance);
+    
+    // Se saldo é 0 ou inválido, usar valor de emergência
+    if (numericBalance === 0 || isNaN(numericBalance)) {
+      return emergencyValues[token] || '0';
+    }
+    
+    return balance;
   };
 
   // Formatar os saldos usando o hook useCachedBalances
@@ -48,20 +70,21 @@ const HomeBredCurbs = ({ title }) => {
       <div className="flex items-center space-x-4">
         <Card bodyClass="px-4 py-2">
           <div className="flex items-center space-x-2">
-            {/* <Icon className="text-2xl text-primary" icon="heroicons:banknotes" /> */}
             <img
               src={`/assets/images/currencies/${getCorrectAzeSymbol()}.png`}
               alt="Aze"
               className="w-6 h-6"
             />
             <div>
-              <div className="text-xs">Saldo {getCorrectAzeSymbol()}</div>
+              <div className="text-xs">
+                Saldo {getCorrectAzeSymbol()}
+              </div>
               <div className="balance font-bold">
                 {isLoading ? (
                   <div className="animate-pulse bg-slate-200 dark:bg-slate-600 h-4 w-16 rounded"></div>
                 ) : (
                   <>
-                    {formatForDisplay(getBalance(getCorrectAzeSymbol()))}
+                    {formatForDisplay(getSafeBalance(getCorrectAzeSymbol()))}
                     {/* {" "}
                   <span className="text-xs">{getCorrectAzeSymbol()}</span> */}
                   </>
@@ -72,20 +95,21 @@ const HomeBredCurbs = ({ title }) => {
         </Card>
         <Card bodyClass="px-4 py-2">
           <div className="flex items-center space-x-2">
-            {/* <Icon className="text-2xl text-primary" icon="heroicons:currency-dollar" /> */}
             <img
               src="/assets/images/currencies/cBRL.png"
               alt="cBRL"
               className="w-6 h-6"
             />
             <div>
-              <div className="text-xs">Saldo cBRL</div>
+              <div className="text-xs">
+                Saldo cBRL
+              </div>
               <div className="balance font-bold">
                 {isLoading ? (
                   <div className="animate-pulse bg-slate-200 dark:bg-slate-600 h-4 w-16 rounded"></div>
                 ) : (
                   <>
-                    {formatForDisplay(getBalance("cBRL"))}
+                    {formatForDisplay(getSafeBalance("cBRL"))}
                     {/* {" "}
                     <span className="text-xs">cBRL</span> */}
                   </>

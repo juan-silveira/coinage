@@ -1,6 +1,7 @@
 const rabbitmqConfig = require('../config/rabbitmq');
 const blockchainQueueService = require('../services/blockchainQueue.service');
 const DepositService = require('../services/deposit.service');
+const mintService = require('../services/mint.service');
 
 class DepositWorker {
   constructor() {
@@ -26,8 +27,9 @@ class DepositWorker {
         await rabbitmqConfig.initialize();
       }
 
-      // Inicializar serviço de fila
+      // Inicializar serviços
       await blockchainQueueService.initialize();
+      await mintService.initialize();
 
       // Configurar consumidores
       await this.setupConsumers();
@@ -60,8 +62,14 @@ class DepositWorker {
    * Processa mensagem de depósito
    */
   async handleDepositProcessing(message, messageInfo) {
+    const maxRetries = 10; // Máximo de tentativas
+    const retryDelay = 30000; // 30 segundos entre tentativas
+    
     try {
       console.log(`🔄 Processing deposit: ${message.depositId || message.transactionId}`);
+      
+      // Adicionar contador de retry à mensagem
+      message.currentRetry = (message.currentRetry || 0) + 1;
       
       // Usar o novo método do blockchainQueueService ou manter compatibilidade
       if (message.type === 'deposit_processing') {
@@ -72,10 +80,37 @@ class DepositWorker {
       }
       
       console.log(`✅ Deposit processed: ${message.depositId || message.transactionId}`);
+      
+      // Acknowledge mensagem como processada
+      await rabbitmqConfig.channel.ack(messageInfo);
 
     } catch (error) {
-      console.error(`❌ Error handling deposit:`, error);
-      throw error; // Re-throw para trigger retry mechanism
+      console.error(`❌ Error handling deposit (attempt ${message.currentRetry}/${maxRetries}):`, error);
+      
+      // Se for erro de PIX não confirmado, reenviar para a fila com delay
+      if (error.message.includes('PIX payment not confirmed')) {
+        if (message.currentRetry < maxRetries) {
+          console.log(`⏳ PIX não confirmado. Reagendando tentativa ${message.currentRetry + 1}/${maxRetries} em ${retryDelay/1000}s`);
+          
+          // Reenviar mensagem para a fila com delay
+          setTimeout(async () => {
+            await rabbitmqConfig.publishToQueue(
+              rabbitmqConfig.queues.DEPOSITS_PROCESSING.name,
+              message
+            );
+          }, retryDelay);
+          
+          // Acknowledge a mensagem atual para não bloquear a fila
+          await rabbitmqConfig.channel.ack(messageInfo);
+        } else {
+          console.error(`❌ Máximo de tentativas excedido para depósito ${message.transactionId}`);
+          // Enviar para DLQ ou marcar como falha
+          await rabbitmqConfig.channel.nack(messageInfo, false, false);
+        }
+      } else {
+        // Para outros erros, usar o mecanismo padrão de retry do RabbitMQ
+        await rabbitmqConfig.channel.nack(messageInfo, false, true);
+      }
     }
   }
 
@@ -146,6 +181,7 @@ if (require.main === module) {
 }
 
 module.exports = depositWorker;
+
 
 
 

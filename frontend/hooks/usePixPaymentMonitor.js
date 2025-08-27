@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import mockPixService from '@/services/mockPixService';
+import useAuthStore from '@/store/authStore';
+// Removed mock service - using only real API
 
 /**
  * Hook para monitorar pagamentos PIX em tempo real
@@ -8,6 +9,7 @@ import mockPixService from '@/services/mockPixService';
  */
 const usePixPaymentMonitor = (paymentId, options = {}) => {
   const router = useRouter();
+  const { accessToken } = useAuthStore();
   const {
     autoRedirect = true,
     redirectPath = '/deposit/tx',
@@ -25,6 +27,8 @@ const usePixPaymentMonitor = (paymentId, options = {}) => {
   const [error, setError] = useState(null);
   const [attempts, setAttempts] = useState(0);
   const [timeRemaining, setTimeRemaining] = useState(0);
+  const [processingMint, setProcessingMint] = useState(false);
+  const [mintStatus, setMintStatus] = useState('');
   
   // Refs para controlar se os callbacks já foram executados
   const hasExecutedPaid = useRef(false);
@@ -38,17 +42,52 @@ const usePixPaymentMonitor = (paymentId, options = {}) => {
 
     try {
       setLoading(true);
-      const response = await mockPixService.getPayment(paymentId);
       
-      if (response.success) {
-        const paymentData = response.payment;
-        const newStatus = paymentData.status;
+      // Verificar se temos um refreshToken válido antes de tentar
+      const { refreshToken: currentRefreshToken } = useAuthStore.getState();
+      
+      // Se não temos token de acesso ou refresh, erro direto
+      if (!accessToken && !currentRefreshToken) {
+        setError('Usuário não autenticado');
+        return false;
+      }
+      
+      // Se não temos accessToken mas temos refreshToken, renovar primeiro
+      if (!accessToken && currentRefreshToken) {
+        try {
+          console.log('🔄 Sem accessToken, renovando primeiro...');
+          const authService = (await import('@/services/api')).authService;
+          const refreshResponse = await authService.refreshToken(currentRefreshToken);
+          
+          if (refreshResponse.success) {
+            useAuthStore.getState().setTokens(
+              refreshResponse.data.accessToken, 
+              refreshResponse.data.refreshToken
+            );
+            console.log('✅ Token renovado antes da primeira tentativa');
+          }
+        } catch (refreshError) {
+          console.error('❌ Erro ao renovar token inicial:', refreshError);
+          setError('Erro de autenticação');
+          return false;
+        }
+      }
+      
+      // DESENVOLVIMENTO: Usar endpoint sem autenticação
+      console.log('📡 Fazendo chamada PIX para desenvolvimento (sem JWT)');
+      let response = await fetch(`/api/pix/dev/payment/${paymentId}`);
+      
+      const data = response.ok ? await response.json() : { success: false };
+      
+      if (data.success && data.data?.payment) {
+        const paymentData = data.data.payment;
+        const newStatus = paymentData?.status;
         
         setPayment(paymentData);
         setStatus(newStatus);
         
         // Calcular tempo restante
-        if (newStatus === 'pending') {
+        if (newStatus === 'pending' && paymentData?.expiresAt) {
           const expiresAt = new Date(paymentData.expiresAt);
           const now = new Date();
           const remaining = Math.max(0, Math.floor((expiresAt - now) / 1000));
@@ -86,8 +125,8 @@ const usePixPaymentMonitor = (paymentId, options = {}) => {
           return true; // Parar polling
         }
       } else {
-        setError(response.message || 'Erro ao buscar status do pagamento');
-        if (onError) onError(response.message);
+        setError(data?.message || 'Erro ao buscar status do pagamento');
+        if (onError) onError(data?.message);
       }
     } catch (error) {
       console.error('Erro ao buscar status do pagamento:', error);
@@ -132,11 +171,16 @@ const usePixPaymentMonitor = (paymentId, options = {}) => {
     const pollStatus = async () => {
       if (!isActiveRef.current) return;
       
-      const shouldStop = await fetchPaymentStatus();
-      
-      if (shouldStop || !isActiveRef.current) {
-        isActiveRef.current = false;
-        return; // Parar polling
+      try {
+        const shouldStop = await fetchPaymentStatus();
+        
+        if (shouldStop || !isActiveRef.current) {
+          isActiveRef.current = false;
+          return; // Parar polling
+        }
+      } catch (pollError) {
+        console.error('Erro no polling:', pollError);
+        // Continuar polling em caso de erro
       }
       
       currentAttempts++;
@@ -187,18 +231,37 @@ const usePixPaymentMonitor = (paymentId, options = {}) => {
       
       try {
         setLoading(true);
-        const response = await mockPixService.forcePayment(paymentId);
+        setProcessingMint(true);
         
-        if (response.success) {
-          await fetchPaymentStatus(); // Atualizar status
-        } else {
-          setError(response.message);
+        // 1. Marcar PIX como pago (DESENVOLVIMENTO - sem JWT)
+        setMintStatus('Confirmando pagamento PIX...');
+        let response = await fetch(`/api/pix/dev/payment/${paymentId}/force`, { 
+          method: 'POST'
+        });
+        
+        const data = response.ok ? await response.json() : { success: false };
+        
+        if (!data.success) {
+          setError(data.message);
+          return;
         }
+        
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        // 2. PIX confirmado - aguardar processamento real do backend
+        setMintStatus('PIX confirmado! Aguarde o processamento da blockchain...');
+        
+        // REMOVER MOCK: Deixar que o backend processe automaticamente
+        // O usuário permanecerá na tela pendente até que o backend confirme
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        
       } catch (error) {
         console.error('Erro ao forçar pagamento:', error);
         setError('Erro ao forçar pagamento');
       } finally {
         setLoading(false);
+        setProcessingMint(false);
+        setMintStatus('');
       }
     },
     redirectToTransaction: () => {
@@ -271,7 +334,11 @@ const usePixPaymentMonitor = (paymentId, options = {}) => {
     // Formatação de tempo
     timeRemainingFormatted: timeRemaining > 0 
       ? `${Math.floor(timeRemaining / 60)}:${(timeRemaining % 60).toString().padStart(2, '0')}`
-      : '00:00'
+      : '00:00',
+      
+    // Novos estados para processamento mint
+    processingMint,
+    mintStatus
   };
 };
 

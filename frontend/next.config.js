@@ -2,6 +2,16 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: false, // Temporarily disable for hydration debugging
+  
+  // Configurar proxy para redirecionar APIs para backend
+  async rewrites() {
+    return [
+      {
+        source: '/api/:path*',
+        destination: 'http://localhost:8800/api/:path*',
+      },
+    ];
+  },
   webpack(config, { isServer }) {
     // Grab the existing rule that handles SVG imports
     const fileLoaderRule = config.module.rules.find((rule) =>

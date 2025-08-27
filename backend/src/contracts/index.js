@@ -1,4 +1,6 @@
 const contractTypeService = require('../services/contractType.service');
+const fs = require('fs');
+const path = require('path');
 
 /**
  * Arquivo central para gerenciamento de contratos e ABIs
@@ -23,22 +25,37 @@ const CONTRACT_CATEGORIES = {
  * Tipos de contrato padrão disponíveis
  */
 const DEFAULT_CONTRACT_TYPES = {
-  // Tokens
+  // Contratos principais do sistema Coinage
+  DEFAULT_TOKEN: 'default_token',      // Token ERC20 com mint/burn (cBRL, cUSD, etc)
+  DEFAULT_STAKE: 'default_stake',      // Contrato de staking
+  DEFAULT_EXCHANGE: 'default_exchange', // Contrato de exchange/swap
+  DEFAULT_ESCROW: 'default_escrow',    // Contrato de escrow para transações
+  DEFAULT_NFT: 'default_nft',          // NFT ERC721 para certificados/badges
+  
+  // Contratos genéricos (mantidos para compatibilidade)
   ERC20_STANDARD: 'erc20-standard',
   ERC20_MINTABLE: 'erc20-mintable',
-  
-  // NFTs
   ERC721_STANDARD: 'erc721-standard',
-  
-  // DeFi
   STAKING_REWARDS: 'staking-rewards',
-  
-  // Escrow
   SIMPLE_ESCROW: 'simple-escrow',
-  
-  // Oracle
   PRICE_FEED: 'price-feed'
 };
+
+/**
+ * Função para carregar ABI local
+ * @param {string} abiFileName - Nome do arquivo ABI
+ * @returns {Array} ABI do contrato
+ */
+function loadLocalABI(abiFileName) {
+  try {
+    const abiPath = path.join(__dirname, 'abis', `${abiFileName}.json`);
+    const abiContent = fs.readFileSync(abiPath, 'utf8');
+    return JSON.parse(abiContent);
+  } catch (error) {
+    console.error(`Error loading local ABI ${abiFileName}:`, error);
+    throw error;
+  }
+}
 
 /**
  * Função para obter ABI por tipo de contrato
@@ -47,6 +64,15 @@ const DEFAULT_CONTRACT_TYPES = {
  */
 async function getContractABI(contractTypeId) {
   try {
+    // Primeiro tenta carregar ABIs locais dos contratos principais
+    if (Object.values(DEFAULT_CONTRACT_TYPES).includes(contractTypeId)) {
+      const localAbis = ['default_token', 'default_stake'];
+      if (localAbis.includes(contractTypeId)) {
+        return loadLocalABI(`${contractTypeId}_abi`);
+      }
+    }
+    
+    // Fallback para o serviço de tipos de contrato
     return await contractTypeService.getContractTypeABI(contractTypeId);
   } catch (error) {
     console.error('Error getting contract ABI:', error);
@@ -224,6 +250,7 @@ module.exports = {
   contractTypeService,
   
   // Utility functions
+  loadLocalABI,
   getContractABI,
   getContractTypesByCategory,
   validateContractAddress,

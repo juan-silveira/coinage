@@ -30,7 +30,7 @@ class BalanceSyncService {
       }
       return null;
     } catch (error) {
-      console.error('❌ [BalanceSyncService] Erro ao buscar cache Redis:', error);
+      // console.error('❌ [BalanceSyncService] Erro ao buscar cache Redis:', error);
       return null;
     }
   }

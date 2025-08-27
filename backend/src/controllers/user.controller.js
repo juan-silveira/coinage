@@ -8,6 +8,8 @@ const getPrisma = () => prismaConfig.getPrisma();
 const userService = require('../services/user.service');
 const userActionsService = require('../services/userActions.service');
 const { validatePassword } = require('../utils/passwordValidation');
+const blockchainService = require('../services/blockchain.service');
+const tokenService = require('../services/token.service');
 
 /**
  * Criar usuário
@@ -323,59 +325,10 @@ const getUserBalancesByAddress = async (req, res) => {
       }
     }
     
-    // Importar serviços necessários para consulta blockchain
-    // Usar novo serviço do AzoreScan para consultar balances diretamente da blockchain
-    try {
-      console.log(`🚀 Consultando balances via AzoreScan API para ${address} na ${network}`);
-      
-      const azoreScanService = require('../services/azorescan.service');
-      const balancesResponse = await azoreScanService.getCompleteBalances(address, network);
-      
-      if (balancesResponse.success) {
-        console.log(`✅ Balances obtidos com sucesso via AzoreScan API`);
-        
-        // Salvar dados frescos no cache se usuário autenticado
-        if (req.user && req.user.id) {
-          console.log(`💾 Salvando dados frescos no cache para ${req.user.id}`);
-          const redisService = require('../services/redis.service');
-          await redisService.cacheUserBalances(req.user.id, address, network, balancesResponse.data);
-        }
-        
-        res.json({ success: true, data: balancesResponse.data });
-        return; // Sair da função aqui
-      } else {
-        console.error(`❌ Erro ao obter balances via AzoreScan: ${balancesResponse.error}`);
-        
-        // Fallback: retornar estrutura mínima com apenas saldo zerado
-        const nativeSymbol = network === 'testnet' ? 'AZE-t' : 'AZE';
-        const fallbackData = {
-          address: address,
-          network: network,
-          azeBalance: {
-            balanceWei: '0',
-            balanceEth: '0.0'
-          },
-          tokenBalances: [],
-          balancesTable: { [nativeSymbol]: '0.0' },
-          totalTokens: 1,
-          timestamp: new Date().toISOString(),
-          fromCache: false,
-          error: balancesResponse.error
-        };
-        
-        res.json({ success: true, data: fallbackData });
-        return; // Sair da função aqui
-      }
-    } catch (apiError) {
-      console.error(`❌ Erro na consulta via AzoreScan API: ${apiError.message}`);
-      
-      // Fallback: usar lógica antiga como backup
-      console.log(`🔄 Tentando fallback com blockchain service...`);
-    }
+    // PULAR AzoreScan temporariamente e usar consulta direta da blockchain
+    console.log(`🔄 Usando consulta direta da blockchain para ${address} na ${network}`);
 
-    // FALLBACK: Lógica antiga como backup
-    const blockchainService = require('../services/blockchain.service');
-    const tokenService = require('../services/token.service');
+    // USAR: consulta direta da blockchain
     
     // Inicializar dados de resposta
     let balancesData = {
@@ -436,30 +389,29 @@ const getUserBalancesByAddress = async (req, res) => {
       
       console.log(`🔍 Consultando ${configuredTokens.length} tokens ERC-20 para ${network}`);
       
-      // TEMPORÁRIO: Retornar dados simulados dos tokens para testar frontend
-      console.log(`🔧 Retornando dados simulados para ${configuredTokens.length} tokens`);
+      // Consultar saldos REAIS dos tokens ERC-20 na blockchain
+      console.log(`🔍 Consultando saldos reais para ${configuredTokens.length} tokens na blockchain`);
       const tokenPromises = configuredTokens.map(async (token) => {
-        console.log(`🪙 Simulando token ${token.symbol} (${token.address})`);
-        
-        // Simular balances para o usuário de teste
-        const mockBalances = {
-          'cBRL': '1250.50',
-          'STT': '850.75'
-        };
-        
-        const tokenBalance = {
-          contractAddress: token.address,
-          tokenName: token.name,
-          tokenSymbol: token.symbol,
-          tokenDecimals: 18,
-          balanceWei: '1000000000000000000000', // 1000 tokens em wei
-          balanceEth: mockBalances[token.symbol] || '100.00',
-          userAddress: address,
-          network: network
-        };
-        
-        console.log(`✅ Saldo simulado ${token.symbol}: ${tokenBalance.balanceEth}`);
-        return tokenBalance;
+        try {
+          console.log(`🪙 Consultando token ${token.symbol} (${token.address})`);
+          
+          // Consultar saldo real do token na blockchain
+          const { loadLocalABI } = require('../contracts');
+          const tokenABI = await loadLocalABI('default_token_abi');
+          const tokenBalance = await blockchainService.getTokenBalance(
+            address,
+            token.address, 
+            tokenABI,
+            network
+          );
+          
+          console.log(`✅ Saldo real ${token.symbol}: ${tokenBalance.balanceEth}`);
+          return tokenBalance;
+          
+        } catch (tokenError) {
+          console.warn(`⚠️ Erro ao consultar token ${token.symbol}: ${tokenError.message}`);
+          return null; // Ignorar tokens com erro
+        }
       });
       
       const tokenResults = await Promise.all(tokenPromises);

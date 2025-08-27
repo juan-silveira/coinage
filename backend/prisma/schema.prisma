@@ -73,6 +73,7 @@ model User {
   reviewedDocuments      UserDocument[]    @relation("UserDocumentReviewer")
   userActions            UserAction[]
   withdrawals            Withdrawal[]
+  userTaxes              UserTaxes?
 
   @@index([email], map: "idx_users_email")
   @@index([cpf], map: "idx_users_cpf")
@@ -102,58 +103,47 @@ model ApiKey {
 }
 
 model Transaction {
+  // === CAMPOS BÁSICOS ===
   id              String            @id @default(uuid()) @db.Uuid
   companyId       String            @map("company_id") @db.Uuid
   userId          String?           @map("user_id") @db.Uuid
-  userCompanyId   String?           @map("user_company_id") @db.Uuid
-  requestLogId    String?           @map("request_log_id") @db.Uuid
-  contractId      String?           @map("contract_id") @db.Uuid
-  network         Network
   transactionType TransactionType   @map("transaction_type")
   status          TransactionStatus @default(pending)
+  
+  // === CAMPOS FINANCEIROS (para deposits/withdraws) ===
+  amount          Decimal?          @db.Decimal(15, 2) // Valor da transação em BRL/USD
+  currency        String?           @db.VarChar(5)     // BRL, USD, etc.
+  
+  // === CAMPOS BLOCKCHAIN (apenas para contract_call, transfer) ===
+  network         Network?
+  contractAddress String?           @map("contract_address") @db.VarChar(42) // Endereço direto do contrato
   txHash          String?           @unique @map("tx_hash") @db.VarChar(66)
   blockNumber     BigInt?           @map("block_number")
   fromAddress     String?           @map("from_address") @db.VarChar(42)
   toAddress       String?           @map("to_address") @db.VarChar(42)
-  value           Decimal?          @db.Decimal(65, 0)
-  gasPrice        Decimal?          @map("gas_price") @db.Decimal(65, 0)
-  gasLimit        BigInt?           @map("gas_limit")
   gasUsed         BigInt?           @map("gas_used")
-  nonce           Int?
-  data            String?
-  functionName    String?           @map("function_name") @db.VarChar(255)
-  functionParams  Json?             @map("function_params")
-  receipt         Json?
-  error           Json?
-  confirmations   Int?              @default(0)
-  estimatedGas    BigInt?           @map("estimated_gas")
-  actualGasCost   Decimal?          @map("actual_gas_cost") @db.Decimal(65, 0)
-  submittedAt     DateTime?         @map("submitted_at") @db.Timestamptz(6)
+  functionName    String?           @map("function_name") @db.VarChar(50)
+  
+  // === CAMPOS TEMPORAIS ===
   confirmedAt     DateTime?         @map("confirmed_at") @db.Timestamptz(6)
   failedAt        DateTime?         @map("failed_at") @db.Timestamptz(6)
-  metadata        Json?
   createdAt       DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt       DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+  
+  // === DADOS ADICIONAIS ===
+  metadata        Json?             // Dados específicos por tipo de transação
+  
+  // === RELACIONAMENTOS ===
   company         Company           @relation(fields: [companyId], references: [id])
-  contract        SmartContract?    @relation(fields: [contractId], references: [id])
-  requestLog      RequestLog?       @relation(fields: [requestLogId], references: [id])
-  userCompany     UserCompany?      @relation(fields: [userCompanyId], references: [id])
   user            User?             @relation(fields: [userId], references: [id])
 
-  @@index([companyId], map: "idx_transactions_company_id")
-  @@index([txHash], map: "idx_transactions_tx_hash")
-  @@index([status], map: "idx_transactions_status")
-  @@index([network], map: "idx_transactions_network")
-  @@index([transactionType], map: "idx_transactions_type")
-  @@index([fromAddress], map: "idx_transactions_from_address")
-  @@index([toAddress], map: "idx_transactions_to_address")
-  @@index([blockNumber], map: "idx_transactions_block_number")
-  @@index([createdAt], map: "idx_transactions_created_at")
-  @@index([confirmedAt], map: "idx_transactions_confirmed_at")
+  // === ÍNDICES OTIMIZADOS ===
+  @@index([userId, transactionType], map: "idx_transactions_user_type")
   @@index([companyId, status], map: "idx_transactions_company_status")
-  @@index([userId], map: "idx_transactions_user_id")
-  @@index([userCompanyId], map: "idx_transactions_user_company_id")
-  @@index([network, status], map: "idx_transactions_network_status")
+  @@index([transactionType, status], map: "idx_transactions_type_status")
+  @@index([txHash], map: "idx_transactions_tx_hash")
+  @@index([createdAt], map: "idx_transactions_created_at")
+  @@index([contractAddress], map: "idx_transactions_contract")
   @@map("transactions")
 }
 
@@ -191,7 +181,6 @@ model SmartContract {
   createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
   contractType   ContractType? @relation(fields: [contractTypeId], references: [id])
-  transactions   Transaction[]
 
   @@index([address], map: "idx_smart_contracts_address")
   @@index([network], map: "idx_smart_contracts_network")
@@ -235,7 +224,6 @@ model RequestLog {
   createdAt    DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
   company      Company       @relation(fields: [companyId], references: [id])
   user         User?         @relation(fields: [userId], references: [id])
-  transactions Transaction[]
 
   @@index([companyId], map: "idx_request_logs_company_id")
   @@index([userId], map: "idx_request_logs_user_id")
@@ -255,6 +243,7 @@ model PasswordReset {
   @@index([token], map: "idx_password_resets_token")
   @@map("password_resets")
 }
+
 
 model Webhook {
   id            String    @id @default(uuid()) @db.Uuid
@@ -353,7 +342,6 @@ model UserCompany {
   createdAt          DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt          DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
   deletedAt          DateTime?        @map("deleted_at") @db.Timestamptz(6)
-  transactions       Transaction[]
   approver           User?            @relation("UserCompanyApprover", fields: [approvedBy], references: [id])
   company            Company          @relation(fields: [companyId], references: [id])
   requester          User?            @relation("UserCompanyRequester", fields: [requestedBy], references: [id])
@@ -588,6 +576,31 @@ model UserAction {
   @@index([userId, category], map: "idx_user_actions_user_category")
   @@index([userId, action, status], map: "idx_user_actions_user_action_status")
   @@map("user_actions")
+}
+
+model UserTaxes {
+  id                    String    @id @default(uuid()) @db.Uuid
+  userId                String    @unique @map("user_id") @db.Uuid
+  depositFee            Float     @default(3.0) @map("deposit_fee") // Taxa fixa de depósito em BRL
+  withdrawFee           Float     @default(5.0) @map("withdraw_fee") // Taxa fixa de saque em BRL
+  exchangeFeePercent    Float     @default(0.3) @map("exchange_fee_percent") // Taxa de exchange entre tokens (percentual)
+  transferFeePercent    Float     @default(0.1) @map("transfer_fee_percent") // Taxa de transferência P2P (percentual)
+  gasSubsidyEnabled     Boolean   @default(false) @map("gas_subsidy_enabled") // Se o gas é subsidiado para este usuário
+  gasSubsidyPercent     Float     @default(0) @map("gas_subsidy_percent") // Porcentagem do gas subsidiado (0-100)
+  customFees            Json?     @map("custom_fees") // Taxas customizadas para operações específicas
+  isVip                 Boolean   @default(false) @map("is_vip") // Usuário VIP com taxas diferenciadas
+  vipLevel              Int       @default(0) @map("vip_level") // Nível VIP (0 = não VIP, 1-5 = níveis VIP)
+  validFrom             DateTime  @default(now()) @map("valid_from") @db.Timestamptz(6)
+  validUntil            DateTime? @map("valid_until") @db.Timestamptz(6)
+  metadata              Json?
+  createdAt             DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user                  User      @relation(fields: [userId], references: [id])
+
+  @@index([userId], map: "idx_user_taxes_user_id")
+  @@index([isVip], map: "idx_user_taxes_is_vip")
+  @@index([vipLevel], map: "idx_user_taxes_vip_level")
+  @@map("user_taxes")
 }
 
 enum Network {

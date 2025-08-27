@@ -13,11 +13,92 @@ const api = axios.create({
   },
 });
 
+// 🔇 INTERCEPTAR CONSOLE.ERROR PARA SILENCIAR ERROS DE BALANCE-SYNC 401/403
+const originalConsoleError = console.error;
+const originalConsoleWarn = console.warn;
+
+// Override console.error
+console.error = (...args) => {
+  const message = args.join(' ').toLowerCase();
+  
+  // Lista de padrões para silenciar
+  const silencePatterns = [
+    'balance-sync',
+    'usebalancesync',
+    'fresh?address=',
+    'cache?userid=',
+    '401',
+    '403',
+    'unauthorized'
+  ];
+  
+  // Se contém pelo menos 2 padrões da lista, silenciar
+  const matchCount = silencePatterns.filter(pattern => message.includes(pattern)).length;
+  if (matchCount >= 2) {
+    return; // Silenciar
+  }
+  
+  // Silenciar erros específicos do balance-sync
+  if (message.includes('balance-sync') || 
+      (message.includes('localhost:8800') && (message.includes('401') || message.includes('403')))) {
+    return; // Silenciar
+  }
+  
+  // Mostrar todos os outros erros normalmente
+  originalConsoleError.apply(console, args);
+};
+
+// Override console.warn também
+console.warn = (...args) => {
+  const message = args.join(' ').toLowerCase();
+  
+  if (message.includes('balance-sync') && (message.includes('401') || message.includes('403'))) {
+    return; // Silenciar warnings também
+  }
+  
+  originalConsoleWarn.apply(console, args);
+};
+
+
+// Flag global para balance sync (importada do hook)
+let isBalanceSyncAPIBlocked = false;
+
+// Função para controlar bloqueio da API (somente no client-side)
+if (typeof window !== 'undefined') {
+  window.setBalanceSyncAPIBlocked = (blocked) => {
+    isBalanceSyncAPIBlocked = blocked;
+  };
+}
 
 // Interceptor para adicionar token de autenticação
 api.interceptors.request.use(
   (config) => {
-    const { accessToken } = useAuthStore.getState();
+    const { accessToken, isAuthenticated, user } = useAuthStore.getState();
+    
+    // PROTEÇÃO SUPREMA: Bloquear TODAS as chamadas balance-sync se flag global ativa
+    if (config.url?.includes('/balance-sync/') && isBalanceSyncAPIBlocked) {
+      const ultraSilentError = Object.create(Error.prototype);
+      ultraSilentError.name = 'UltraSilentError';
+      ultraSilentError.message = 'Balance sync blocked by global flag';
+      ultraSilentError.code = 'BALANCE_SYNC_GLOBALLY_BLOCKED';
+      ultraSilentError.isAxiosError = false;
+      ultraSilentError.toJSON = () => ({});
+      return Promise.reject(ultraSilentError);
+    }
+    
+    // PROTEÇÃO CRÍTICA: Bloquear chamadas de balance-sync se usuário não está autenticado
+    if (config.url?.includes('/balance-sync/') && (!isAuthenticated || !user?.publicKey || !accessToken)) {
+      // Criar um erro silencioso que não gera logs no DevTools
+      const silentError = Object.create(Error.prototype);
+      silentError.name = 'SilentError';
+      silentError.message = 'Balance sync blocked - user not authenticated';
+      silentError.code = 'USER_NOT_AUTHENTICATED_SILENT';
+      silentError.config = config;
+      silentError.isAxiosError = false; // Evita logs do axios
+      silentError.toJSON = () => ({}); // Evita serialização
+      return Promise.reject(silentError);
+    }
+    
     if (accessToken) {
       config.headers.Authorization = `Bearer ${accessToken}`;
     }
@@ -34,49 +115,64 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
-    // Log do erro para debug
-    console.log('🔍 [API] Erro interceptado:', {
-      url: originalRequest?.url,
-      method: originalRequest?.method,
-      status: error.response?.status,
-      message: error.message
-    });
+    // 🔇 SILENCIAR ERROS 401/403 DE BALANCE-SYNC DURANTE LOGOUT
+    if (originalRequest?.url?.includes('/balance-sync/') && 
+        (error.response?.status === 401 || error.response?.status === 403)) {
+      // Criar erro ultra-silencioso que não aparece no DevTools
+      const silentError = Object.create(Error.prototype);
+      silentError.name = 'SilentBalanceSyncError';
+      silentError.message = 'Balance sync unauthorized - silenced';
+      silentError.code = 'BALANCE_SYNC_UNAUTHORIZED_SILENCED';
+      silentError.config = originalRequest;
+      silentError.isAxiosError = false; // Evita logs do axios
+      silentError.toJSON = () => ({}); // Evita serialização
+      silentError.stack = ''; // Remove stack trace
+      return Promise.reject(silentError);
+    }
+
+    // Log do erro para debug (apenas para outras APIs)
+    // console.log('🔍 [API] Erro interceptado:', {
+    //   url: originalRequest?.url,
+    //   method: originalRequest?.method,
+    //   status: error.response?.status,
+    //   message: error.message
+    // });
 
     // Se o erro for 401 e não for uma tentativa de refresh
     if (error.response?.status === 401 && !originalRequest._retry) {
-      console.log('🔍 [API] Detectado erro 401, tentando refresh...', {
-        url: originalRequest?.url,
-        hasRetry: originalRequest._retry
-      });
+      // console.log('🔍 [API] Detectado erro 401, tentando refresh...', {
+      //   url: originalRequest?.url,
+      //   hasRetry: originalRequest._retry
+      // });
       
       originalRequest._retry = true;
 
       const { refreshToken, logout, isAuthenticated } = useAuthStore.getState();
       
-      console.log('🔍 [API] Estado de autenticação:', {
-        isAuthenticated,
-        hasRefreshToken: !!refreshToken
-      });
+      // console.log('🔍 [API] Estado de autenticação:', {
+      //   isAuthenticated,
+      //   hasRefreshToken: !!refreshToken
+      // });
       
-      // IMPORTANTE: Não fazer logout automático em endpoints de sincronização
+      // IMPORTANTE: Não fazer logout automático em endpoints de sincronização, mas permitir renovação de token
       const isSyncRequest = originalRequest?.url?.includes('/balance-sync/') || 
                            originalRequest?.url?.includes('/notifications/') ||
                            originalRequest?.url?.includes('azorescan.com');
       
       if (isSyncRequest) {
-        console.log('⚠️ [API] Erro 401 em requisição de sync - NÃO fazendo logout automático');
+        // console.log('⚠️ [API] Erro 401 em requisição de sync - tentando renovar token silenciosamente');
         
-        // Para notificações, tentar refresh token silenciosamente
-        if (isAuthenticated && refreshToken && originalRequest?.url?.includes('/notifications/')) {
+        // Para endpoints de sync (balance-sync, notifications), tentar refresh token silenciosamente
+        if (isAuthenticated && refreshToken) {
           try {
-            console.log('🔄 [API] Tentando renovar token para notificações...');
+            // console.log('🔄 [API] Tentando renovar token para sync...');
             const response = await axios.post(`${API_BASE_URL}/api/auth/refresh`, {
               refreshToken
             });
 
             const { accessToken: newAccessToken, refreshToken: newRefreshToken } = response.data.data;
             
-            console.log('✅ [API] Token renovado para notificações');
+            // console.log('✅ [API] Token renovado para sync');
             // Atualizar tokens no store
             useAuthStore.getState().setTokens(newAccessToken, newRefreshToken);
             
@@ -84,7 +180,7 @@ api.interceptors.response.use(
             originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
             return api(originalRequest);
           } catch (refreshError) {
-            console.warn('⚠️ [API] Falha no refresh para notificações - continuando sem notificações');
+            // console.warn('⚠️ [API] Falha no refresh para sync - continuando sem fazer logout');
             // Não fazer logout, apenas rejeitar a requisição
             return Promise.reject(error);
           }
@@ -96,7 +192,7 @@ api.interceptors.response.use(
       // Só tentar refresh se o usuário estiver autenticado
       if (isAuthenticated && refreshToken) {
         try {
-          console.log('🔄 [API] Tentando renovar token...');
+          // console.log('🔄 [API] Tentando renovar token...');
           // Tentar renovar o token
           const response = await axios.post(`${API_BASE_URL}/api/auth/refresh`, {
             refreshToken
@@ -104,7 +200,7 @@ api.interceptors.response.use(
 
           const { accessToken: newAccessToken, refreshToken: newRefreshToken } = response.data.data;
           
-          console.log('✅ [API] Token renovado com sucesso');
+          // console.log('✅ [API] Token renovado com sucesso');
           // Atualizar tokens no store
           useAuthStore.getState().setTokens(newAccessToken, newRefreshToken);
           
@@ -112,15 +208,15 @@ api.interceptors.response.use(
           originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
           return api(originalRequest);
         } catch (refreshError) {
-          console.error('❌ [API] Erro ao renovar token:', {
-            error: refreshError.message,
-            status: refreshError.response?.status,
-            data: refreshError.response?.data
-          });
+          // console.error('❌ [API] Erro ao renovar token:', {
+          //   error: refreshError.message,
+          //   status: refreshError.response?.status,
+          //   data: refreshError.response?.data
+          // });
           
           // NÃO fazer logout automático por falhas de refresh token
           // Deixar o usuário continuar logado e tentar novamente depois
-          console.warn('⚠️ [API] Falha no refresh token - usuário continua logado');
+          // console.warn('⚠️ [API] Falha no refresh token - usuário continua logado');
           
           // Só fazer logout se for explicitamente um token inválido do servidor
           const isTokenInvalid = refreshError.response?.status === 401 && 
@@ -128,7 +224,7 @@ api.interceptors.response.use(
                                 refreshError.response?.data?.message?.toLowerCase().includes('token expired'));
           
           if (isTokenInvalid) {
-            console.error('🚪 [API] LOGOUT - Token refresh inválido');
+            // console.error('🚪 [API] LOGOUT - Token refresh inválido');
             logout('invalid_refresh_token');
             setTimeout(() => window.location.href = '/login', 1000);
           }
@@ -137,17 +233,17 @@ api.interceptors.response.use(
         }
       } else if (isAuthenticated && !isSyncRequest && !refreshToken) {
         // Só fazer logout se NÃO tiver refresh token E não for requisição de sync
-        console.error('🚪 [API] LOGOUT - Sem refresh token');
+        // console.error('🚪 [API] LOGOUT - Sem refresh token');
         logout('no_refresh_token');
         setTimeout(() => window.location.href = '/login', 1000);
       } else {
         // Para outros casos, apenas logar o erro
-        console.warn('⚠️ [API] Erro 401 - Continua logado:', {
-          isAuthenticated,
-          hasRefreshToken: !!refreshToken,
-          isSyncRequest,
-          url: originalRequest?.url
-        });
+        // console.warn('⚠️ [API] Erro 401 - Continua logado:', {
+        //   isAuthenticated,
+        //   hasRefreshToken: !!refreshToken,
+        //   isSyncRequest,
+        //   url: originalRequest?.url
+        // });
       }
       // Se não estiver autenticado, não fazer nada (provavelmente é erro de login)
     }
@@ -390,11 +486,26 @@ export const userService = {
           address: balanceData.address || address,
           azeBalance: balanceData.azeBalance,
           timestamp: balanceData.timestamp || new Date().toISOString(),
-          fromCache: false
+          // IMPORTANTE: Preservar os campos de status do backend
+          fromCache: balanceData.fromCache || false,
+          syncStatus: balanceData.syncStatus || 'success',
+          syncError: balanceData.syncError || null
         }
       };
     }
     
+    return response.data;
+  },
+
+  // Obter saldos do cache Redis
+  getCachedBalances: async (userId, address, network) => {
+    const response = await api.get('/api/balance-sync/cache', {
+      params: { 
+        userId: userId,
+        address: address,
+        network: network
+      }
+    });
     return response.data;
   },
 

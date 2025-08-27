@@ -1,12 +1,21 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import useAuthStore from '@/store/authStore';
 // Alert context removido - sistema totalmente silencioso
 import api from '@/services/api';
 import balanceSyncService from '@/services/balanceSyncService';
+import balanceBackupService from '@/services/balanceBackupService';
 import { useNotificationEvents } from '@/contexts/NotificationContext';
 import { useConfigContext } from '@/contexts/ConfigContext';
 
-const SYNC_INTERVAL_MS = 60 * 1000; // 1 minuto
+// Função para obter o intervalo baseado no plano do usuário
+const getSyncIntervalMs = (userPlan = 'BASIC') => {
+  switch (userPlan) {
+    case 'PREMIUM': return 1 * 60 * 1000; // 1 minuto para usuários premium
+    case 'PRO': return 2 * 60 * 1000;     // 2 minutos para usuários pro
+    case 'BASIC':
+    default: return 5 * 60 * 1000;        // 5 minutos para usuários básicos
+  }
+};
 // REMOVIDO: CACHE_KEY_PREFIX não é mais usado para localStorage
 
 // Cache global para evitar notificações duplicadas
@@ -18,17 +27,26 @@ const SYNC_INTERVAL_MS = 60 * 1000; // 1 minuto
 const notificationCache = new Map();
 const NOTIFICATION_CACHE_TTL = 60 * 60 * 1000; // 1 hora
 
+// REMOVIDO: Flag global que estava causando problemas
+
 const useBalanceSync = (onBalanceUpdate = null) => {
+  // Store - SEMPRE chamar hooks no mesmo nível
+  const user = useAuthStore((s) => s.user);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+
   const [isActive, setIsActive] = useState(false);
   const [lastSync, setLastSync] = useState(null);
   const [syncError, setSyncError] = useState(null);
   const [balanceChanges, setBalanceChanges] = useState([]);
   const [redisSyncStatus, setRedisSyncStatus] = useState('idle'); // idle, syncing, synced, error
-
-  // Store
-  const user = useAuthStore((s) => s.user);
+  
+  // Referências para cancelar operações em andamento
+  const abortControllerRef = useRef(null);
   const notifications = useAuthStore((s) => s.notifications);
   const addNotification = useAuthStore((s) => s.addNotification);
+  const cachedBalances = useAuthStore((s) => s.cachedBalances);
+  const setCachedBalances = useAuthStore((s) => s.setCachedBalances);
+  const balancesLastUpdate = useAuthStore((s) => s.balancesLastUpdate);
   
   // Notification events para tocar som
   const { notifyNewNotification } = useNotificationEvents();
@@ -203,7 +221,8 @@ const useBalanceSync = (onBalanceUpdate = null) => {
         //   ehMudancaSignificativa: isSignificantChange(newBalance, prevBalance)
         // });
         
-        if (isSignificantChange(newBalance, prevBalance)) {
+        // PROTEÇÃO: NUNCA notificar mudanças para 0 ou de 0
+        if (isSignificantChange(newBalance, prevBalance) && newBalance > 0 && prevBalance > 0) {
           const difference = newBalance - prevBalance;
           
           changes.push({
@@ -217,38 +236,32 @@ const useBalanceSync = (onBalanceUpdate = null) => {
         }
       });
 
-      // Verificar novos tokens
+      // Verificar novos tokens - MAS BLOQUEAR TOKENS QUE JÁ EXISTIAM (evita notificação de "novo token" quando API volta)
       Object.keys(newTable).forEach(token => {
         if (!(token in prevTable) && parseFloat(newTable[token] || 0) > 0) {
-          // console.log(`🆕 [BalanceSync] Novo token detectado: ${token} = ${newTable[token]}`);
+          // VERIFICAR SE É REALMENTE NOVO OU SE ESTAVA COM VALOR DE EMERGÊNCIA
+          const emergencyTokens = ['AZE-t', 'AZE', 'cBRL', 'STT'];
+          const isKnownToken = emergencyTokens.includes(token);
           
-          changes.push({
-            token,
-            previousBalance: '0.000000',
-            newBalance: parseFloat(newTable[token]).toFixed(6),
-            difference: parseFloat(newTable[token]).toFixed(6),
-            type: 'new_token',
-            timestamp: new Date().toISOString()
-          });
-        }
-      });
-
-      // Verificar tokens que foram removidos ou zerados
-      Object.keys(prevTable).forEach(token => {
-        if (!(token in newTable) || parseFloat(newTable[token] || 0) === 0) {
-          const prevBalance = parseFloat(prevTable[token] || 0);
-          if (prevBalance > 0) {
-            // console.log(`📉 [BalanceSync] Token removido/zerado: ${token} (era ${prevBalance.toFixed(6)})`);
-            
+          if (!isKnownToken) {
+            // Token realmente novo
             changes.push({
               token,
-              previousBalance: prevBalance.toFixed(6),
-              newBalance: '0.000000',
-              difference: (0 - prevBalance).toFixed(6),
-              type: 'decrease',
+              previousBalance: '0.000000',
+              newBalance: parseFloat(newTable[token]).toFixed(6),
+              difference: parseFloat(newTable[token]).toFixed(6),
+              type: 'new_token',
               timestamp: new Date().toISOString()
             });
           }
+        }
+      });
+
+      // Verificar tokens que foram removidos ou zerados - MAS BLOQUEAR NOTIFICAÇÕES PARA ZEROS
+      Object.keys(prevTable).forEach(token => {
+        // Tokens removidos/zerados não geram notificações
+        if (!(token in newTable) || parseFloat(newTable[token] || 0) === 0) {
+          // Bloquear notificações de tokens que desapareceram/zeraram
         }
       });
 
@@ -457,9 +470,167 @@ const useBalanceSync = (onBalanceUpdate = null) => {
     }
   }, [addNotification, user?.id, notifyNewNotification, isNotificationAlreadySent, markNotificationAsSent, defaultNetwork]);
 
-  // Sincroniza balances com a blockchain via Azorescan
-  const syncBalances = useCallback(async (manual = false, bypassActiveCheck = false) => {
-    if (!user?.publicKey) {
+  // IMPLEMENTA FALLBACK ULTRA ROBUSTO: API → Redis → AuthStore → Backup Robusto → NUNCA 0
+  const getBalancesWithFallback = useCallback(async () => {
+    // PROTEÇÃO CRÍTICA: Não fazer chamadas API se usuário não está autenticado
+    if (!user?.publicKey || !user?.id || !isAuthenticated) {
+      return {
+        data: null,
+        source: 'no_user',
+        success: false,
+        error: 'Usuário não autenticado'
+      };
+    }
+    
+    // 1. TENTAR API BLOCKCHAIN
+    try {
+      // Criar AbortController para cancelar se necessário
+      abortControllerRef.current = new AbortController();
+      
+      const response = await api.get(`/api/balance-sync/fresh?address=${user.publicKey}&network=${defaultNetwork}`, {
+        signal: abortControllerRef.current.signal
+      });
+      
+      if (response.data.success && response.data.data && response.data.data.balancesTable && Object.keys(response.data.data.balancesTable).length > 0) {
+        
+        // SALVAR EM TODOS OS BACKUPS
+        await balanceBackupService.saveBalances(user.id, response.data.data, 'api');
+        
+        return {
+          data: response.data.data,
+          source: 'api',
+          success: true
+        };
+      }
+    } catch (apiError) {
+      // Se requisição foi cancelada (logout), parar silenciosamente
+      if (apiError.name === 'AbortError' || apiError.message?.includes('aborted')) {
+        return {
+          data: null,
+          source: 'aborted',
+          success: false,
+          error: 'Requisição cancelada'
+        };
+      }
+      
+      // Se erro de autenticação (incluindo bloqueio pelo interceptor ou silenciado), usuário foi deslogado - parar sync
+      if (apiError.response?.status === 401 || apiError.response?.status === 403 || 
+          apiError.code === 'USER_NOT_AUTHENTICATED' || 
+          apiError.code === 'USER_NOT_AUTHENTICATED_SILENT' ||
+          apiError.code === 'BALANCE_SYNC_UNAUTHORIZED_SILENCED') {
+        return {
+          data: null,
+          source: 'unauthorized',
+          success: false,
+          error: 'Token expirado ou inválido'
+        };
+      }
+    }
+
+    // 2. FALLBACK PARA REDIS
+    try {
+      const cacheResponse = await api.get(`/api/balance-sync/cache?userId=${user.id}&address=${user.publicKey}&network=${defaultNetwork}`, {
+        signal: abortControllerRef.current?.signal
+      });
+      
+      if (cacheResponse.data.success && cacheResponse.data.data && cacheResponse.data.data.balances && Object.keys(cacheResponse.data.data.balances.balancesTable || {}).length > 0) {
+        
+        const redisData = {
+          ...cacheResponse.data.data.balances,
+          syncStatus: 'cached_redis',
+          fromCache: true,
+          cacheSource: 'redis'
+        };
+        
+        // SALVAR DADOS DO REDIS NOS BACKUPS LOCAIS
+        await balanceBackupService.saveBalances(user.id, redisData, 'redis');
+        
+        return {
+          data: redisData,
+          source: 'redis',
+          success: true
+        };
+      }
+    } catch (redisError) {
+      // Se requisição foi cancelada (logout), parar silenciosamente
+      if (redisError.name === 'AbortError' || redisError.message?.includes('aborted')) {
+        return {
+          data: null,
+          source: 'aborted',
+          success: false,
+          error: 'Requisição cancelada'
+        };
+      }
+      
+      // Se erro de autenticação (incluindo bloqueio pelo interceptor ou silenciado), usuário foi deslogado - parar sync
+      if (redisError.response?.status === 401 || redisError.response?.status === 403 || 
+          redisError.code === 'USER_NOT_AUTHENTICATED' ||
+          redisError.code === 'USER_NOT_AUTHENTICATED_SILENT' ||
+          redisError.code === 'BALANCE_SYNC_UNAUTHORIZED_SILENCED') {
+        return {
+          data: null,
+          source: 'unauthorized',
+          success: false,
+          error: 'Token expirado ou inválido'
+        };
+      }
+    }
+
+    // 3. FALLBACK AUTHSTORE
+    if (cachedBalances && cachedBalances.balancesTable && Object.keys(cachedBalances.balancesTable).length > 0) {
+      const cacheAge = balancesLastUpdate ? Date.now() - balancesLastUpdate : Infinity;
+      
+      
+      return {
+        data: {
+          ...cachedBalances,
+          syncStatus: 'cached_authstore',
+          fromCache: true,
+          cacheSource: 'authstore',
+          cacheAge: Math.floor(cacheAge / 1000 / 60) + ' min'
+        },
+        source: 'authstore',
+        success: true,
+        isStale: cacheAge > (10 * 60 * 1000)
+      };
+    }
+
+    // 4. BACKUP ROBUSTO (NUNCA FALHA)
+    // console.log('🛡️ [BalanceSync] Usando sistema de backup robusto...');
+    const backupResult = await balanceBackupService.getBalances(user.id);
+    
+    if (backupResult && backupResult.data) {
+      // console.log('✅ [BalanceSync] Backup robusto funcionando:', backupResult.source);
+      
+      return {
+        data: {
+          ...backupResult.data,
+          syncStatus: 'backup_mode',
+          fromBackup: true,
+          backupSource: backupResult.source,
+          isEmergency: backupResult.isEmergency || false
+        },
+        source: backupResult.source,
+        success: true,
+        isBackup: true,
+        isEmergency: backupResult.isEmergency || false
+      };
+    }
+
+    // 5. ISTO NUNCA DEVE ACONTECER (sistema de backup sempre retorna algo)
+    console.error('🚨 [BalanceSync] ERRO CRÍTICO: Sistema de backup falhou completamente');
+    return {
+      data: null,
+      source: 'critical_error',
+      success: false,
+      error: 'Sistema de backup falhou'
+    };
+  }, [user?.publicKey, user?.id, defaultNetwork, cachedBalances, balancesLastUpdate, isAuthenticated]);
+
+  // Sincroniza balances com sistema robusto de fallback
+  const syncBalances = useCallback(async (bypassActiveCheck = false) => {
+    // PROTEÇÃO CRÍTICA: Não sincronizar se usuário não está autenticado
+    if (!user?.publicKey || !user?.id || !isAuthenticated) {
       return;
     }
     
@@ -470,74 +641,123 @@ const useBalanceSync = (onBalanceUpdate = null) => {
     try {
       setSyncError(null);
       
-      // Buscar balances via API do backend (usando network correto)
-      // console.log('🔧 [DEBUG] useBalanceSync usando network:', defaultNetwork);
-      const response = await api.get(`/api/balance-sync/fresh?address=${user.publicKey}&network=${defaultNetwork}`);
-      // console.log('🔧 [DEBUG] Resposta da API:', response.data);
-      const newBalances = response.data.data;
+      // Buscar balances com fallback robusto
+      const balanceResult = await getBalancesWithFallback();
+      
+      if (!balanceResult.success || !balanceResult.data) {
+        // Se erro de autenticação ou abort, parar sync completamente
+        if (balanceResult.source === 'no_user' || balanceResult.source === 'unauthorized' || balanceResult.source === 'aborted') {
+          return; // Não definir erro, apenas parar silenciosamente
+        }
+        setSyncError('Nenhuma fonte de balances disponível');
+        return;
+      }
+
+      const newBalances = balanceResult.data;
+      const isFromAPI = balanceResult.source === 'api';
+      
+
+      // Salvar no AuthStore se veio da API (para próximos fallbacks)
+      if (isFromAPI && newBalances.balancesTable) {
+        setCachedBalances(newBalances);
+      }
+
       const previousBalances = previousBalancesRef.current;
       
-      // Detectar mudanças apenas se há balances anteriores válidos
-      const changes = Object.keys(previousBalances).length > 0 
+      // Detectar mudanças APENAS se:
+      // 1. Dados vêm da API (não de cache)
+      // 2. Há balances anteriores válidos  
+      // 3. Não há erro de sync
+      // 4. Não é primeira execução (previousBalances deve ter balancesTable válida)
+      // 5. NUNCA detectar mudanças para 0 (proteção contra notificações falsas)
+      // 6. NUNCA detectar quando API volta online depois de estar offline (evita notificações de "volta da API")
+      const hasPreviousBalances = previousBalances && 
+                                previousBalances.balancesTable && 
+                                Object.keys(previousBalances.balancesTable).length > 0;
+
+      const hasValidNewBalances = newBalances.balancesTable &&
+                                 Object.keys(newBalances.balancesTable).length > 0 &&
+                                 Object.values(newBalances.balancesTable).some(val => parseFloat(val) > 0);
+
+      // VERIFICAR SE BALANCES ANTERIORES ERAM DE EMERGÊNCIA/BACKUP (API estava offline)
+      const previousWasEmergency = previousBalances && (
+        previousBalances.syncStatus?.includes('emergency') ||
+        previousBalances.syncStatus?.includes('backup') ||
+        previousBalances.syncStatus?.includes('cached') ||
+        previousBalances.syncStatus?.includes('error') ||
+        previousBalances.isEmergency === true ||
+        previousBalances.fromCache === true
+      );
+      
+      const shouldDetectChanges = isFromAPI && 
+                                 hasPreviousBalances && 
+                                 hasValidNewBalances &&
+                                 !previousWasEmergency && // BLOQUEAR se anterior era emergência (API voltando online)
+                                 newBalances.syncStatus !== 'error' &&
+                                 !newBalances.syncStatus?.includes('cached') &&
+                                 !newBalances.syncStatus?.includes('emergency') &&
+                                 !newBalances.syncStatus?.includes('backup');
+      
+      
+      const changes = shouldDetectChanges 
         ? detectBalanceChanges(newBalances, previousBalances)
         : [];
       
-      if (Object.keys(previousBalances).length > 0 && changes.length > 0) {
-        setBalanceChanges(prev => {
-          const updated = [...prev, ...changes];
-          return updated;
-        });
+      // FILTRAR MUDANÇAS QUE ENVOLVAM ZEROS - PROTEÇÃO EXTRA
+      const filteredChanges = changes.filter(change => {
+        const newBalance = parseFloat(change.newBalance || 0);
+        const prevBalance = parseFloat(change.previousBalance || 0);
         
-        // Criar notificações para cada mudança (PROTEGIDO)
-        for (const change of changes) {
+        // Bloquear qualquer mudança que envolva zero
+        if (newBalance === 0 || prevBalance === 0) {
+          return false;
+        }
+        
+        return true;
+      });
+      
+      // Processar mudanças detectadas (apenas as filtradas)
+      if (filteredChanges.length > 0) {
+        setBalanceChanges(prev => [...prev, ...filteredChanges]);
+        
+        // Criar notificações para cada mudança (apenas as filtradas)
+        for (const change of filteredChanges) {
           try {
             await createBalanceNotification(change);
           } catch (notificationError) {
-            console.error('❌ [BalanceSync] Erro ao criar notificação individual (CONTINUANDO):', notificationError);
-            // Continuar mesmo se uma notificação falhar
+            console.error('❌ [BalanceSync] Erro ao criar notificação:', notificationError);
           }
         }
         
-        // Chamar callback de atualização se fornecido (PROTEGIDO)
+        // Callback opcional
         if (onBalanceUpdate) {
           try {
             await onBalanceUpdate(changes, newBalances);
           } catch (callbackError) {
-            console.error('❌ [BalanceSync] ERRO CRÍTICO no callback (CRASH EVITADO):', callbackError);
-            console.error('❌ [BalanceSync] Stack trace:', callbackError.stack);
-            // Continuar execução mesmo se callback falhar
+            console.error('❌ [BalanceSync] Erro no callback:', callbackError);
           }
         }
       }
 
-      // Sincronizar com Redis
-      await syncWithRedis(newBalances);
+      // Sincronizar com Redis apenas se dados vêm da API
+      if (isFromAPI) {
+        await syncWithRedis(newBalances);
+      }
 
-      // Atualizar cache local
+      // Atualizar referência local
       previousBalancesRef.current = newBalances;
-      // REMOVIDO: savePreviousBalances não é mais necessário
       setLastSync(new Date().toISOString());
-
-      // Sincronização manual realizada silenciosamente
       
     } catch (error) {
-      console.error('❌ [BalanceSync] Erro na sincronização de balances:', {
-        error: error.message,
-        status: error.response?.status,
-        url: error.config?.url,
-        publicKey: user?.publicKey?.slice(0, 10) + '...',
-        manual
-      });
+      console.error('❌ [BalanceSync] Erro crítico na sincronização:', error);
       setSyncError(error.message);
-      
-      // Erro já logado no console
     }
-  }, [user?.publicKey, isActive, detectBalanceChanges, createBalanceNotification, onBalanceUpdate, defaultNetwork, syncWithRedis]);
+    
+  }, [user?.publicKey, user?.id, isActive, isAuthenticated, getBalancesWithFallback, setCachedBalances, detectBalanceChanges, createBalanceNotification, onBalanceUpdate, syncWithRedis]);
 
   // Inicia o serviço de sincronização
   const startSync = useCallback(async () => {
-    if (!user?.publicKey) {
-      // console.error('❌ [BalanceSync] Usuário inválido - publicKey não encontrada');
+    if (!user?.publicKey || !user?.id || !isAuthenticated) {
       return;
     }
 
@@ -583,26 +803,26 @@ const useBalanceSync = (onBalanceUpdate = null) => {
     //   }
     // }
     
-    // Configurar intervalo automático
+    // Configurar intervalo automático - TEMPORARIAMENTE DESABILITADO PARA TESTE
     if (syncIntervalRef.current) {
       clearInterval(syncIntervalRef.current);
     }
     
-    syncIntervalRef.current = setInterval(async () => {
-      // SEMPRE executar se o usuário for válido, ignorando isActive
-      if (user?.publicKey) {
-        try {
-          await syncBalances(false, true); // bypassActiveCheck=true para forçar
-        } catch (error) {
-          console.error('❌ [BalanceSync] Erro na sincronização automática (continuando ativo):', {
-            error: error.message,
-            status: error.response?.status,
-            timestamp: new Date().toISOString()
-          });
-          // NÃO parar o serviço, apenas logar o erro
-        }
-      }
-    }, SYNC_INTERVAL_MS);
+    // syncIntervalRef.current = setInterval(async () => {
+    //   // PROTEÇÃO: SEMPRE verificar autenticação antes de sync
+    //   if (user?.publicKey && user?.id && isAuthenticated) {
+    //     try {
+    //       await syncBalances(false, true); // bypassActiveCheck=true para forçar
+    //     } catch (error) {
+    //       console.error('❌ [BalanceSync] Erro na sincronização automática (continuando ativo):', {
+    //         error: error.message,
+    //         status: error.response?.status,
+    //         timestamp: new Date().toISOString()
+    //       });
+    //       // NÃO parar o serviço, apenas logar o erro
+    //     }
+    //   }
+    // }, getSyncIntervalMs(user?.userPlan || 'BASIC'));
 
     // Sincronização iniciada silenciosamente
   }, [user?.publicKey, syncBalances]);
@@ -659,10 +879,49 @@ const useBalanceSync = (onBalanceUpdate = null) => {
     };
   }, []);
 
-  // Auto-start quando usuário logar (ativado sempre) - versão simplificada
+  // LIMPAR TUDO IMEDIATAMENTE QUANDO USUÁRIO DESLOGA
   useEffect(() => {
-    // Condição simplificada para auto-start
-    if (user?.publicKey && !isActive) {
+    if (!isAuthenticated || !user?.publicKey || !user?.id) {
+      // ATIVAR BLOQUEIO NA API
+      if (typeof window !== 'undefined' && window.setBalanceSyncAPIBlocked) {
+        window.setBalanceSyncAPIBlocked(true);
+      }
+      
+      // Cancelar requisições em andamento
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+        abortControllerRef.current = null;
+      }
+      
+      // Limpar intervalo
+      if (syncIntervalRef.current) {
+        clearInterval(syncIntervalRef.current);
+        syncIntervalRef.current = null;
+      }
+      
+      // Reset de estados
+      setSyncError(null);
+      setRedisSyncStatus('idle');
+    } else {
+      // REATIVAR API
+      if (typeof window !== 'undefined' && window.setBalanceSyncAPIBlocked) {
+        window.setBalanceSyncAPIBlocked(false);
+      }
+    }
+  }, [isAuthenticated, user?.publicKey, user?.id]);
+
+  // PARAR SYNC IMEDIATAMENTE QUANDO USUÁRIO DESLOGA + Auto-start quando autentica
+  useEffect(() => {
+    // PRIMEIRA PRIORIDADE: Parar sync se não autenticado
+    if (!isAuthenticated || !user?.publicKey || !user?.id) {
+      if (isActive) {
+        setIsActive(false); // Parar sync imediatamente
+      }
+      return;
+    }
+    
+    // SEGUNDA PRIORIDADE: Auto-start quando usuário está autenticado mas sync não ativo
+    if (!isActive) {
       // Usar timeout para evitar problemas de timing
       const autoStartTimer = setTimeout(() => {
         startSync()
@@ -677,30 +936,56 @@ const useBalanceSync = (onBalanceUpdate = null) => {
       
       return () => clearTimeout(autoStartTimer);
     }
-  }, [user?.publicKey, isActive]); // Remover startSync das dependências
+  }, [user?.publicKey, user?.id, isActive, isAuthenticated]); // Remover startSync das dependências
 
-  return {
-    // Estado
-    isActive,
-    lastSync,
-    syncError,
-    balanceChanges,
-    redisSyncStatus,
-    
-    // Ações
-    startSync,
-    stopSync,
-    syncBalances: () => syncBalances(true, false),
-    forceSyncBalances: () => syncBalances(true, true), // Force bypass para debug
-    forceRedisSync,
-    clearChanges,
-    
-    // Utilitários
-    formatLastSync: () => {
-      if (!lastSync) return 'Nunca';
-      return new Date(lastSync).toLocaleString('pt-BR');
+  // 🛡️ MEMOIZAR RETORNO: Se não autenticado, retornar objeto desabilitado
+  return useMemo(() => {
+    if (!isAuthenticated || !user?.publicKey || !user?.id) {
+      return {
+        // Estado desabilitado
+        isActive: false,
+        lastSync: null,
+        syncError: null,
+        balanceChanges: [],
+        redisSyncStatus: 'disabled',
+        
+        // Funções vazias que NUNCA falham
+        startSync: () => Promise.resolve(),
+        stopSync: () => {},
+        syncBalances: () => Promise.resolve(),
+        forceSyncBalances: () => Promise.resolve(),
+        forceRedisSync: () => Promise.resolve(),
+        clearChanges: () => {},
+        
+        // Utilitários
+        formatLastSync: () => 'Desabilitado',
+      };
     }
-  };
+
+    // Retorno normal quando autenticado
+    return {
+      // Estado
+      isActive,
+      lastSync,
+      syncError,
+      balanceChanges,
+      redisSyncStatus,
+      
+      // Ações
+      startSync,
+      stopSync,
+      syncBalances: () => syncBalances(true, false),
+      forceSyncBalances: () => syncBalances(true, true), // Force bypass para debug
+      forceRedisSync,
+      clearChanges,
+      
+      // Utilitários
+      formatLastSync: () => {
+        if (!lastSync) return 'Nunca';
+        return new Date(lastSync).toLocaleString('pt-BR');
+      }
+    };
+  }, [isAuthenticated, user?.publicKey, user?.id, isActive, lastSync, syncError, balanceChanges, redisSyncStatus, startSync, stopSync, syncBalances, forceRedisSync, clearChanges]);
 };
 
 export default useBalanceSync;

@@ -27,7 +27,7 @@ class QueueService {
       }
       
       console.log('🔍 Tentando conectar ao RabbitMQ...');
-      await rabbitMQConfig.connect();
+      await rabbitMQConfig.initialize();
       await this.transactionService.initialize();
       await this.startConsumers();
       console.log('✅ Serviço de fila inicializado com sucesso');
@@ -44,27 +44,17 @@ class QueueService {
   async startConsumers() {
     // Consumidor para transações da blockchain
     await rabbitMQConfig.consumeQueue(
-      rabbitMQConfig.queues.BLOCKCHAIN_TRANSACTIONS,
+      rabbitMQConfig.queues.BLOCKCHAIN_TRANSACTIONS.name,
       this.handleBlockchainTransaction.bind(this)
-    );
-
-    // Consumidor para consultas da blockchain
-    await rabbitMQConfig.consumeQueue(
-      rabbitMQConfig.queues.BLOCKCHAIN_QUERIES,
-      this.handleBlockchainQuery.bind(this)
     );
 
     // Consumidor para operações de contratos
     await rabbitMQConfig.consumeQueue(
-      rabbitMQConfig.queues.CONTRACT_OPERATIONS,
+      rabbitMQConfig.queues.CONTRACT_OPERATIONS.name,
       this.handleContractOperation.bind(this)
     );
 
-    // Consumidor para operações de carteira
-    await rabbitMQConfig.consumeQueue(
-      rabbitMQConfig.queues.WALLET_OPERATIONS,
-      this.handleWalletOperation.bind(this)
-    );
+    console.log('✅ Consumidores de fila inicializados');
   }
 
   /**
