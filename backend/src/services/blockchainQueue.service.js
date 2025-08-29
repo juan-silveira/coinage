@@ -587,12 +587,12 @@ class BlockchainQueueService {
 
       // 1. Verificar saldo do token
       const tokenService = require('./token.service');
-      const tokenContract = data.tokenContract || process.env.DEFAULT_TOKEN_CONTRACT;
+      const tokenContract = withdrawalData.tokenContract || process.env.DEFAULT_TOKEN_CONTRACT;
       
       const balanceResult = await tokenService.getTokenBalance(
         tokenContract,
         blockchainAddress,
-        data.network || 'testnet'
+        withdrawalData.network || 'testnet'
       );
       
       if (!balanceResult.success || parseFloat(balanceResult.data.balance) < parseFloat(amount)) {
@@ -604,11 +604,52 @@ class BlockchainQueueService {
         tokenContract,
         blockchainAddress,
         amount,
-        data.network || 'testnet'
+        withdrawalData.network || 'testnet'
       );
       
       if (!burnResult.success) {
         throw new Error(`Failed to burn cBRL tokens: ${burnResult.error}`);
+      }
+
+      // 2.1. Registrar transação de burn no banco de dados
+      try {
+        console.log(`💾 [BlockchainQueue] Registrando transação burn no banco...`);
+        
+        const transactionService = require('./transaction.service');
+        const prismaConfig = require('../config/prisma');
+        
+        // Initialize services
+        await transactionService.initialize();
+        const prisma = await prismaConfig.initialize();
+        
+        // Get default company
+        const defaultCompany = await prisma.company.findFirst({
+          where: { isActive: true }
+        });
+        
+        if (defaultCompany) {
+          const burnTransaction = await transactionService.recordBurnTransaction({
+            companyId: defaultCompany.id,
+            userId: userId,
+            contractAddress: tokenContract,
+            fromAddress: blockchainAddress,
+            gasPayer: blockchainAddress,
+            amount: amount,
+            amountWei: BigInt(parseFloat(amount) * 1e18),
+            txHash: burnResult.txHash,
+            blockNumber: BigInt(burnResult.blockNumber || 0),
+            gasUsed: BigInt(burnResult.gasUsed || 0),
+            network: withdrawalData.network || 'testnet'
+          });
+          
+          console.log(`✅ [BlockchainQueue] Transação burn registrada:`, burnTransaction.id);
+        } else {
+          console.warn('⚠️ [BlockchainQueue] Empresa padrão não encontrada para registrar transação');
+        }
+        
+      } catch (transactionError) {
+        console.error('❌ [BlockchainQueue] Erro ao registrar transação burn:', transactionError.message);
+        // Não falhar o saque por erro na gravação da transação
       }
 
       // 3. Processar PIX
@@ -630,7 +671,7 @@ class BlockchainQueueService {
           tokenContract,
           blockchainAddress,
           amount,
-          data.network || 'testnet'
+          withdrawalData.network || 'testnet'
         );
         
         if (revertResult.success) {

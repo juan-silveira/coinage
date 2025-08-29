@@ -75,6 +75,7 @@ model User {
   userActions            UserAction[]
   withdrawals            Withdrawal[]
   userTaxes              UserTaxes?
+  userPixKeys            UserPixKey[]
 
   @@index([email], map: "idx_users_email")
   @@index([cpf], map: "idx_users_cpf")
@@ -632,7 +633,7 @@ enum TransactionStatus {
 enum WithdrawalStatus {
   PENDING
   PROCESSING
-  COMPLETED
+  CONFIRMED
   FAILED
   CANCELLED
 }
@@ -794,4 +795,50 @@ enum ContractCategory {
   bridge      // Cross-chain bridges
   oracle      // Price feeds, data oracles
   other       // Outros tipos
+}
+
+model UserPixKey {
+  id               String          @id @default(uuid()) @db.Uuid
+  userId           String          @map("user_id") @db.Uuid
+  keyType          PixKeyType      @map("key_type")
+  keyValue         String          @map("key_value") @db.VarChar(255)
+  bankCode         String          @map("bank_code") @db.VarChar(10)
+  bankName         String          @map("bank_name") @db.VarChar(255)
+  bankLogo         String?         @map("bank_logo") @db.Text
+  agency           String          @db.VarChar(20)
+  agencyDigit      String?         @map("agency_digit") @db.VarChar(2)
+  accountNumber    String          @map("account_number") @db.VarChar(20)
+  accountDigit     String          @map("account_digit") @db.VarChar(2)
+  accountType      AccountType     @default(corrente) @map("account_type")
+  holderName       String          @map("holder_name") @db.VarChar(255)
+  holderDocument   String          @map("holder_document") @db.VarChar(20)
+  isVerified       Boolean         @default(false) @map("is_verified")
+  isActive         Boolean         @default(true) @map("is_active")
+  isDefault        Boolean         @default(false) @map("is_default")
+  verificationData Json?           @map("verification_data")
+  lastVerifiedAt   DateTime?       @map("last_verified_at") @db.Timestamptz(6)
+  createdAt        DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user             User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([keyType, keyValue], name: "unique_pix_key")
+  @@index([userId], map: "idx_user_pix_keys_user_id")
+  @@index([keyType, keyValue], map: "idx_user_pix_keys_key_type_value")
+  @@index([userId, isDefault], map: "idx_user_pix_keys_user_default")
+  @@index([isActive], map: "idx_user_pix_keys_active")
+  @@map("user_pix_keys")
+}
+
+enum PixKeyType {
+  cpf
+  email
+  phone
+  random
+}
+
+enum AccountType {
+  corrente
+  poupanca
+  pagamentos
+  salario
 }

@@ -774,8 +774,35 @@ app.use('/api/users', authenticateJWT, apiRateLimiter, addUserInfo, logAuthentic
 // Rotas de contratos (com autenticação e sistema de fila)
 app.use('/api/contracts', authenticateApiKey, transactionRateLimiter, addUserInfo, logAuthenticatedRequest, QueueMiddleware.enqueueExternalOperations, CacheRefreshMiddleware.refreshAfterQueueOperation, contractRoutes);
 
-// Rotas de tokens (com autenticação e sistema de fila)
-app.use('/api/tokens', authenticateApiKey, transactionRateLimiter, addUserInfo, logAuthenticatedRequest, QueueMiddleware.enqueueExternalOperations, CacheRefreshMiddleware.refreshAfterQueueOperation, tokenRoutes);
+// Endpoint de teste para verificar JWT
+app.get('/api/admin/test-jwt', authenticateJWT, (req, res) => {
+  console.log('🧪 Teste JWT - Usuário:', req.user.id, req.user.name);
+  res.json({ success: true, message: 'JWT funcionando', user: req.user.name });
+});
+
+// Rotas administrativas de tokens (com autenticação JWT para frontend) - DEVE VIR ANTES DA ROTA GENÉRICA
+app.use('/api/admin/tokens', authenticateJWT, apiRateLimiter, addUserInfo, logAuthenticatedRequest, tokenRoutes);
+
+// Middleware híbrido para aceitar JWT ou API Key
+const authenticateHybrid = (req, res, next) => {
+  // Verificar se há JWT token no header
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    const token = authHeader.substring(7);
+    // Se parece com JWT (3 partes separadas por pontos), usar JWT middleware
+    if (token.split('.').length === 3) {
+      console.log('🔄 Usando autenticação JWT para tokens');
+      return authenticateJWT(req, res, next);
+    }
+  }
+  
+  // Caso contrário, usar API Key middleware
+  console.log('🔄 Usando autenticação API Key para tokens');
+  return authenticateApiKey(req, res, next);
+};
+
+// Rotas de tokens (com autenticação híbrida e sistema de fila)
+app.use('/api/tokens', authenticateHybrid, transactionRateLimiter, addUserInfo, logAuthenticatedRequest, QueueMiddleware.enqueueExternalOperations, CacheRefreshMiddleware.refreshAfterQueueOperation, tokenRoutes);
 
 // Rotas de stakes (com autenticação e sistema de fila)
 app.use('/api/stakes', authenticateApiKey, transactionRateLimiter, addUserInfo, logAuthenticatedRequest, QueueMiddleware.enqueueExternalOperations, CacheRefreshMiddleware.refreshAfterQueueOperation, stakeRoutes);
@@ -840,9 +867,9 @@ app.use('/api/deposits', authenticateJWT, depositRoutes);
 app.use('/api/mint', authenticateJWT, mintRoutes);
 app.use('/api/pix', authenticateJWT, pixRoutes);
 
-// Rotas de saques (com autenticação JWT e email confirmado)
+// Rotas de saques (com autenticação JWT - email confirmado temporariamente desabilitado)
 const withdrawRoutes = require('./routes/withdraw.routes');
-app.use('/api/withdrawals', requireEmailConfirmation, withdrawRoutes);
+app.use('/api/withdrawals', authenticateJWT, withdrawRoutes);
 
 // Rotas de logs (com autenticação JWT)
 app.use('/api/logs', authenticateJWT, apiRateLimiter, addUserInfo, logAuthenticatedRequest, logRoutes);
@@ -980,6 +1007,14 @@ app.use('/api/profile', profileRoutes);
 
 // Backup routes (public - no authentication required)
 app.use('/api/backup', backupRoutes);
+
+// PIX Keys routes (com autenticação JWT)
+const pixKeysRoutes = require('./routes/pixKeys.routes');
+app.use('/api/pix-keys', pixKeysRoutes);
+
+// Banks routes (públicas)
+const banksRoutes = require('./routes/banks.routes');
+app.use('/api/banks', banksRoutes);
 
 // Middleware de tratamento de erros 404
 app.use('*', (req, res) => {

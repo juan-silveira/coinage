@@ -223,10 +223,18 @@ class UserCacheService {
         orderBy: { createdAt: 'desc' },
         take: 50,
         include: {
-          contract: {
+          company: {
             select: {
+              id: true,
               name: true,
-              address: true
+              alias: true
+            }
+          },
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true
             }
           }
         }

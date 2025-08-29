@@ -65,9 +65,13 @@ const Earnings = ({ earningsData }) => {
       headerslot={
         <div className="flex flex-col items-end">
           <span className="text-sm text-slate-500 dark:text-slate-400">Ganhos Acumulados</span>
-          <span className="balance font-semibold text-lg">
-            {formatCurrency(totalEarnings)}
-          </span>
+          {loading && (!earnings || earnings.length === 0) ? (
+            <div className="h-6 w-20 bg-gradient-to-r from-slate-200 to-slate-300 dark:from-slate-600 dark:to-slate-500 rounded animate-pulse"></div>
+          ) : (
+            <span className="balance font-semibold text-lg">
+              {formatCurrency(totalEarnings)}
+            </span>
+          )}
         </div>
       }
     >

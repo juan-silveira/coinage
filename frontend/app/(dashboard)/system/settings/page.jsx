@@ -1,10 +1,11 @@
 "use client";
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Textinput from '@/components/ui/Textinput';
 import Select from '@/components/ui/Select';
 import { useAlertContext } from '@/contexts/AlertContext';
+import api from '@/services/api';
 import { 
   Save, 
   Shield, 
@@ -16,13 +17,34 @@ import {
   Bell,
   Key,
   Settings,
-  AlertTriangle
+  AlertTriangle,
+  Coins,
+  Plus,
+  Eye,
+  EyeOff,
+  Trash2,
+  CheckCircle,
+  XCircle,
+  Edit3
 } from 'lucide-react';
 
 const SystemSettingsPage = () => {
   const { showSuccess, showError, showInfo, showWarning } = useAlertContext();
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('general');
+  
+  // Token management states
+  const [tokens, setTokens] = useState([]);
+  const [loadingTokens, setLoadingTokens] = useState(false);
+  const [showTokenForm, setShowTokenForm] = useState(false);
+  const [tokenForm, setTokenForm] = useState({
+    address: '',
+    network: 'testnet',
+    contractType: 'token',
+    adminPublicKey: '',
+    website: '',
+    description: ''
+  });
   
   const [settings, setSettings] = useState({
     general: {
@@ -80,6 +102,7 @@ const SystemSettingsPage = () => {
     { id: 'general', label: 'Geral', icon: Settings },
     { id: 'security', label: 'Segurança', icon: Shield },
     { id: 'financial', label: 'Financeiro', icon: DollarSign },
+    { id: 'tokens', label: 'Tokens', icon: Coins },
     { id: 'email', label: 'Email', icon: Mail },
     { id: 'api', label: 'API', icon: Server },
     { id: 'database', label: 'Banco de Dados', icon: Database }
@@ -145,6 +168,79 @@ const SystemSettingsPage = () => {
       }
     }));
   };
+
+  // Token management functions
+  const fetchTokens = async () => {
+    setLoadingTokens(true);
+    try {
+      const response = await api.get('/api/tokens');
+      if (response.data.success) {
+        setTokens(response.data.data?.tokens || []);
+      } else {
+        showError('Erro ao carregar tokens');
+      }
+    } catch (error) {
+      console.error('Error fetching tokens:', error);
+      showError('Erro ao carregar tokens');
+    } finally {
+      setLoadingTokens(false);
+    }
+  };
+
+  const handleTokenSubmit = async () => {
+    setLoading(true);
+
+    try {
+      const response = await api.post('/api/tokens/register', tokenForm);
+
+      if (response.data.success) {
+        showSuccess(`Token ${response.data.data.tokenInfo.isUpdate ? 'atualizado' : 'registrado'} com sucesso!`);
+        setShowTokenForm(false);
+        setTokenForm({
+          address: '',
+          network: 'testnet',
+          contractType: 'token',
+          adminPublicKey: '',
+          website: '',
+          description: ''
+        });
+        fetchTokens();
+      } else {
+        showError(response.data.message || 'Erro ao registrar token');
+      }
+    } catch (error) {
+      console.error('Error registering token:', error);
+      const errorMessage = error.response?.data?.message || error.message || 'Erro ao registrar token';
+      showError(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleTokenActivate = async (contractAddress, isActive) => {
+    try {
+      const endpoint = isActive ? 'deactivate' : 'activate';
+      const response = await api.post(`/api/tokens/${contractAddress}/${endpoint}`);
+
+      if (response.data.success) {
+        showSuccess(`Token ${isActive ? 'desativado' : 'ativado'} com sucesso!`);
+        fetchTokens();
+      } else {
+        showError(response.data.message || 'Erro ao alterar status do token');
+      }
+    } catch (error) {
+      console.error('Error changing token status:', error);
+      const errorMessage = error.response?.data?.message || error.message || 'Erro ao alterar status do token';
+      showError(errorMessage);
+    }
+  };
+
+  // Load tokens when tokens tab is active
+  useEffect(() => {
+    if (activeTab === 'tokens') {
+      fetchTokens();
+    }
+  }, [activeTab]);
 
   return (
     <div className="space-y-6">
@@ -530,6 +626,213 @@ const SystemSettingsPage = () => {
                         <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
                       </label>
                     </div>
+                  </div>
+                </div>
+              </Card>
+            )}
+
+            {activeTab === 'tokens' && (
+              <Card title="Gerenciamento de Tokens" icon="heroicons-outline:circle-stack">
+                <div className="space-y-6">
+                  {/* Header com botão de adicionar */}
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      Gerencie os tokens ERC20 registrados no sistema
+                    </p>
+                    <Button
+                      onClick={() => setShowTokenForm(!showTokenForm)}
+                      className="btn-primary"
+                    >
+                      <Plus size={16} className="mr-2" />
+                      {showTokenForm ? 'Cancelar' : 'Registrar Token'}
+                    </Button>
+                  </div>
+
+                  {/* Formulário de registro */}
+                  {showTokenForm && (
+                    <div className="p-4 border border-dashed border-gray-300 rounded-lg bg-gray-50 dark:bg-gray-800 dark:border-gray-600">
+                      <div className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <Textinput
+                            label="Endereço do Contrato *"
+                            value={tokenForm.address}
+                            onChange={(e) => setTokenForm(prev => ({ ...prev, address: e.target.value }))}
+                            placeholder="0x..."
+                            required
+                          />
+                          <Select
+                            label="Rede"
+                            options={[
+                              { value: 'testnet', label: 'Testnet' },
+                              { value: 'mainnet', label: 'Mainnet' }
+                            ]}
+                            value={tokenForm.network}
+                            onChange={(value) => setTokenForm(prev => ({ ...prev, network: value }))}
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <Select
+                            label="Tipo de Contrato"
+                            options={[
+                              { value: 'token', label: 'Token ERC20' },
+                              { value: 'stake', label: 'Staking' },
+                              { value: 'exchange', label: 'Exchange/DEX' }
+                            ]}
+                            value={tokenForm.contractType}
+                            onChange={(value) => setTokenForm(prev => ({ ...prev, contractType: value }))}
+                          />
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <Textinput
+                            label="Admin Public Key (opcional)"
+                            value={tokenForm.adminPublicKey}
+                            onChange={(e) => setTokenForm(prev => ({ ...prev, adminPublicKey: e.target.value }))}
+                            placeholder="0x..."
+                          />
+                          <Textinput
+                            label="Website (opcional)"
+                            value={tokenForm.website}
+                            onChange={(e) => setTokenForm(prev => ({ ...prev, website: e.target.value }))}
+                            placeholder="https://..."
+                          />
+                        </div>
+
+                        <Textinput
+                          label="Descrição (opcional)"
+                          value={tokenForm.description}
+                          onChange={(e) => setTokenForm(prev => ({ ...prev, description: e.target.value }))}
+                          placeholder="Descrição do token..."
+                        />
+
+                        <div className="flex justify-end space-x-2">
+                          <Button
+                            type="button"
+                            onClick={() => setShowTokenForm(false)}
+                            className="btn-outline-secondary"
+                          >
+                            Cancelar
+                          </Button>
+                          <Button
+                            onClick={handleTokenSubmit}
+                            className="btn-primary"
+                            isLoading={loading}
+                          >
+                            <Save size={16} className="mr-2" />
+                            Registrar Token
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Lista de tokens */}
+                  <div className="space-y-4">
+                    <h4 className="font-medium text-gray-900 dark:text-white">
+                      Tokens Registrados
+                    </h4>
+                    
+                    {loadingTokens ? (
+                      <div className="flex justify-center p-8">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                      </div>
+                    ) : tokens.length === 0 ? (
+                      <div className="text-center p-8 text-gray-500 dark:text-gray-400">
+                        <Coins size={48} className="mx-auto mb-4 opacity-50" />
+                        <p>Nenhum token registrado</p>
+                        <p className="text-sm">Clique em "Registrar Token" para começar</p>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 gap-4">
+                        {tokens.map((token) => (
+                          <div
+                            key={token.id}
+                            className="p-4 border rounded-lg bg-white dark:bg-gray-800 shadow-sm"
+                          >
+                            <div className="flex items-start justify-between">
+                              <div className="flex items-start space-x-4 flex-1">
+                                {/* Logo do Token */}
+                                <div className="flex-shrink-0">
+                                  <img
+                                    src={`/assets/images/currencies/${token.metadata?.symbol || token.symbol || 'DEFAULT'}.png`}
+                                    alt={token.metadata?.symbol || token.symbol || 'Token'}
+                                    className="w-12 h-12 rounded-full"
+                                    onError={(e) => {
+                                      e.target.src = '/assets/images/currencies/DEFAULT.png';
+                                    }}
+                                  />
+                                </div>
+                                
+                                <div className="flex-1">
+                                  <div className="flex items-center space-x-3 mb-2">
+                                    <h5 className="font-semibold text-gray-900 dark:text-white">
+                                      {token.metadata?.name || token.name || 'Token'} 
+                                      <span className="text-gray-500 ml-1">({token.metadata?.symbol || token.symbol || 'N/A'})</span>
+                                    </h5>
+                                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                      token.isActive 
+                                        ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                                        : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                                    }`}>
+                                      {token.isActive ? 'Ativo' : 'Inativo'}
+                                    </span>
+                                    <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                                      {token.network}
+                                    </span>
+                                  </div>
+                                  
+                                  <div className="space-y-1 text-sm text-gray-600 dark:text-gray-400">
+                                    <p><span className="font-medium">Endereço:</span> <code className="bg-gray-100 dark:bg-gray-700 px-1 py-0.5 rounded text-xs">{token.address}</code></p>
+                                    {token.metadata?.decimals && (
+                                      <p><span className="font-medium">Decimais:</span> {token.metadata.decimals}</p>
+                                    )}
+                                    {token.metadata?.contractType && (
+                                      <p><span className="font-medium">Tipo:</span> 
+                                        <span className="ml-1 px-2 py-0.5 rounded text-xs bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
+                                          {token.metadata.contractType}
+                                        </span>
+                                      </p>
+                                    )}
+                                    {token.description && (
+                                      <p><span className="font-medium">Descrição:</span> {token.description}</p>
+                                    )}
+                                    {token.website && (
+                                      <p><span className="font-medium">Website:</span> 
+                                        <a href={token.website} target="_blank" rel="noopener noreferrer" className="ml-1 text-blue-600 hover:text-blue-800">
+                                          {token.website}
+                                        </a>
+                                      </p>
+                                    )}
+                                    <p><span className="font-medium">Registrado em:</span> {new Date(token.createdAt).toLocaleDateString('pt-BR')}</p>
+                                  </div>
+                                </div>
+                              </div>
+                              
+                              <div className="flex space-x-2">
+                                <Button
+                                  onClick={() => handleTokenActivate(token.address, token.isActive)}
+                                  className={token.isActive ? 'btn-outline-danger' : 'btn-outline-success'}
+                                  size="sm"
+                                >
+                                  {token.isActive ? (
+                                    <>
+                                      <XCircle size={14} className="mr-1" />
+                                      Desativar
+                                    </>
+                                  ) : (
+                                    <>
+                                      <CheckCircle size={14} className="mr-1" />
+                                      Ativar
+                                    </>
+                                  )}
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               </Card>

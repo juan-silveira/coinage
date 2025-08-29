@@ -88,8 +88,8 @@ const useTransactions = (initialParams = {}) => {
     // Mapear tipos de transação do backend para o frontend
     let type = 'transfer';
     let subType = 'debit';
-    let tokenSymbol = metadata.tokenSymbol || 'AZE-t';
-    let tokenName = metadata.tokenName || 'Azore';
+    let tokenSymbol = metadata.tokenSymbol || tx.currency || 'AZE-t';
+    let tokenName = metadata.tokenName || (tx.currency === 'cBRL' ? 'Coinage Real Brasil' : 'Azore');
     let amount = 0;
 
     // Determinar tipo baseado nos metadados
@@ -104,6 +104,7 @@ const useTransactions = (initialParams = {}) => {
           type = 'withdraw';
           subType = 'debit';
           amount = -parseFloat(metadata.amount || 0);
+          // tokenSymbol e tokenName já foram definidos dos metadados
           break;
         case 'transfer':
           type = 'transfer';
@@ -156,22 +157,11 @@ const useTransactions = (initialParams = {}) => {
       subType = amount >= 0 ? 'credit' : 'debit';
     }
 
-    // Fallback para informações do token se não estiver nos metadados
+    // Fallback apenas se não tiver informações nos metadados ou currency
     if (!tokenSymbol || tokenSymbol === 'AZE-t') {
-      // Mapear baseado no tipo de transação ou contrato
-      if (tx.transactionType === 'contract_call') {
-        // Verificar endereço do contrato para determinar token
-        const contractMappings = {
-          '0xBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB': { symbol: 'cBRL', name: 'Coinage Real Brasil' },
-          '0xCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC': { symbol: 'STT', name: 'Stake Token' },
-          '0x8888888888888888888888888888888888888888': { symbol: 'CNT', name: 'Coinage Trade' }
-        };
-        
-        const contractInfo = contractMappings[tx.toAddress];
-        if (contractInfo) {
-          tokenSymbol = contractInfo.symbol;
-          tokenName = contractInfo.name;
-        }
+      if (tx.currency && tx.currency !== 'AZE-t') {
+        tokenSymbol = tx.currency;
+        tokenName = tx.currency === 'cBRL' ? 'Coinage Real Brasil' : tx.currency;
       }
     }
 
