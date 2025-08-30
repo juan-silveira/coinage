@@ -59,7 +59,7 @@ class ContractService {
   async readContract(contractAddress, functionName, params = [], options = {}) {
     try {
       // Obter contrato do banco
-      const contract = await global.prisma.smartContract.findUnique({ where: { address: contractAddress.toLowerCase() } });
+      const contract = await global.prisma.smartContract.findUnique({ where: { address: require('../utils/address').normalizeAddress(contractAddress) } });
       if (!contract) {
         throw new Error('Contrato não encontrado');
       }
@@ -110,7 +110,7 @@ class ContractService {
   async writeContract(contractAddress, functionName, params = [], walletAddress, options = {}) {
     try {
       // Obter contrato do banco
-      const contract = await global.prisma.smartContract.findUnique({ where: { address: contractAddress.toLowerCase() } });
+      const contract = await global.prisma.smartContract.findUnique({ where: { address: require('../utils/address').normalizeAddress(contractAddress) } });
       if (!contract) {
         throw new Error('Contrato não encontrado');
       }
@@ -346,7 +346,7 @@ class ContractService {
   async getContractEvents(contractAddress, eventName, fromBlock = 0, toBlock = 'latest', options = {}) {
     try {
       // Obter contrato do banco
-      const contract = await global.prisma.smartContract.findUnique({ where: { address: contractAddress.toLowerCase() } });
+      const contract = await global.prisma.smartContract.findUnique({ where: { address: require('../utils/address').normalizeAddress(contractAddress) } });
       if (!contract) {
         throw new Error('Contrato não encontrado');
       }
@@ -404,7 +404,7 @@ class ContractService {
   async verifyTokenAdmin(contractAddress, adminPublicKey) {
     try {
       // Obter contrato do banco
-      const contract = await global.prisma.smartContract.findUnique({ where: { address: contractAddress.toLowerCase() } });
+      const contract = await global.prisma.smartContract.findUnique({ where: { address: require('../utils/address').normalizeAddress(contractAddress) } });
       if (!contract) {
         throw new Error('Contrato não encontrado');
       }
@@ -440,7 +440,7 @@ class ContractService {
   async grantAdminRole(contractAddress, newAdminPublicKey, currentAdminPublicKey) {
     try {
       // Obter contrato do banco
-      const contract = await global.prisma.smartContract.findUnique({ where: { address: contractAddress.toLowerCase() } });
+      const contract = await global.prisma.smartContract.findUnique({ where: { address: require('../utils/address').normalizeAddress(contractAddress) } });
       if (!contract) {
         throw new Error('Contrato não encontrado');
       }
@@ -513,7 +513,7 @@ class ContractService {
   async grantAdminRoleByAdmin(contractAddress, newAdminPublicKey) {
     try {
       // Obter contrato do banco
-      const contract = await global.prisma.smartContract.findUnique({ where: { address: contractAddress.toLowerCase() } });
+      const contract = await global.prisma.smartContract.findUnique({ where: { address: require('../utils/address').normalizeAddress(contractAddress) } });
       if (!contract) {
         throw new Error('Contrato não encontrado');
       }
@@ -618,7 +618,7 @@ class ContractService {
    */
   async updateTokenMetadata(address, metadata) {
     try {
-      const contract = await global.prisma.smartContract.findUnique({ where: { address: address.toLowerCase() } });
+      const contract = await global.prisma.smartContract.findUnique({ where: { address: require('../utils/address').normalizeAddress(address) } });
       if (!contract) {
         throw new Error('Token não encontrado');
       }
@@ -639,7 +639,7 @@ class ContractService {
 
       await this.SmartContract.update(
         { metadata: updatedMetadata },
-        { where: { address: address.toLowerCase() } }
+        { where: { address: require('../utils/address').normalizeAddress(address) } }
       );
 
       return {
@@ -661,7 +661,7 @@ class ContractService {
    */
   async grantTokenAdminRole(address, adminPublicKey) {
     try {
-      const contract = await global.prisma.smartContract.findUnique({ where: { address: address.toLowerCase() } });
+      const contract = await global.prisma.smartContract.findUnique({ where: { address: require('../utils/address').normalizeAddress(address) } });
       if (!contract) {
         throw new Error('Token não encontrado');
       }
@@ -674,7 +674,7 @@ class ContractService {
       // Atualizar adminPublicKey
       await this.SmartContract.update(
         { adminPublicKey: adminPublicKey.toLowerCase() },
-        { where: { address: address.toLowerCase() } }
+        { where: { address: require('../utils/address').normalizeAddress(address) } }
       );
 
       return {
@@ -696,7 +696,7 @@ class ContractService {
    */
   async checkRole(contractAddress, targetAddress, role) {
     try {
-      const contract = await global.prisma.smartContract.findUnique({ where: { address: contractAddress.toLowerCase() } });
+      const contract = await global.prisma.smartContract.findUnique({ where: { address: require('../utils/address').normalizeAddress(contractAddress) } });
       if (!contract) {
         throw new Error('Token não encontrado');
       }
@@ -777,7 +777,7 @@ class ContractService {
    */
   async grantRole(contractAddress, role, targetAddress, gasPayer) {
     try {
-      const contract = await global.prisma.smartContract.findUnique({ where: { address: contractAddress.toLowerCase() } });
+      const contract = await global.prisma.smartContract.findUnique({ where: { address: require('../utils/address').normalizeAddress(contractAddress) } });
       if (!contract) {
         throw new Error('Token não encontrado');
       }
@@ -847,7 +847,7 @@ class ContractService {
    */
   async hasRole(contractAddress, role, targetAddress) {
     try {
-      const contract = await global.prisma.smartContract.findUnique({ where: { address: contractAddress.toLowerCase() } });
+      const contract = await global.prisma.smartContract.findUnique({ where: { address: require('../utils/address').normalizeAddress(contractAddress) } });
       if (!contract) {
         throw new Error('Token não encontrado');
       }
@@ -887,7 +887,7 @@ class ContractService {
 
   async revokeRole(contractAddress, role, targetAddress, gasPayer) {
     try {
-      const contract = await global.prisma.smartContract.findUnique({ where: { address: contractAddress.toLowerCase() } });
+      const contract = await global.prisma.smartContract.findUnique({ where: { address: require('../utils/address').normalizeAddress(contractAddress) } });
       if (!contract) {
         throw new Error('Token não encontrado');
       }
@@ -957,7 +957,7 @@ class ContractService {
    */
   async updateAdminPublicKey(contractAddress, newAdminAddress) {
     try {
-      const contract = await global.prisma.smartContract.findUnique({ where: { address: contractAddress.toLowerCase() } });
+      const contract = await global.prisma.smartContract.findUnique({ where: { address: require('../utils/address').normalizeAddress(contractAddress) } });
       if (!contract) {
         throw new Error('Token não encontrado');
       }
@@ -975,8 +975,8 @@ class ContractService {
 
       // Atualizar adminPublicKey no banco
       await this.SmartContract.update(
-        { adminPublicKey: newAdminAddress.toLowerCase() },
-        { where: { address: contractAddress.toLowerCase() } }
+        { adminPublicKey: require('../utils/address').toChecksumAddress(newAdminAddress) },
+        { where: { address: require('../utils/address').normalizeAddress(contractAddress) } }
       );
 
       return {
@@ -984,7 +984,7 @@ class ContractService {
         message: 'AdminPublicKey atualizado com sucesso',
         data: {
           contractAddress,
-          newAdminAddress: newAdminAddress.toLowerCase(),
+          newAdminAddress: require('../utils/address').toChecksumAddress(newAdminAddress),
           timestamp: new Date().toISOString()
         }
       };
@@ -998,7 +998,7 @@ class ContractService {
    */
   async getTokenInfo(address) {
     try {
-      const contract = await global.prisma.smartContract.findUnique({ where: { address: address.toLowerCase() } });
+      const contract = await global.prisma.smartContract.findUnique({ where: { address: require('../utils/address').normalizeAddress(address) } });
       if (!contract) {
         throw new Error('Token não encontrado');
       }
@@ -1068,7 +1068,7 @@ class ContractService {
       }
 
       // Verificar se o contrato já existe
-      const existingContract = await global.prisma.smartContract.findUnique({ where: { address: address.toLowerCase() } });
+      const existingContract = await global.prisma.smartContract.findUnique({ where: { address: require('../utils/address').normalizeAddress(address) } });
       if (existingContract) {
         throw new Error('Contrato já está registrado');
       }
@@ -1134,7 +1134,7 @@ class ContractService {
       // Preparar dados do contrato
       const contractToCreate = {
         name: tokenInfo.name || name || 'Token ERC-20', // Garantir que sempre tenha um nome
-        address: address.toLowerCase(),
+        address: require('../utils/address').toChecksumAddress(address),
         companyId: firstCompany.id,
         abi: finalABI,
         network,

@@ -221,7 +221,57 @@ async function seedBasicData() {
     console.log(`✅ Usuário 2 vinculado à Coinage como USER`);
 
     // ========================================
-    // 4. CRIAR COMPANY BRANDINGS
+    // 4. CRIAR CONTRACT TYPES
+    // ========================================
+    console.log('\n⚙️ Criando tipos de contratos...');
+
+    // Tipo Token
+    const tokenType = await prisma.contractType.upsert({
+      where: { name: 'token' },
+      update: {},
+      create: {
+        name: 'token',
+        description: 'Contratos de tokens ERC20 padrão',
+        category: 'token',
+        abiPath: '',
+        version: '',
+        isActive: true
+      }
+    });
+    console.log(`✅ Contract type criado: ${tokenType.name} (${tokenType.category})`);
+
+    // Tipo Stake (DeFi)
+    const stakeType = await prisma.contractType.upsert({
+      where: { name: 'stake' },
+      update: {},
+      create: {
+        name: 'stake',
+        description: 'Contratos de staking e rewards',
+        category: 'defi',
+        abiPath: '',
+        version: '',
+        isActive: true
+      }
+    });
+    console.log(`✅ Contract type criado: ${stakeType.name} (${stakeType.category})`);
+
+    // Tipo Exchange (DeFi)
+    const exchangeType = await prisma.contractType.upsert({
+      where: { name: 'exchange' },
+      update: {},
+      create: {
+        name: 'exchange',
+        description: 'Contratos de exchange e DEX',
+        category: 'defi',
+        abiPath: '',
+        version: '',
+        isActive: true
+      }
+    });
+    console.log(`✅ Contract type criado: ${exchangeType.name} (${exchangeType.category})`);
+
+    // ========================================
+    // 5. CRIAR COMPANY BRANDINGS
     // ========================================
     console.log('\n🎨 Criando company brandings...');
 
@@ -292,7 +342,7 @@ async function seedBasicData() {
     console.log(`✅ Branding da Coinage criado`);
 
     // ========================================
-    // 5. CRIAR HISTÓRICO COMPLETO DE TRANSAÇÕES PARA IVAN
+    // 6. CRIAR HISTÓRICO COMPLETO DE TRANSAÇÕES PARA IVAN
     // ========================================
     console.log('\n💸 Criando histórico completo de transações para Ivan...');
     console.log(`📊 Gerando transações para ${networkName}...`);
@@ -467,7 +517,7 @@ async function seedBasicData() {
     console.log(`✅ Total de ${createdTransactions.length} transações criadas para Ivan`);
 
     // ========================================
-    // 6. CRIAR PORTFOLIOS E BALANCES PARA IVAN
+    // 7. CRIAR PORTFOLIOS E BALANCES PARA IVAN
     // ========================================
     console.log('\n💼 Criando portfolios e balances para Ivan...');
     
@@ -554,7 +604,7 @@ async function seedBasicData() {
     }
     
     // ========================================
-    // 7. CRIAR EARNINGS HISTÓRICO PARA IVAN
+    // 8. CRIAR EARNINGS HISTÓRICO PARA IVAN
     // ========================================
     console.log('\n💰 Criando histórico de earnings para Ivan...');
 
@@ -640,7 +690,7 @@ async function seedBasicData() {
     console.log(`✅ Total de ${earningsHistory.length} earnings criados ($${totalEarnings.toFixed(2)})`);
 
     // ========================================
-    // 8. CRIAR HISTÓRICO DE PIX (DEPÓSITOS/SAQUES)
+    // 9. CRIAR HISTÓRICO DE PIX (DEPÓSITOS/SAQUES)
     // ========================================
     console.log('\n💳 Criando histórico de PIX para Ivan...');
     
@@ -704,7 +754,7 @@ async function seedBasicData() {
     }
     
     // ========================================
-    // 9. CRIAR NOTIFICAÇÕES COMPLETAS PARA IVAN
+    // 10. CRIAR NOTIFICAÇÕES COMPLETAS PARA IVAN
     // ========================================
     console.log('\n🔔 Criando sistema completo de notificações para Ivan...');
 
@@ -816,7 +866,7 @@ async function seedBasicData() {
     // RESUMO FINAL
     // ========================================
     // ========================================
-    // 10. CRIAR USER ACTIONS (HISTÓRICO DE AÇÕES)
+    // 11. CRIAR USER ACTIONS (HISTÓRICO DE AÇÕES)
     // ========================================
     console.log('\n📋 Criando histórico de ações do usuário...');
     

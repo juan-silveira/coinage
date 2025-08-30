@@ -23,15 +23,13 @@ const getWebhookService = () => {
 
 class TokenService {
   constructor() {
-    this.SmartContract = null;
-    this.sequelize = null;
+    // Inicializar Prisma
+    this.getPrisma = () => prismaConfig.getPrisma();
   }
 
   async initialize() {
     try {
-      this.sequelize = await databaseConfig.initialize();
-      const SmartContractModel = require('../models/SmartContract');
-      this.SmartContract = SmartContractModel(this.sequelize);
+      await prismaConfig.initialize();
       await contractService.initialize();
       console.log('✅ Serviço de tokens inicializado com sucesso');
     } catch (error) {
@@ -108,8 +106,8 @@ class TokenService {
         success: true,
         message: 'Saldo do token obtido com sucesso',
         data: {
-          contractAddress: contractAddress.toLowerCase(),
-          walletAddress: walletAddress.toLowerCase(),
+          contractAddress: require('../utils/address').toChecksumAddress(contractAddress),
+          walletAddress: require('../utils/address').toChecksumAddress(walletAddress),
           balanceWei: balanceWei,
           balanceEth: balanceEth,
           network: network,
@@ -169,12 +167,12 @@ class TokenService {
         const transaction = await transactionService.recordMintTransaction({
           companyId: options.companyId,
           userId: options.userId,
-          contractAddress: contractAddress.toLowerCase(),
-          fromAddress: gasPayer.toLowerCase(),
-          toAddress: toAddress.toLowerCase(),
+          contractAddress: require('../utils/address').toChecksumAddress(contractAddress),
+          fromAddress: require('../utils/address').toChecksumAddress(gasPayer),
+          toAddress: require('../utils/address').toChecksumAddress(toAddress),
           amount: amountWei.toString(),
           amountWei: amountWei.toString(),
-          gasPayer: gasPayer.toLowerCase(),
+          gasPayer: require('../utils/address').toChecksumAddress(gasPayer),
           network,
           txHash: result.transactionHash,
           gasUsed: result.data.gasUsed,
@@ -331,7 +329,7 @@ class TokenService {
           },
           amountWei: ethers.parseUnits(amount.toString(), 18).toString(),
           amountTokens: amount.toString(),
-          fromAddress: fromAddress.toLowerCase()
+          fromAddress: require('../utils/address').toChecksumAddress(fromAddress)
         }
       };
     } catch (error) {
@@ -451,8 +449,8 @@ class TokenService {
           },
           amountWei: ethers.parseUnits(amount.toString(), 18).toString(),
           amountTokens: amount.toString(),
-          fromAddress: fromAddress.toLowerCase(),
-          toAddress: toAddress.toLowerCase()
+          fromAddress: require('../utils/address').toChecksumAddress(fromAddress),
+          toAddress: require('../utils/address').toChecksumAddress(toAddress)
         }
       };
     } catch (error) {
@@ -499,7 +497,7 @@ class TokenService {
           ...result.data,
           tokenInfo: {
             isUpdate: false, // Será atualizado pelo contractService
-            address: address.toLowerCase(),
+            address: require('../utils/address').toChecksumAddress(address),
             network,
             adminPublicKey: adminPublicKey ? adminPublicKey.toLowerCase() : null
           }
@@ -530,25 +528,32 @@ class TokenService {
       if (network) where.network = network;
       if (contractType) where.contractType = contractType;
 
-      // Buscar tokens diretamente no banco
-      const { count, rows } = await this.SmartContract.findAndCountAll({
-        where,
-        limit,
-        offset,
-        order: [['createdAt', 'DESC']]
-      });
+      const prisma = this.getPrisma();
 
-      const totalPages = Math.ceil(count / limit);
+      // Buscar tokens usando Prisma
+      const [tokens, total] = await Promise.all([
+        prisma.smartContract.findMany({
+          where,
+          take: limit,
+          skip: offset,
+          orderBy: {
+            createdAt: 'desc'
+          }
+        }),
+        prisma.smartContract.count({ where })
+      ]);
+
+      const totalPages = Math.ceil(total / limit);
 
       return {
         success: true,
         message: 'Tokens listados com sucesso',
         data: {
-          tokens: rows,
+          tokens,
           pagination: {
             page,
             limit,
-            total: count,
+            total,
             totalPages,
             hasNext: page < totalPages,
             hasPrev: page > 1
@@ -571,19 +576,27 @@ class TokenService {
       }
 
       // Buscar e atualizar o contrato diretamente
-      const contract = await global.prisma.smartContract.findUnique({ where: { address: contractAddress.toLowerCase() } });
+      const contract = await global.prisma.smartContract.findFirst({ 
+        where: { 
+          address: contractAddress
+        } 
+      });
       
       if (!contract) {
         throw new Error('Token não encontrado');
       }
 
-      await contract.update({ isActive: false });
+      // Atualizar usando Prisma
+      await global.prisma.smartContract.update({
+        where: { id: contract.id },
+        data: { isActive: false }
+      });
       
       return {
         success: true,
         message: 'Token desativado com sucesso',
         data: {
-          address: contractAddress.toLowerCase(),
+          address: require('../utils/address').toChecksumAddress(contractAddress),
           isActive: false
         }
       };
@@ -603,9 +616,9 @@ class TokenService {
       }
 
       // Buscar e atualizar o contrato diretamente (incluindo inativos)
-      const contract = await this.SmartContract.findOne({
-        where: {
-          address: contractAddress.toLowerCase()
+      const contract = await global.prisma.smartContract.findFirst({
+        where: { 
+          address: contractAddress
         }
       });
       
@@ -613,13 +626,17 @@ class TokenService {
         throw new Error('Token não encontrado');
       }
 
-      await contract.update({ isActive: true });
+      // Atualizar usando Prisma
+      await global.prisma.smartContract.update({
+        where: { id: contract.id },
+        data: { isActive: true }
+      });
       
       return {
         success: true,
         message: 'Token ativado com sucesso',
         data: {
-          address: contractAddress.toLowerCase(),
+          address: require('../utils/address').toChecksumAddress(contractAddress),
           isActive: true
         }
       };
@@ -642,7 +659,7 @@ class TokenService {
       }
 
       // Buscar informações do contrato no banco (incluindo inativos)
-      const contract = await global.prisma.smartContract.findUnique({ where: { address: contractAddress.toLowerCase() } });
+      const contract = await global.prisma.smartContract.findUnique({ where: { address: require('../utils/address').normalizeAddress(contractAddress) } });
       
       if (!contract) {
         throw new Error('Token não encontrado');
@@ -663,7 +680,7 @@ class TokenService {
         success: true,
         message: 'Informações do token obtidas com sucesso',
         data: {
-          address: contractAddress.toLowerCase(),
+          address: require('../utils/address').toChecksumAddress(contractAddress),
           name,
           symbol,
           decimals: decimals.toString(),
@@ -690,7 +707,7 @@ class TokenService {
       }
 
       // Buscar e atualizar o contrato diretamente (incluindo inativos)
-      const contract = await global.prisma.smartContract.findUnique({ where: { address: contractAddress.toLowerCase() } });
+      const contract = await global.prisma.smartContract.findUnique({ where: { address: require('../utils/address').normalizeAddress(contractAddress) } });
       
       if (!contract) {
         throw new Error('Token não encontrado');
@@ -708,7 +725,7 @@ class TokenService {
         success: true,
         message: 'Informações do token atualizadas com sucesso',
         data: {
-          address: contractAddress.toLowerCase(),
+          address: require('../utils/address').toChecksumAddress(contractAddress),
           metadata: updatedMetadata
         }
       };
@@ -737,7 +754,7 @@ class TokenService {
         success: true,
         message: 'Saldo da moeda AZE obtido com sucesso',
         data: {
-          walletAddress: walletAddress.toLowerCase(),
+          walletAddress: require('../utils/address').toChecksumAddress(walletAddress),
           balanceWei: balanceWei.toString(),
           balanceEth: balanceEth,
           network: network,

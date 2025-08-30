@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Icon from "@/components/ui/Icon";
 import Card from "@/components/ui/Card";
 import useCachedBalances from "@/hooks/useCachedBalances";
@@ -15,18 +15,34 @@ const HomeBredCurbs = ({ title }) => {
     loading: isLoading,
     getCorrectAzeSymbol,
     syncStatus,
+    balances,
   } = useCachedBalances();
+  
+  // Estado para controlar timeout do skeleton
+  const [skeletonTimeout, setSkeletonTimeout] = useState(false);
+  
+  // Timeout de 3 segundos para parar skeleton mesmo se API falhar
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSkeletonTimeout(true);
+    }, 2500);
+    
+    return () => clearTimeout(timer);
+  }, []);
+  
+  // Só mostrar skeleton se está carregando E não passou do timeout E não tem dados válidos
+  const shouldShowSkeleton = isLoading && !skeletonTimeout && (!balances || !balances.balancesTable || balances.isEmergency);
 
 
   const handleValueChange = (newValue) => {
     setValue(newValue);
   };
 
-  // VALORES DE EMERGÊNCIA para exibição
+  // VALORES DE EMERGÊNCIA para exibição - ZERADOS PARA SEGURANÇA
   const emergencyValues = {
-    [getCorrectAzeSymbol()]: '3.965024',
-    'cBRL': '101390.000000',
-    'STT': '999999794.500000'
+    [getCorrectAzeSymbol()]: '0.000000',
+    'cBRL': '0.000000',
+    'STT': '0.000000'
   };
 
   // Função para obter saldo com proteção
@@ -80,8 +96,8 @@ const HomeBredCurbs = ({ title }) => {
                 Saldo {getCorrectAzeSymbol()}
               </div>
               <div className="balance font-bold">
-                {isLoading ? (
-                  <div className="animate-pulse bg-slate-200 dark:bg-slate-600 h-4 w-16 rounded"></div>
+                {shouldShowSkeleton ? (
+                  <div className="h-4 w-20 bg-gradient-to-r from-slate-200 to-slate-300 dark:from-slate-600 dark:to-slate-500 rounded animate-pulse"></div>
                 ) : (
                   <>
                     {formatForDisplay(getSafeBalance(getCorrectAzeSymbol()))}
@@ -105,8 +121,8 @@ const HomeBredCurbs = ({ title }) => {
                 Saldo cBRL
               </div>
               <div className="balance font-bold">
-                {isLoading ? (
-                  <div className="animate-pulse bg-slate-200 dark:bg-slate-600 h-4 w-16 rounded"></div>
+                {shouldShowSkeleton ? (
+                  <div className="h-4 w-20 bg-gradient-to-r from-slate-200 to-slate-300 dark:from-slate-600 dark:to-slate-500 rounded animate-pulse"></div>
                 ) : (
                   <>
                     {formatForDisplay(getSafeBalance("cBRL"))}

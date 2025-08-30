@@ -14,11 +14,18 @@ const depositController = new DepositController();
 router.post('/', depositController.initiateDeposit.bind(depositController));
 
 /**
- * @route   POST /api/deposits/confirm
+ * @route   POST /api/deposits/confirm-pix
+ * @desc    Confirmar PIX do depósito
+ * @access  Private (Admin/Worker)
+ */
+router.post('/confirm-pix', jwtMiddleware.authenticateToken, depositController.confirmPixDeposit.bind(depositController));
+
+/**
+ * @route   POST /api/deposits/confirm-blockchain
  * @desc    Confirmar depósito na blockchain (chamado pelo worker)
  * @access  Private (Admin/Worker)
  */
-router.post('/confirm', authenticateApiKey, depositController.confirmDeposit.bind(depositController));
+router.post('/confirm-blockchain', jwtMiddleware.authenticateToken, depositController.confirmBlockchainDeposit.bind(depositController));
 
 /**
  * @route   GET /api/deposits/status/:transactionId
@@ -46,14 +53,14 @@ router.get('/dev/status/:transactionId', depositController.getDepositStatus.bind
  * @desc    DEBUG: Confirmar pagamento PIX manualmente (apenas desenvolvimento)
  * @access  Private
  */
-router.post('/debug/confirm-pix/:transactionId', authenticateApiKey, depositController.debugConfirmPix.bind(depositController));
+router.post('/debug/confirm-pix/:transactionId', jwtMiddleware.authenticateToken, depositController.debugConfirmPix.bind(depositController));
 
 /**
  * @route   POST /api/deposits/debug/complete-deposit/:transactionId
  * @desc    DEBUG: Completar depósito (PIX + mint) manualmente para testes
  * @access  Private
  */
-router.post('/debug/complete-deposit/:transactionId', authenticateApiKey, depositController.debugCompleteDeposit.bind(depositController));
+router.post('/debug/complete-deposit/:transactionId', depositController.debugCompleteDeposit.bind(depositController));
 
 /**
  * @route   POST /api/deposits/dev/debug/confirm-pix/:transactionId
@@ -88,7 +95,7 @@ router.post('/calculate-fees', depositController.calculateDepositFees.bind(depos
  * @desc    Obter configuração de taxas de um usuário
  * @access  Private
  */
-router.get('/taxes/:userId', authenticateApiKey, depositController.getUserTaxes.bind(depositController));
+router.get('/taxes/:userId', jwtMiddleware.authenticateToken, depositController.getUserTaxes.bind(depositController));
 
 module.exports = router;
 

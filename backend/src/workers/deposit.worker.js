@@ -1,11 +1,11 @@
 const rabbitmqConfig = require('../config/rabbitmq');
 const blockchainQueueService = require('../services/blockchainQueue.service');
-const DepositService = require('../services/deposit.service');
+const depositService = require('../services/deposit.service');
 const mintService = require('../services/mint.service');
 
 class DepositWorker {
   constructor() {
-    this.depositService = new DepositService();
+    this.depositService = depositService; // Usar instância singleton
     this.isRunning = false;
     this.consumerTags = [];
   }

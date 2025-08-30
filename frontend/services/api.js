@@ -1,8 +1,8 @@
 import axios from 'axios';
 import useAuthStore from '@/store/authStore';
 
-// Configuração base da API
-const API_BASE_URL = 'http://localhost:8800';
+// Configuração base da API - usar proxy do Next.js
+const API_BASE_URL = '';
 
 // Instância do axios
 const api = axios.create({

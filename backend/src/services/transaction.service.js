@@ -47,11 +47,13 @@ class TransactionService {
    */
   async createTransaction(transactionData) {
     try {
-      if (!this.Transaction) {
+      if (!this.prisma) {
         await this.initialize();
       }
 
-      const transaction = await this.Transaction.create(transactionData);
+      const transaction = await this.prisma.transaction.create({
+        data: transactionData
+      });
       
       // Disparar webhook de transação criada
       if (transaction.companyId) {
@@ -202,13 +204,15 @@ class TransactionService {
       transactionType: 'contract_call',
       status,
       txHash,
-      blockNumber,
+      blockNumber: blockNumber.toString(),
       fromAddress: gasPayer,
       toAddress: contractAddress,
+      contractAddress: contractAddress,
       functionName: 'burnFrom',
-      functionParams: [fromAddress, amountWei],
-      gasUsed,
-      gasPrice,
+      gasUsed: gasUsed.toString(),
+      amount: parseFloat(amount),
+      currency: 'cBRL',
+      confirmedAt: new Date(),
       metadata: {
         operation: 'burn',
         contractAddress,
@@ -217,7 +221,9 @@ class TransactionService {
         amountWei: amountWei.toString(),
         gasPayer,
         targetAddress: fromAddress,
-        amount: amount.toString()
+        functionParams: [fromAddress, amountWei.toString()],
+        tokenSymbol: 'cBRL',
+        tokenName: 'Coinage Real Brasil'
       }
     };
 

@@ -24,7 +24,6 @@ class WithdrawController {
    *             required:
    *               - amount
    *               - pixKey
-   *               - userId
    *             properties:
    *               amount:
    *                 type: number
@@ -35,10 +34,6 @@ class WithdrawController {
    *                 type: string
    *                 description: Chave PIX de destino (CPF, CNPJ, email, telefone ou aleatória)
    *                 example: "usuario@exemplo.com"
-   *               userId:
-   *                 type: string
-   *                 format: uuid
-   *                 description: ID do usuário
    *               description:
    *                 type: string
    *                 description: Descrição opcional do saque
@@ -102,7 +97,10 @@ class WithdrawController {
    */
   async initiateWithdrawal(req, res) {
     try {
-      const { amount, pixKey, userId } = req.body;
+      const { amount, pixKey } = req.body;
+      
+      // Obter userId do JWT token (definido pelo middleware de autenticação)
+      const userId = req.user?.id;
       
       // Validações
       if (!amount || amount <= 0) {
@@ -122,7 +120,7 @@ class WithdrawController {
       if (!userId) {
         return res.status(400).json({
           success: false,
-          message: 'ID do usuário é obrigatório'
+          message: 'Usuário não autenticado'
         });
       }
 
@@ -177,39 +175,84 @@ class WithdrawController {
   }
 
   /**
-   * Confirmar saque na blockchain
+   * Confirmar saque executando burn na blockchain e PIX
    */
   async confirmWithdrawal(req, res) {
+    console.log(`🔍 [DEBUG] Controller confirmWithdrawal CHAMADO com withdrawalId: ${req.body?.withdrawalId}`);
     try {
-      const { withdrawalId, burnTxHash, pixTransactionId, pixEndToEndId } = req.body;
+      const { withdrawalId } = req.body;
       
       // Validações
-      if (!withdrawalId || !burnTxHash) {
+      if (!withdrawalId) {
         return res.status(400).json({
           success: false,
-          message: 'ID do saque e hash da transação são obrigatórios'
+          message: 'ID do saque é obrigatório'
         });
       }
 
-      // Confirmar saque
-      const result = await this.withdrawService.confirmWithdrawal(
-        withdrawalId, 
-        burnTxHash,
-        pixTransactionId,
-        pixEndToEndId
-      );
+      // Confirmar saque (executa burn + PIX automaticamente)
+      console.log(`🔍 [DEBUG] Controller chamando withdrawService.confirmWithdrawal(${withdrawalId})`);
+      const result = await this.withdrawService.confirmWithdrawal(withdrawalId);
+      
+      // Registrar ação de saque confirmado
+      if (result && result.user) {
+        await userActionsService.logFinancial(result.user.id, 'withdrawal_confirmed', req, {
+          status: 'completed',
+          amount: result.amount,
+          currency: 'cBRL',
+          method: 'pix',
+          transactionId: withdrawalId,
+          burnTxHash: result.burnTxHash,
+          pixTransactionId: result.pixTransactionId,
+          details: {
+            withdrawalId: withdrawalId,
+            amount: result.amount,
+            pixKey: this.maskPixKey(result.pixKey),
+            burnResult: result.metadata?.burn,
+            pixResult: result.metadata?.pixPayment
+          }
+        });
+      }
       
       res.json({
         success: true,
         message: 'Saque confirmado com sucesso',
-        data: result
+        data: {
+          withdrawalId: result.id,
+          status: result.status,
+          amount: result.amount,
+          pixKey: result.pixKey,
+          burnTxHash: result.burnTxHash,
+          pixTransactionId: result.pixTransactionId,
+          pixEndToEndId: result.pixEndToEndId,
+          completedAt: result.completedAt,
+          metadata: result.metadata
+        }
       });
 
     } catch (error) {
       console.error('Erro ao confirmar saque:', error);
+      
+      // Registrar falha na confirmação
+      if (req.body.withdrawalId) {
+        try {
+          const withdrawal = await this.withdrawService.getWithdrawalStatus(req.body.withdrawalId);
+          if (withdrawal && withdrawal.user) {
+            await userActionsService.logFinancial(withdrawal.user.id, 'withdrawal_confirmation_failed', req, {
+              status: 'failed',
+              withdrawalId: req.body.withdrawalId,
+              errorMessage: error.message,
+              errorCode: 'WITHDRAWAL_CONFIRMATION_ERROR'
+            });
+          }
+        } catch (logError) {
+          console.error('Erro ao registrar falha:', logError);
+        }
+      }
+      
       res.status(500).json({
         success: false,
-        message: 'Erro interno do servidor',
+        message: error.message.includes('não encontrado') ? error.message : 'Erro interno do servidor',
         error: error.message
       });
     }

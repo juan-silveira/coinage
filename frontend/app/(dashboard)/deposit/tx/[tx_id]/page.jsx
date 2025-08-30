@@ -31,28 +31,40 @@ const DepositConfirmationPage = () => {
   const pollingInterval = useRef(null);
   const shouldStopPolling = useRef(false);
 
-  // Função para buscar transação de mint vinculada
+  // Função para buscar status da transação unificada
   const fetchMintTransaction = useCallback(async (depositTxId) => {
     try {
-      console.log('🔍 Buscando transação de mint para depósito:', depositTxId);
+      console.log('🔍 Buscando status da transação:', depositTxId);
       
-      // Usar API real de mint sem autenticação
-      const response = await fetch(`/api/mint-dev/by-deposit/${depositTxId}`);
+      // Usar API unificada de status da transação
+      const response = await fetch(`/api/deposits/dev/status/${depositTxId}`);
       
       if (response.ok) {
         const data = await response.json();
-        console.log('📊 Resposta da API de mint:', data);
+        console.log('📊 Resposta da API de status:', data);
         
         if (data.success) {
           if (data.data) {
-            // Mint transaction encontrada
-            setMintTransaction(data.data);
+            // Mapear dados da transação unificada para formato esperado pelo mint
+            const unifiedTransaction = data.data;
+            const mappedMintTransaction = {
+              id: unifiedTransaction.id,
+              status: unifiedTransaction.blockchainStatus || 'pending', // Usar blockchainStatus
+              amount: unifiedTransaction.amount,
+              txHash: unifiedTransaction.blockchainTxHash,
+              blockNumber: unifiedTransaction.metadata?.blockchainConfirmation?.blockNumber,
+              network: 'testnet',
+              tokenSymbol: 'cBRL',
+              createdAt: unifiedTransaction.createdAt
+            };
             
-            // Atualizar status baseado no resultado
-            if (data.data.status === 'confirmed') {
-              console.log('🎉 [FETCH-MINT] STATUS CONFIRMED DETECTADO!');
-              console.log('🎉 [FETCH-MINT] TX Hash disponível:', data.data.txHash);
-              console.log('🎉 [FETCH-MINT] Parando polling...');
+            setMintTransaction(mappedMintTransaction);
+            
+            // Atualizar status baseado no resultado da BLOCKCHAIN
+            if (unifiedTransaction.blockchainStatus === 'confirmed') {
+              console.log('🎉 [FETCH-STATUS] BLOCKCHAIN CONFIRMED DETECTADO!');
+              console.log('🎉 [FETCH-STATUS] TX Hash disponível:', unifiedTransaction.blockchainTxHash);
+              console.log('🎉 [FETCH-STATUS] Parando polling...');
               
               setMintStatus('Depósito concluído com sucesso!');
               setProcessingMint(false); // Parar processamento quando confirmado
@@ -64,9 +76,13 @@ const DepositConfirmationPage = () => {
                 pollingInterval.current = null;
               }
               
-              console.log('🎉 [FETCH-MINT] Estados atualizados - UI deve mudar para VERDE agora!');
-              console.log('🎉 [FETCH-MINT] Dados completos da transação:', JSON.stringify(data.data, null, 2));
-            } else if (data.data.status === 'failed') {
+              console.log('🎉 [FETCH-STATUS] Estados atualizados - UI deve mudar para VERDE agora!');
+              console.log('🎉 [FETCH-STATUS] Dados completos da transação:', JSON.stringify(unifiedTransaction, null, 2));
+              
+              // MOSTRAR SUCESSO mas NÃO redirecionar automaticamente
+              console.log('🎉 [CONFIRMED] Depósito confirmado - mostrando tela de sucesso');
+              showSuccess('Depósito Concluído!', 'Seu depósito foi processado com sucesso na blockchain');
+            } else if (unifiedTransaction.blockchainStatus === 'failed') {
               setMintStatus('Falha no processamento do depósito');
               setProcessingMint(false); // Parar processamento quando falha
               shouldStopPolling.current = true; // PARAR POLLING
@@ -77,31 +93,42 @@ const DepositConfirmationPage = () => {
                 pollingInterval.current = null;
               }
               
-              console.log('❌ [FETCH-MINT] Depósito falhou! PARANDO POLLING.', data.data);
-            } else {
+              console.log('❌ [FETCH-STATUS] Depósito falhou! PARANDO POLLING.', unifiedTransaction);
+            } else if (unifiedTransaction.pixStatus === 'confirmed' && unifiedTransaction.blockchainStatus === 'pending') {
               setMintStatus('Processando depósito na blockchain...');
-              setProcessingMint(true); // Continuar processamento se pending
-              console.log('⏳ [FETCH-MINT] Status ainda:', data.data.status, '- continuando polling...');
+              setProcessingMint(true); // Continuar processamento se blockchain pending
+              console.log('⏳ [FETCH-STATUS] PIX confirmado, blockchain pending - continuando polling...');
+            } else if (unifiedTransaction.pixStatus === 'pending') {
+              setMintStatus('Aguardando confirmação do PIX...');
+              setProcessingMint(true);
+              console.log('⏳ [FETCH-STATUS] PIX ainda pendente - continuando polling...');
+            } else {
+              setMintStatus('Processando depósito...');
+              setProcessingMint(true);
+              console.log('⏳ [FETCH-STATUS] Status:', unifiedTransaction.pixStatus, '/', unifiedTransaction.blockchainStatus, '- continuando polling...');
             }
             
-            console.log('✅ Transação de mint encontrada:', data.data);
+            console.log('✅ Transação unificada encontrada:', unifiedTransaction);
+            console.log('🔍 [DEBUG] Status PIX:', unifiedTransaction.pixStatus);
+            console.log('🔍 [DEBUG] Status Blockchain:', unifiedTransaction.blockchainStatus);
+            console.log('🔍 [DEBUG] Status Geral:', unifiedTransaction.status);
           } else {
-            // Nenhuma transação de mint ainda
-            console.log('ℹ️ Nenhuma transação de mint encontrada ainda');
+            // Nenhuma transação encontrada ainda
+            console.log('ℹ️ Nenhuma transação encontrada ainda');
             setMintTransaction(null);
             setMintStatus('Aguardando processamento do depósito...');
             setProcessingMint(true);
           }
         } else {
-          console.error('❌ Erro na API de mint:', data.message);
+          console.error('❌ Erro na API de status:', data.message);
         }
       } else {
-        console.error('❌ Erro HTTP na API de mint:', response.status, response.statusText);
+        console.error('❌ Erro HTTP na API de status:', response.status, response.statusText);
       }
     } catch (error) {
-      console.error('❌ Erro ao buscar transação de mint:', error);
+      console.error('❌ Erro ao buscar status da transação:', error);
     }
-  }, []);
+  }, [router, showSuccess]);
 
   // Buscar dados da transação
   useEffect(() => {
@@ -269,20 +296,7 @@ const DepositConfirmationPage = () => {
       }
       shouldStopPolling.current = true;
     };
-  }, [txId, mintTransaction?.status]); // Adicionado status como dependência para parar quando confirmado
-
-  // useEffect específico para parar polling quando confirmado
-  useEffect(() => {
-    if (mintTransaction && mintTransaction.status === 'confirmed') {
-      console.log('🛑 [STATUS-CHECK] Transação confirmada - parando polling definitivamente');
-      shouldStopPolling.current = true;
-      if (pollingInterval.current) {
-        clearInterval(pollingInterval.current);
-        pollingInterval.current = null;
-        console.log('🛑 [STATUS-CHECK] Polling parado com sucesso');
-      }
-    }
-  }, [mintTransaction?.status]);
+  }, [txId]); // Apenas txId como dependência para evitar loop infinito
 
   // DEBUG: Função para confirmar PIX manualmente
   const handleDebugConfirmPix = async () => {
@@ -312,24 +326,31 @@ const DepositConfirmationPage = () => {
     }
   };
 
-  // DEBUG: Função para completar depósito (PIX + mint automático)
+  // Função para confirmar PIX (que automaticamente dispara o mint worker)
   const handleDebugCompleteDeposit = async () => {
     if (!txId) return;
     
     try {
       setLoading(true);
-      console.log('🧪 DEBUG: Iniciando processo completo de PIX + mint para:', txId);
+      console.log('🔄 Confirmando PIX para disparar mint automático:', txId);
       
-      // Chamar API real do backend para completar depósito (SEM autenticação)
-      showSuccess('Processando Depósito...', 'Executando processo real no backend...');
+      showSuccess('Processando Depósito...', 'Confirmando PIX e iniciando mint...');
       
-      const response = await fetch(`/api/deposit-dev/complete/${txId}`, {
+      // Usar endpoint de produção para confirmar PIX
+      const response = await fetch(`/api/deposits/confirm-pix`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${user?.token || ''}`
         },
         body: JSON.stringify({
-          amount: transaction?.amount || 100
+          transactionId: txId,
+          pixData: {
+            pixId: `mock_pix_${Date.now()}`,
+            payerDocument: user?.cpf || '000.000.000-00',
+            payerName: user?.name || 'Usuario Teste',
+            paidAmount: transaction?.totalAmount || transaction?.amount || 100
+          }
         })
       });
 
@@ -609,7 +630,7 @@ const DepositConfirmationPage = () => {
                       Valor:
                     </span>
                     <span className="text-lg font-bold text-gray-900 dark:text-white">
-                      R$ {transaction.amount?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      R$ {(transaction.totalAmount || transaction.amount || 0)?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                     </span>
                   </div>
 
@@ -948,7 +969,7 @@ const DepositConfirmationPage = () => {
                       className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 flex items-center justify-center"
                     >
                       <Icon icon="heroicons:sparkles" className="w-4 h-4 mr-2" />
-                      PIX + Conversão Automática
+                      PIX + Mint Automático
                     </Button>
                   </div>
                 </div>

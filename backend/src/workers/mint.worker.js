@@ -1,10 +1,10 @@
 const rabbitmqConfig = require('../config/rabbitmq');
 const mintService = require('../services/mint.service');
-const MintTransactionService = require('../services/mintTransaction.service');
+const depositService = require('../services/deposit.service');
 
 class MintWorker {
   constructor() {
-    this.mintTransactionService = new MintTransactionService();
+    this.depositService = depositService; // Usar instância singleton
     this.isRunning = false;
     this.consumerTags = [];
   }
@@ -71,6 +71,13 @@ class MintWorker {
     try {
       console.log(`🏭 Processing mint: ${message.transactionId}`);
       
+      // VERIFICAR SE JÁ FOI PROCESSADO (IDEMPOTÊNCIA)
+      const existingTransaction = await this.depositService.getDepositStatus(message.transactionId);
+      if (existingTransaction && existingTransaction.blockchainStatus === 'confirmed') {
+        console.log(`⚠️ Mint já foi processado para ${message.transactionId}, ignorando duplicata`);
+        return; // Sair sem erro para acknowledgment automático
+      }
+      
       // Adicionar contador de retry à mensagem
       message.currentRetry = (message.currentRetry || 0) + 1;
       
@@ -83,18 +90,18 @@ class MintWorker {
       );
 
       if (mintResult.success) {
-        // Atualizar transação com resultado positivo
-        await this.mintTransactionService.updateMintResult(message.transactionId, {
-          success: true,
-          transactionHash: mintResult.transactionHash,
+        // Atualizar transação de depósito com resultado blockchain
+        await this.depositService.confirmBlockchainMint(message.transactionId, {
+          txHash: mintResult.transactionHash,
           blockNumber: mintResult.blockNumber,
-          gasUsed: mintResult.gasUsed
+          gasUsed: mintResult.gasUsed,
+          fromAddress: mintResult.fromAddress || 'admin',
+          toAddress: mintResult.recipient
         });
 
         console.log(`✅ Mint processed successfully: ${message.transactionId}`);
         
-        // Acknowledge mensagem como processada
-        await rabbitmqConfig.channel.ack(messageInfo);
+        // RabbitMQ config fará o acknowledgment automaticamente após sucesso
 
       } else {
         throw new Error(mintResult.error || 'Mint failed');
@@ -103,28 +110,17 @@ class MintWorker {
     } catch (error) {
       console.error(`❌ Error handling mint (attempt ${message.currentRetry}/${maxRetries}):`, error);
       
-      if (message.currentRetry < maxRetries) {
-        console.log(`⏳ Reagendando mint tentativa ${message.currentRetry + 1}/${maxRetries} em ${retryDelay/1000}s`);
-        
-        // Reenviar mensagem para a fila com delay
-        setTimeout(async () => {
-          await rabbitmqConfig.publishMessage('blockchain.exchange', 'transaction.mint', message);
-        }, retryDelay);
-        
-        // Acknowledge a mensagem atual para não bloquear a fila
-        await rabbitmqConfig.channel.ack(messageInfo);
-      } else {
-        console.error(`❌ Máximo de tentativas excedido para mint ${message.transactionId}`);
-        
-        // Marcar transação como falha
-        await this.mintTransactionService.updateMintResult(message.transactionId, {
-          success: false,
-          error: error.message
-        });
-        
-        // Enviar para DLQ
-        await rabbitmqConfig.channel.nack(messageInfo, false, false);
+      // Deixar o RabbitMQ config gerenciar retry e acknowledgment
+      // Se chegou até aqui, significa que houve erro e deve ser re-processado ou enviado para DLQ
+      console.error(`❌ Error in mint processing for ${message.transactionId}:`, error.message);
+      
+      // Marcar transação como falha se necessário
+      if (message.currentRetry >= maxRetries) {
+        await this.depositService.failBlockchainMint(message.transactionId, error.message);
       }
+      
+      // Re-throw error para que RabbitMQ config gerencie retry/DLQ
+      throw error;
     }
   }
 

@@ -13,10 +13,8 @@ class DepositService {
    */
   async createDeposit(depositData) {
     try {
-      const response = await api.post('/deposits/create', {
+      const response = await api.post('/deposits', {
         amount: depositData.amount,
-        fee: depositData.fee || 2.50,
-        method: depositData.method || 'pix',
         userId: depositData.userId
       });
 

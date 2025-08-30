@@ -2,7 +2,12 @@ const prismaConfig = require('../config/prisma');
 const { v4: uuidv4 } = require('uuid');
 const amqp = require('amqplib');
 const NotificationService = require('./notification.service');
+const UserTaxesService = require('./userTaxes.service');
 const blockchainQueueService = require('./blockchainQueue.service');
+const burnService = require('./burn.service');
+const blockchainService = require('./blockchain.service');
+const transactionService = require('./transaction.service');
+const withdrawTransactionService = require('./withdrawTransaction.service');
 
 class WithdrawService {
   constructor() {
@@ -17,6 +22,8 @@ class WithdrawService {
 
   async init() {
     this.prisma = prismaConfig.getPrisma();
+    // Initialize transaction service
+    await transactionService.initialize();
   }
 
   /**
@@ -101,14 +108,21 @@ class WithdrawService {
   }
 
   /**
-   * Calcular taxa de saque
+   * Calcular taxa de saque usando UserTaxesService
    */
-  async calculateFee(amount) {
-    return this.withdrawalFee;
+  async calculateFee(amount, userId) {
+    try {
+      const feeCalculation = await UserTaxesService.calculateWithdrawFee(userId, amount);
+      return feeCalculation.fee;
+    } catch (error) {
+      console.error('❌ Erro ao calcular taxa com UserTaxesService, usando taxa padrão:', error);
+      // Fallback para taxa fixa se houver erro
+      return this.withdrawalFee;
+    }
   }
 
   /**
-   * Iniciar processo de saque
+   * Iniciar processo de saque usando chave PIX cadastrada
    */
   async initiateWithdrawal(amount, pixKey, userId) {
     try {
@@ -123,13 +137,26 @@ class WithdrawService {
         throw new Error(`Valor máximo para saque é R$ ${this.maxWithdrawal.toFixed(2)}`);
       }
       
-      // Validar chave PIX
-      const pixValidation = await this.validatePixKey(pixKey);
-      if (!pixValidation.isValid) {
-        throw new Error('Chave PIX inválida');
+      // Buscar PIX key no banco de dados se for fornecida
+      let userPixKey = null;
+      if (pixKey) {
+        userPixKey = await this.prisma.userPixKey.findFirst({
+          where: {
+            userId: userId,
+            keyValue: pixKey
+          }
+        });
+        
+        if (!userPixKey) {
+          // Se não encontrou pela keyValue, usar validação tradicional
+          const pixValidation = await this.validatePixKey(pixKey);
+          if (!pixValidation.isValid) {
+            throw new Error('Chave PIX inválida');
+          }
+        }
       }
       
-      // Verificar saldo do usuário
+      // Verificar dados do usuário
       const user = await this.prisma.user.findUnique({
         where: { id: userId }
       });
@@ -138,13 +165,51 @@ class WithdrawService {
         throw new Error('Usuário não encontrado');
       }
       
-      // Calcular taxa
-      const fee = await this.calculateFee(amount);
-      const totalAmount = amount + fee;
+      if (!user.publicKey) {
+        throw new Error('Usuário não possui carteira configurada');
+      }
       
-      // Verificar saldo suficiente (considerando a taxa)
-      if (user.balance < totalAmount) {
-        throw new Error('Saldo insuficiente para realizar o saque (incluindo taxa)');
+      // Obter saldo de cBRL na blockchain
+      console.log('🔗 [WithdrawService] Consultando saldo cBRL na blockchain para:', user.publicKey);
+      const blockchainBalances = await blockchainService.getUserBalances(user.publicKey, 'testnet');
+      
+      // Debug detalhado dos balances retornados
+      console.log('🔍 [WithdrawService] Blockchain balances completo:', JSON.stringify(blockchainBalances, null, 2));
+      console.log('🔍 [WithdrawService] balancesTable:', blockchainBalances?.balancesTable);
+      console.log('🔍 [WithdrawService] cBRL raw:', blockchainBalances?.balancesTable?.['cBRL']);
+      
+      const cBrlBalance = parseFloat(blockchainBalances.balancesTable?.['cBRL'] || '0');
+      console.log('🔍 [WithdrawService] cBRL parsed:', cBrlBalance);
+      
+      // Calcular taxa usando UserTaxesService
+      const fee = await this.calculateFee(amount, userId);
+      const netAmount = amount - fee; // Valor que o usuário realmente recebe via PIX
+      
+      // Debug logging para entender os valores
+      console.log('🔍 [WithdrawService] Debug balance validation:', {
+        amount: amount,
+        amountType: typeof amount,
+        fee: fee,
+        feeType: typeof fee,
+        netAmount: netAmount,
+        netAmountType: typeof netAmount,
+        cBrlBalance: cBrlBalance,
+        cBrlBalanceType: typeof cBrlBalance,
+        isBalanceSufficient: cBrlBalance >= amount,
+        userId: userId,
+        publicKey: user.publicKey
+      });
+      
+      // Verificar saldo suficiente de cBRL (apenas o valor solicitado, não incluindo taxa)
+      if (cBrlBalance < amount) {
+        console.error('❌ [WithdrawService] Saldo cBRL insuficiente:', {
+          cBrlBalance: cBrlBalance,
+          amountNeeded: amount,
+          fee: fee,
+          netAmount: netAmount,
+          difference: cBrlBalance - amount
+        });
+        throw new Error('Saldo cBRL insuficiente para realizar o saque');
       }
       
       // Conectar ao RabbitMQ
@@ -158,27 +223,48 @@ class WithdrawService {
           userId,
           amount,
           fee,
-          netAmount: amount, // Valor líquido que o usuário recebe
-          pixKey: pixValidation.formatted,
-          pixKeyType: pixValidation.type,
+          netAmount: netAmount, // Valor líquido que o usuário recebe (amount - fee)
+          pixKey: userPixKey ? userPixKey.keyValue : pixKey,
+          pixKeyType: userPixKey ? userPixKey.keyType : 'UNKNOWN',
           status: 'PENDING',
           createdAt: new Date(),
           metadata: {
-            userBalance: user.balance,
-            totalDeducted: totalAmount
+            cBrlBalance: cBrlBalance,
+            totalBurnAmount: amount, // Amount burned from blockchain (not including fee)
+            pixPaymentAmount: netAmount, // Amount user will receive via PIX  
+            pixKeyId: userPixKey ? userPixKey.id : null,
+            bankCode: userPixKey ? userPixKey.bankCode : null,
+            bankName: userPixKey ? userPixKey.bankName : null
           }
         }
+      });
+
+      // Buscar empresa do usuário
+      const userCompany = await this.prisma.userCompany.findFirst({
+        where: { userId: userId },
+        include: { company: true }
+      });
+
+      const companyId = userCompany?.company?.id;
+      if (!companyId) {
+        throw new Error('Usuário não possui empresa associada');
+      }
+
+      // Criar transação padronizada de saque
+      const standardTransaction = await withdrawTransactionService.createWithdrawTransaction({
+        userId,
+        companyId,
+        amount,
+        fee,
+        netAmount,
+        pixKey: userPixKey ? userPixKey.keyValue : pixKey,
+        pixKeyType: userPixKey ? userPixKey.keyType : 'UNKNOWN',
+        userAddress: user.publicKey,
+        withdrawalId
       });
       
-      // Debitar do saldo do usuário imediatamente
-      await this.prisma.user.update({
-        where: { id: userId },
-        data: {
-          balance: {
-            decrement: totalAmount
-          }
-        }
-      });
+      // Note: No database balance update needed since we're using blockchain balances
+      // The actual token burn will happen later during withdrawal confirmation
       
       // Enviar para fila de processamento
       const message = {
@@ -186,9 +272,9 @@ class WithdrawService {
         userId,
         amount,
         fee,
-        pixKey: pixValidation.formatted,
-        pixKeyType: pixValidation.type,
-        blockchainAddress: user.blockchainAddress,
+        pixKey: userPixKey ? userPixKey.keyValue : pixKey,
+        pixKeyType: userPixKey ? userPixKey.keyType : 'UNKNOWN',
+        blockchainAddress: user.publicKey,
         userEmail: user.email,
         timestamp: new Date().toISOString()
       };
@@ -205,7 +291,7 @@ class WithdrawService {
         withdrawalId,
         amount,
         fee,
-        netAmount: amount,
+        netAmount: netAmount,
         status: 'PENDING',
         estimatedTime: '5-15 minutos'
       };
@@ -217,33 +303,208 @@ class WithdrawService {
   }
 
   /**
-   * Confirmar saque
+   * Confirmar saque executando burnFrom na blockchain
    */
-  async confirmWithdrawal(withdrawalId, burnTxHash, pixTransactionId, pixEndToEndId) {
+  async confirmWithdrawal(withdrawalId) {
+    console.log(`🔍 [DEBUG] confirmWithdrawal CHAMADO para withdrawal: ${withdrawalId}`);
     try {
       if (!this.prisma) await this.init();
       
-      const withdrawal = await this.prisma.withdrawal.update({
+      // Buscar dados do saque
+      const withdrawal = await this.prisma.withdrawal.findUnique({
         where: { id: withdrawalId },
-        data: {
-          status: 'COMPLETED',
-          burnTxHash,
-          pixTransactionId,
-          pixEndToEndId,
-          completedAt: new Date()
-        },
         include: {
           user: true
         }
       });
+
+      if (!withdrawal) {
+        throw new Error('Saque não encontrado');
+      }
+
+      if (withdrawal.status !== 'PENDING') {
+        throw new Error('Saque não está pendente');
+      }
+
+      // Verificar se o usuário tem carteira configurada
+      if (!withdrawal.user.publicKey) {
+        throw new Error('Usuário não possui carteira configurada');
+      }
+
+      console.log(`🔄 Processando saque ${withdrawalId}...`);
+
+      // Atualizar status para processing
+      await this.prisma.withdrawal.update({
+        where: { id: withdrawalId },
+        data: {
+          status: 'PROCESSING',
+          metadata: {
+            ...withdrawal.metadata,
+            processingStartedAt: new Date().toISOString()
+          }
+        }
+      });
+
+      // Executar burnFrom na blockchain
+      console.log(`🔥 Executando burn de ${withdrawal.amount} cBRL de ${withdrawal.user.publicKey}`);
+      console.log(`🔍 [DEBUG] Chamando burnService.burnFromCBRL...`);
       
-      console.log(`✅ Saque confirmado: ${withdrawalId} - PIX: ${pixTransactionId}`);
+      const burnResult = await burnService.burnFromCBRL(
+        withdrawal.user.publicKey,
+        withdrawal.amount.toString(),
+        'testnet',
+        withdrawalId
+      );
+
+      console.log(`✅ Burn executado com sucesso:`, burnResult);
+
+      // Buscar transação padronizada associada ao withdrawal
+      let standardTransaction = await withdrawTransactionService.findByWithdrawalId(withdrawalId);
       
-      return withdrawal;
+      if (standardTransaction) {
+        // Atualizar transação padronizada com dados do burn
+        await withdrawTransactionService.updateWithBurnData(standardTransaction.id, burnResult);
+        console.log(`✅ Transação padronizada atualizada com dados do burn`);
+      } else {
+        console.warn('⚠️ Transação padronizada não encontrada para withdrawalId:', withdrawalId);
+      }
+
+      // Atualizar saque com dados do burn
+      const updatedWithdrawal = await this.prisma.withdrawal.update({
+        where: { id: withdrawalId },
+        data: {
+          status: 'PROCESSING',
+          burnTxHash: burnResult.transactionHash,
+          metadata: {
+            ...withdrawal.metadata,
+            burn: {
+              success: true,
+              transactionHash: burnResult.transactionHash,
+              blockNumber: burnResult.blockNumber,
+              gasUsed: burnResult.gasUsed,
+              amountBurned: burnResult.amountBurned,
+              burnedAt: new Date().toISOString()
+            }
+          }
+        }
+      });
+
+      console.log(`🔥 Burn concluído para saque ${withdrawalId}`);
+
+      // Processar PIX (simulado por enquanto)
+      await this.processPixPayment(withdrawalId, withdrawal);
+
+      return updatedWithdrawal;
       
     } catch (error) {
       console.error('❌ Erro ao confirmar saque:', error);
+      
+      // Marcar saque como falha
+      await this.markWithdrawalAsFailed(withdrawalId, error.message);
+      
       throw error;
+    }
+  }
+
+  /**
+   * Processar pagamento PIX (simulado)
+   */
+  async processPixPayment(withdrawalId, withdrawal) {
+    try {
+      console.log(`💳 Processando pagamento PIX para saque ${withdrawalId}`);
+      
+      // SIMULAÇÃO: Em produção, aqui seria feita a integração com o banco/PSP
+      const pixTransactionId = `pix_out_${withdrawalId}_${Date.now()}`;
+      const pixEndToEndId = `E${Math.random().toString().substr(2, 8)}${Date.now()}`;
+      
+      // Simular tempo de processamento
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      // Atualizar com dados do PIX processado
+      const updatedWithdrawal = await this.prisma.withdrawal.update({
+        where: { id: withdrawalId },
+        data: {
+          status: 'CONFIRMED',
+          pixTransactionId: pixTransactionId,
+          pixEndToEndId: pixEndToEndId,
+          completedAt: new Date(),
+          metadata: {
+            ...withdrawal.metadata,
+            pixPayment: {
+              success: true,
+              pixTransactionId: pixTransactionId,
+              pixEndToEndId: pixEndToEndId,
+              processedAt: new Date().toISOString(),
+              pixKey: withdrawal.pixKey,
+              amount: withdrawal.netAmount // PIX sends the net amount (after fees)
+            }
+          }
+        }
+      });
+
+      // Atualizar transação padronizada com dados do PIX
+      const standardTransaction = await withdrawTransactionService.findByWithdrawalId(withdrawalId);
+      if (standardTransaction) {
+        await withdrawTransactionService.updateWithPixData(standardTransaction.id, {
+          pixTransactionId,
+          pixEndToEndId,
+          amount: withdrawal.netAmount
+        });
+        console.log(`✅ Transação padronizada atualizada com dados do PIX`);
+      }
+
+      console.log(`✅ PIX processado com sucesso: ${pixTransactionId}`);
+      
+      return {
+        success: true,
+        pixTransactionId,
+        pixEndToEndId,
+        processedAt: new Date().toISOString()
+      };
+
+    } catch (error) {
+      console.error('❌ Erro ao processar PIX:', error);
+      
+      // Atualizar saque com erro do PIX
+      await this.prisma.withdrawal.update({
+        where: { id: withdrawalId },
+        data: {
+          status: 'FAILED',
+          metadata: {
+            ...withdrawal.metadata,
+            pixPayment: {
+              success: false,
+              error: error.message,
+              failedAt: new Date().toISOString()
+            }
+          }
+        }
+      });
+
+      throw error;
+    }
+  }
+
+  /**
+   * Marcar saque como falha
+   */
+  async markWithdrawalAsFailed(withdrawalId, errorMessage) {
+    try {
+      await this.prisma.withdrawal.update({
+        where: { id: withdrawalId },
+        data: {
+          status: 'FAILED',
+          metadata: {
+            error: errorMessage,
+            failedAt: new Date().toISOString()
+          }
+        }
+      });
+
+      console.log(`❌ Saque marcado como falha: ${withdrawalId}`);
+
+    } catch (error) {
+      console.error('❌ Erro ao marcar saque como falha:', error);
     }
   }
 

@@ -1,8 +1,8 @@
-const MintTransactionService = require('../services/mintTransaction.service');
+const depositService = require('../services/deposit.service');
 
 class MintController {
   constructor() {
-    this.mintService = new MintTransactionService();
+    this.depositService = depositService; // Usar instância singleton
   }
 
   /**
@@ -10,49 +10,17 @@ class MintController {
    */
   async createMintTransaction(req, res) {
     try {
-      const { depositTransactionId, amount, recipientAddress } = req.body;
-      const userId = req.user?.id;
-
-      if (!userId) {
-        return res.status(401).json({
-          success: false,
-          message: 'Usuário não autenticado'
-        });
-      }
-
-      if (!depositTransactionId || !amount || !recipientAddress) {
-        return res.status(400).json({
-          success: false,
-          message: 'Parâmetros obrigatórios: depositTransactionId, amount, recipientAddress'
-        });
-      }
-
-      console.log(`🏭 [MintController] Criando mint para depósito ${depositTransactionId}`);
-
-      const mintTransaction = await this.mintService.createMintTransaction(
-        depositTransactionId,
-        userId,
-        amount,
-        recipientAddress
-      );
-
-      res.json({
-        success: true,
-        message: 'Transação de mint criada e enviada para processamento',
-        data: {
-          mintTransactionId: mintTransaction.id,
-          depositTransactionId: depositTransactionId,
-          amount: amount,
-          recipientAddress: recipientAddress,
-          status: 'pending'
-        }
+      // MÉTODO DESABILITADO - Agora usamos transações unificadas no depositService
+      return res.status(410).json({
+        success: false,
+        message: 'Método descontinuado - Use depositService para transações unificadas'
       });
 
     } catch (error) {
-      console.error('❌ [MintController] Erro ao criar mint:', error);
+      console.error('❌ [MintController] Erro:', error);
       res.status(500).json({
         success: false,
-        message: 'Erro interno ao criar transação de mint',
+        message: 'Método descontinuado',
         error: error.message
       });
     }

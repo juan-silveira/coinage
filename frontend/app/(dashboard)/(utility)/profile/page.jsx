@@ -11,8 +11,10 @@ import useCachedBalances from "@/hooks/useCachedBalances";
 import useCacheData from "@/hooks/useCacheData";
 import useCurrentCompany from "@/hooks/useCurrentCompany";
 import useEarnings from "@/hooks/useEarnings";
+import usePixKeys from "@/hooks/usePixKeys";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useAlertContext } from "@/contexts/AlertContext";
+import PixKeyModal from "@/components/modals/PixKeyModal";
 import api from "@/services/api";
 
 const Profile = () => {
@@ -23,10 +25,14 @@ const Profile = () => {
   const { cachedUser, formatCPF, formatPhone } = useCacheData();
   const { balances, loading, getBalance, getCorrectAzeSymbol } = useCachedBalances();
   const { currentCompany, loading: companyLoading } = useCurrentCompany();
+  const { pixKeys, loading: pixKeysLoading, removePixKey, setDefaultPixKey } = usePixKeys();
   const { showSuccess, showError } = useAlertContext();
   
   // Estados para foto de perfil
   const [photoModalOpen, setPhotoModalOpen] = useState(false);
+  
+  // Estados para PIX keys
+  const [pixKeyModalOpen, setPixKeyModalOpen] = useState(false);
   
   // Hook para earnings
   const { 
@@ -48,6 +54,32 @@ const Profile = () => {
     ADMIN: "Admin do Company",
     APP_ADMIN: "Admin Coinage",
     SUPER_ADMIN: "Super Admin",
+  };
+
+  const handleRemovePixKey = async (pixKeyId) => {
+    try {
+      await removePixKey(pixKeyId);
+    } catch (error) {
+      showError('Erro ao remover chave PIX');
+    }
+  };
+
+  const handleSetDefaultPixKey = async (pixKeyId) => {
+    try {
+      await setDefaultPixKey(pixKeyId);
+    } catch (error) {
+      showError('Erro ao definir chave padrão');
+    }
+  };
+
+  const formatPixKeyValue = (keyType, keyValue) => {
+    if (keyType === 'cpf') {
+      return formatCPF(keyValue);
+    }
+    if (keyType === 'phone') {
+      return formatPhone(keyValue);
+    }
+    return keyValue;
   };
 
 
@@ -129,7 +161,7 @@ const Profile = () => {
         </div>
 
         <div className="grid grid-cols-12 gap-6">
-        <div className="lg:col-span-5 col-span-12">
+        <div className="lg:col-span-5 col-span-12 space-y-6">
             <Card title="Info">
               <ul className="list space-y-8">
                 <li className="flex space-x-3 rtl:space-x-reverse">
@@ -267,6 +299,105 @@ const Profile = () => {
                 </li>
               </ul>
             </Card>
+
+            {/* PIX Keys Section */}
+            <Card title="Chaves PIX" 
+                  headerslot={
+                    <button
+                      onClick={() => setPixKeyModalOpen(true)}
+                      className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs leading-4 font-medium rounded text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors"
+                    >
+                      <Icon icon="heroicons:plus" className="w-4 h-4 mr-1" />
+                      Adicionar
+                    </button>
+                  }>
+              {pixKeysLoading ? (
+                <div className="space-y-4">
+                  {[...Array(2)].map((_, i) => (
+                    <div key={i} className="animate-pulse flex space-x-4">
+                      <div className="rounded-full bg-slate-300 dark:bg-slate-600 h-10 w-10"></div>
+                      <div className="flex-1 space-y-2 py-1">
+                        <div className="h-4 bg-slate-300 dark:bg-slate-600 rounded w-3/4"></div>
+                        <div className="h-3 bg-slate-300 dark:bg-slate-600 rounded w-1/2"></div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : pixKeys.length === 0 ? (
+                <div className="text-center py-8">
+                  <div className="w-16 h-16 mx-auto bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mb-4">
+                    <Icon icon="fa6-brands:pix" className="w-8 h-8 text-gray-400" />
+                  </div>
+                  <p className="text-gray-500 dark:text-gray-400 mb-4">
+                    Nenhuma chave PIX cadastrada
+                  </p>
+                  <button
+                    onClick={() => setPixKeyModalOpen(true)}
+                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700"
+                  >
+                    <Icon icon="heroicons:plus" className="w-4 h-4 mr-2" />
+                    Cadastrar primeira chave
+                  </button>
+                </div>
+              ) : (
+                <ul className="space-y-4">
+                  {pixKeys.map((pixKey) => (
+                    <li key={pixKey.id} className="border border-slate-200 dark:border-slate-700 rounded-lg p-4">
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-start space-x-3">
+                          <div className="flex-shrink-0">
+                            <div className="w-10 h-10 bg-orange-100 dark:bg-orange-900/20 rounded-lg flex items-center justify-center">
+                              <Icon icon="fa6-brands:pix" className="w-5 h-5 text-orange-600 dark:text-orange-400" />
+                            </div>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center space-x-2">
+                              <p className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                                {pixKey.keyType === 'cpf' ? 'CPF' : 
+                                 pixKey.keyType === 'email' ? 'E-mail' :
+                                 pixKey.keyType === 'phone' ? 'Telefone' : 'Chave Aleatória'}
+                              </p>
+                              {pixKey.isDefault && (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                                  Padrão
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-sm text-slate-600 dark:text-slate-400 truncate">
+                              {formatPixKeyValue(pixKey.keyType, pixKey.keyValue)}
+                            </p>
+                            {pixKey.bankName && (
+                              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                                {pixKey.bankName}
+                              </p>
+                            )}
+                            <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
+                              Cadastrada em {new Date(pixKey.createdAt).toLocaleDateString('pt-BR')}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          {!pixKey.isDefault && (
+                            <button
+                              onClick={() => handleSetDefaultPixKey(pixKey.id)}
+                              className="text-xs text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
+                            >
+                              Tornar padrão
+                            </button>
+                          )}
+                          <button
+                            onClick={() => handleRemovePixKey(pixKey.id)}
+                            className="text-xs text-red-600 hover:text-red-500 dark:text-red-400 dark:hover:text-red-300"
+                          >
+                            Remover
+                          </button>
+                        </div>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Card>
           </div>
           <div className="lg:col-span-7 col-span-12">
             <Card title="Saldos Atuais">
@@ -295,6 +426,13 @@ const Profile = () => {
         isOpen={photoModalOpen}
         onClose={() => setPhotoModalOpen(false)}
         currentPhoto={profilePhotoUrl}
+      />
+
+      {/* PIX Key Modal */}
+      <PixKeyModal
+        isOpen={pixKeyModalOpen}
+        onClose={() => setPixKeyModalOpen(false)}
+        mode="profile"
       />
     </div>
   );

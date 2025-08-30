@@ -50,7 +50,7 @@ const Select = ({
             {...rest}
             className={`${
               error ? " has-error" : " "
-            } form-control py-2  appearance-none ${className}  `}
+            } form-control py-2 pr-10 appearance-none ${className}  `}
             placeholder={placeholder}
             readOnly={readonly}
             disabled={disabled}
@@ -82,7 +82,7 @@ const Select = ({
             onChange={onChange}
             className={`${
               error ? " has-error" : " "
-            } form-control py-2 appearance-none ${className}  `}
+            } form-control py-2 pr-10 appearance-none ${className}  `}
             placeholder={placeholder}
             readOnly={readonly}
             disabled={disabled}
@@ -111,8 +111,8 @@ const Select = ({
         )}
 
         {/* icon */}
-        <div className="flex text-xl absolute ltr:right-[14px] rtl:left-[14px] top-1/2 -translate-y-1/2  space-x-1 rtl:space-x-reverse">
-          <span className=" relative -right-2 inline-block text-slate-900 dark:text-slate-300 pointer-events-none">
+        <div className="flex text-xl absolute right-3 top-1/2 -translate-y-1/2 space-x-1 pointer-events-none">
+          <span className="inline-block text-slate-900 dark:text-slate-300">
             <Icon icon="heroicons:chevron-down" />
           </span>
           {error && (

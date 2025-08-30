@@ -318,6 +318,7 @@ class TokenController {
   async deactivateToken(req, res) {
     try {
       const { contractAddress } = req.params;
+      console.log('🔍 [DEACTIVATE] Endereço recebido:', contractAddress);
       
       if (!contractAddress) {
         return res.status(400).json({
@@ -326,8 +327,33 @@ class TokenController {
         });
       }
 
-      const result = await tokenService.deactivateToken(contractAddress);
-      res.status(200).json(result);
+      // Buscar e atualizar diretamente
+      const contract = await global.prisma.smartContract.findFirst({
+        where: { address: contractAddress }
+      });
+      
+      console.log('🔍 [DEACTIVATE] Token encontrado:', !!contract);
+
+      if (!contract) {
+        return res.status(400).json({
+          success: false,
+          message: 'Token não encontrado'
+        });
+      }
+
+      await global.prisma.smartContract.update({
+        where: { id: contract.id },
+        data: { isActive: false }
+      });
+
+      res.status(200).json({
+        success: true,
+        message: 'Token desativado com sucesso',
+        data: {
+          address: contractAddress,
+          isActive: false
+        }
+      });
     } catch (error) {
       res.status(400).json({
         success: false,
@@ -351,8 +377,31 @@ class TokenController {
         });
       }
 
-      const result = await tokenService.activateToken(contractAddress);
-      res.status(200).json(result);
+      // Buscar e atualizar diretamente
+      const contract = await global.prisma.smartContract.findFirst({
+        where: { address: contractAddress }
+      });
+
+      if (!contract) {
+        return res.status(400).json({
+          success: false,
+          message: 'Token não encontrado'
+        });
+      }
+
+      await global.prisma.smartContract.update({
+        where: { id: contract.id },
+        data: { isActive: true }
+      });
+
+      res.status(200).json({
+        success: true,
+        message: 'Token ativado com sucesso',
+        data: {
+          address: contractAddress,
+          isActive: true
+        }
+      });
     } catch (error) {
       res.status(400).json({
         success: false,
@@ -403,9 +452,34 @@ class TokenController {
         });
       }
 
-      const result = await tokenService.updateTokenInfo(contractAddress, metadata);
-      res.status(200).json(result);
+      // Buscar o token no banco de dados
+      const contract = await global.prisma.smartContract.findFirst({
+        where: { address: contractAddress }
+      });
+
+      if (!contract) {
+        return res.status(400).json({
+          success: false,
+          message: 'Token não encontrado'
+        });
+      }
+
+      // Atualizar as informações do token
+      const updatedContract = await global.prisma.smartContract.update({
+        where: { id: contract.id },
+        data: {
+          ...metadata,
+          updatedAt: new Date()
+        }
+      });
+
+      res.status(200).json({
+        success: true,
+        message: 'Informações do token atualizadas com sucesso',
+        data: updatedContract
+      });
     } catch (error) {
+      console.error('Error updating token info:', error);
       res.status(400).json({
         success: false,
         message: 'Erro ao atualizar informações do token',

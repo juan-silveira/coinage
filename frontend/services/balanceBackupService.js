@@ -17,11 +17,11 @@ const STORAGE_KEYS = {
   EMERGENCY_USED: 'coinage_emergency_used_v3'
 };
 
-// VALORES REAIS DO USUÁRIO IVAN COMO ÚLTIMO RECURSO
+// VALORES DE EMERGÊNCIA - ZERADOS PARA NOVOS USUÁRIOS
 const EMERGENCY_BALANCES = {
-  'AZE-t': '3.965024',
-  'cBRL': '101390.000000', 
-  'STT': '999999794.500000'
+  'AZE-t': '0.000000',
+  'cBRL': '0.000000', 
+  'STT': '0.000000'
 };
 
 class BalanceBackupService {
@@ -120,6 +120,8 @@ class BalanceBackupService {
 
   // RECUPERAR balances com fallback ULTRA robusto
   async getBalances(userId) {
+    // CRÍTICO: Se detectar mudança de usuário, limpar cache antigo primeiro
+    this.clearStaleCache(userId);
 
     // 1. PRIMEIRO: sessionStorage (mais rápido)
     const sessionResult = this.trySessionStorage(userId);
@@ -139,6 +141,32 @@ class BalanceBackupService {
 
     // 5. ÚLTIMO RECURSO: Valores de emergência (NUNCA FALHA)
     return this.getEmergencyBalances(userId);
+  }
+
+  // Limpar cache de outros usuários
+  clearStaleCache(currentUserId) {
+    try {
+      // Verificar sessionStorage
+      const sessionData = sessionStorage.getItem(STORAGE_KEYS.SESSION_BACKUP);
+      if (sessionData) {
+        const parsed = JSON.parse(sessionData);
+        if (parsed.userId !== currentUserId) {
+          sessionStorage.removeItem(STORAGE_KEYS.SESSION_BACKUP);
+        }
+      }
+
+      // Verificar localStorage
+      const localData = localStorage.getItem(STORAGE_KEYS.LOCAL_BACKUP);
+      if (localData) {
+        const parsed = JSON.parse(localData);
+        if (parsed.userId !== currentUserId) {
+          localStorage.removeItem(STORAGE_KEYS.LOCAL_BACKUP);
+          localStorage.removeItem(STORAGE_KEYS.LAST_KNOWN);
+        }
+      }
+    } catch (error) {
+      console.warn('⚠️ [BalanceBackup] Erro ao limpar cache antigo:', error);
+    }
   }
 
   // Tentar sessionStorage
@@ -265,9 +293,7 @@ class BalanceBackupService {
     const isValid = balances &&
            balances.balancesTable &&
            typeof balances.balancesTable === 'object' &&
-           Object.keys(balances.balancesTable).length > 0 &&
-           Object.values(balances.balancesTable).some(val => parseFloat(val) > 0);
-    
+           Object.keys(balances.balancesTable).length > 0;
     
     return isValid;
   }

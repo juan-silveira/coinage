@@ -69,6 +69,34 @@ const useAuthStore = create(
       }),
       
       login: (user, accessToken, refreshToken, requiresPasswordChange = false) => {
+        // CRÍTICO: Limpar TODO o cache ANTES de fazer login
+        try {
+          // Limpar TODOS os storages relacionados a balances
+          const keysToRemove = [
+            'coinage_balance_backup_v3',
+            'coinage_session_backup_v3', 
+            'coinage_last_known_balances_v3',
+            'coinage_emergency_used_v3',
+            'balanceSync_cache',
+            'balanceSync_lastFetch',
+            'auth-storage', // Limpar auth storage antigo
+          ];
+          
+          keysToRemove.forEach(key => {
+            localStorage.removeItem(key);
+            sessionStorage.removeItem(key);
+          });
+          
+          // Limpar IndexedDB se existir
+          if (typeof window !== 'undefined' && window.indexedDB) {
+            indexedDB.deleteDatabase('CoinageBalanceBackup');
+          }
+          
+          console.log('[AUTH] Cache completamente limpo no login para usuário:', user?.id);
+        } catch (e) {
+          console.error('[AUTH] Erro ao limpar cache no login:', e);
+        }
+        
         if (user && user.name) {
           sessionStorage.setItem('showLoginSuccess', 'true');
           sessionStorage.setItem('loginUserName', user.name);
@@ -98,12 +126,33 @@ const useAuthStore = create(
           cachedBalances: null,
           balancesLastUpdate: null,
           balancesLoading: false,
+          notifications: [], // Limpar notificações do usuário anterior
+          profilePhotoUrl: null, // Limpar foto do usuário anterior
         });
       },
       
       logout: (reason = 'manual') => {
         const state = get();
         let companyAlias = 'coinage'; // fallback padrão
+        
+        // CRÍTICO: Limpar TODO o cache de balances antes de fazer logout
+        try {
+          // Limpar cache do balanceBackupService
+          if (typeof window !== 'undefined') {
+            const { default: balanceBackupService } = require('@/services/balanceBackupService');
+            if (state.user?.id) {
+              balanceBackupService.clearAll(state.user.id);
+            }
+          }
+          
+          // Limpar outros caches relacionados a balances
+          localStorage.removeItem('coinage_balance_backup_v3');
+          localStorage.removeItem('coinage_last_known_balances_v3');
+          localStorage.removeItem('coinage_emergency_used_v3');
+          sessionStorage.removeItem('coinage_session_backup_v3');
+        } catch (e) {
+          console.warn('Erro ao limpar cache de balances:', e);
+        }
         
         // PRIORIDADE 0: Obter do sessionStorage (salvo no login)
         try {
@@ -214,9 +263,9 @@ const useAuthStore = create(
           
           const emergencyBalances = {
             balancesTable: {
-              'AZE-t': '3.965024',
-              'cBRL': '101390.000000', 
-              'STT': '999999794.500000'
+              'AZE-t': '0.000000',
+              'cBRL': '0.000000', 
+              'STT': '0.000000'
             },
             network: 'testnet',
             address: '0x5528C065931f523CA9F3a6e49a911896fb1D2e6f',
@@ -250,9 +299,9 @@ const useAuthStore = create(
         
         const emergencyBalances = {
           balancesTable: {
-            'AZE-t': '3.965024',
-            'cBRL': '101390.000000', 
-            'STT': '999999794.500000'
+            'AZE-t': '0.000000',
+            'cBRL': '0.000000', 
+            'STT': '0.000000'
           },
           network: 'testnet',
           address: '0x5528C065931f523CA9F3a6e49a911896fb1D2e6f',
@@ -276,16 +325,15 @@ const useAuthStore = create(
     {
       name: 'auth-storage',
       partialize: (state) => ({
-        // Persistir dados de autenticação de forma segura
+        // Persistir APENAS dados de autenticação
         user: state.user,
         accessToken: state.accessToken,
         refreshToken: state.refreshToken,
         isAuthenticated: state.isAuthenticated,
         requiresPasswordChange: state.requiresPasswordChange,
         
-        // Persistir cache de balances para evitar perda no F5
-        cachedBalances: state.cachedBalances,
-        balancesLastUpdate: state.balancesLastUpdate,
+        // NÃO PERSISTIR BALANCES - CAUSA PROBLEMAS DE SEGURANÇA ENTRE USUÁRIOS!
+        // cachedBalances e balancesLastUpdate removidos intencionalmente
         
         // Outros dados não essenciais
         maskBalances: state.maskBalances,

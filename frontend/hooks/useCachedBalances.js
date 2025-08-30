@@ -32,49 +32,14 @@ export const useCachedBalances = () => {
   const defaultNetwork = config?.defaultNetwork;
 
   // PROTEÇÃO CRÍTICA: Aplicar backup apenas quando realmente necessário (primeira carga)
-  useEffect(() => {
-    const forceBackupIfEmpty = async () => {
-      if (!user?.id || balancesLoading) return;
-      
-      // Só aplicar backup na primeira carga (quando não há balances)
-      // Não aplicar se já há balances válidos de uma API anterior
-      const hasAnyBalances = cachedBalances && cachedBalances.balancesTable && 
-        Object.keys(cachedBalances.balancesTable).length > 0;
-      
-      // Só forçar backup se realmente não há nenhum dado
-      if (!cachedBalances || !hasAnyBalances) {
-        try {
-          const backupResult = await balanceBackupService.getBalances(user.id);
-          
-          if (backupResult && backupResult.data) {
-            const emergencyBalances = {
-              ...backupResult.data,
-              network: defaultNetwork,
-              userId: user.id,
-              loadedAt: new Date().toISOString(),
-              syncStatus: 'success', // Não marcar como erro se é só um backup inicial
-              syncError: null,
-              fromCache: true,
-              isBackupInitial: true // Marcar como backup inicial, não emergência
-            };
-            
-            setCachedBalances(emergencyBalances);
-          }
-        } catch (error) {
-          console.error('❌ [CachedBalances] Erro no backup inicial:', error);
-        }
-      }
-    };
-
-    forceBackupIfEmpty();
-  }, [user?.id, cachedBalances, balancesLoading, defaultNetwork, setCachedBalances]);
+  // DESABILITADO: Para evitar loops infinitos - será aplicado apenas no loadBalances se necessário
 
   // Verificar se o cache é válido
   const isCacheValid = useCallback(() => {
     if (!cachedBalances || !balancesLastUpdate) return false;
     
     // CRÍTICO: Verificar se o cache é do usuário atual (evitar cross-user contamination)
-    if (cachedBalances.userId && cachedBalances.userId !== user?.id) {
+    if (cachedBalances.userId && user?.id && cachedBalances.userId !== user.id) {
       console.warn('⚠️ [CachedBalances] Cache de outro usuário detectado, invalidando');
       return false;
     }
@@ -86,14 +51,15 @@ export const useCachedBalances = () => {
     return (Date.now() - balancesLastUpdate) < cacheDuration;
   }, [cachedBalances, balancesLastUpdate, user?.userPlan, user?.id]);
 
-  // Carregar balances da API (versão simplificada) - SEMPRE FORÇA DADOS FRESCOS
-  const loadBalances = useCallback(async (force = true) => {
+  // Carregar balances da API - usar cache quando possível
+  const loadBalances = useCallback(async (force = false) => {
     if (!isAuthenticated || !user?.publicKey || !defaultNetwork) return;
     
-    // TEMPORÁRIO: SEMPRE FORÇAR DADOS FRESCOS DA API (ignorar cache)
-    // if (!force && cachedBalances && cachedBalances.userId === user?.id && isCacheValid()) {
-    //   return cachedBalances;
-    // }
+    // Usar cache se disponível e válido (a menos que force = true)
+    if (!force && cachedBalances && cachedBalances.userId === user?.id && isCacheValid()) {
+      console.log('✅ [CachedBalances] Usando dados do cache válido');
+      return cachedBalances;
+    }
 
     // Evitar múltiplas requisições simultâneas
     if (balancesLoading && !force) {
@@ -101,12 +67,16 @@ export const useCachedBalances = () => {
       return cachedBalances;
     }
 
+    let safetyTimeout;
     try {
       setBalancesLoading(true);
-      console.log('🔄 [CachedBalances] Fazendo requisição fresh para API:', user.publicKey);
+      
+      // Timeout de segurança para garantir que loading nunca fica preso
+      safetyTimeout = setTimeout(() => {
+        setBalancesLoading(false);
+      }, 10000); // 10 segundos
       
       const response = await userService.getUserBalances(user.publicKey, defaultNetwork, true);
-      console.log('📋 [CachedBalances] Resposta da API:', response);
       
       if (response.success) {
         // ✅ API OK: Atualizar dados com timestamp fresh
@@ -120,7 +90,6 @@ export const useCachedBalances = () => {
           isFreshData: true // Marcar como dados frescos
         };
         
-        console.log('✅ [CachedBalances] Dados frescos recebidos:', balancesWithUserId.balancesTable);
         setCachedBalances(balancesWithUserId);
         
         // Salvar backup no Redis
@@ -132,18 +101,17 @@ export const useCachedBalances = () => {
         
         return balancesWithUserId;
       } else {
-        console.log('❌ [CachedBalances] API retornou erro:', response);
         // ❌ API com erro: Usar cache se disponível
         return await loadFromCache('API com erro');
       }
     } catch (error) {
-      console.log('❌ [CachedBalances] API offline/erro:', error.message);
       // ❌ API offline: Usar cache se disponível
       return await loadFromCache('API offline');
     } finally {
+      clearTimeout(safetyTimeout);
       setBalancesLoading(false);
     }
-  }, [isAuthenticated, user?.publicKey, defaultNetwork, isCacheValid, cachedBalances, balancesLoading, setCachedBalances, setBalancesLoading]);
+  }, [isAuthenticated, user?.publicKey, defaultNetwork, isCacheValid]); // Removido cachedBalances, balancesLoading, setCachedBalances, setBalancesLoading
 
   // Função para carregar do cache quando API falha
   const loadFromCache = useCallback(async (reason = '') => {
@@ -209,32 +177,33 @@ export const useCachedBalances = () => {
       console.error('❌ [CachedBalances] Erro ao buscar backup Redis:', backupError);
     }
     
-    // Se chegou até aqui, nenhum backup funcionou - usar balances reais da blockchain
+    // Se chegou até aqui, nenhum backup funcionou - usar balances vazios para novo usuário
     const emergencyBalances = {
       balancesTable: {
-        'AZE-t': '3.764648',
-        'cBRL': '102335.350000',
-        'STT': '999999794.500001'
+        'AZE-t': '0.000000',
+        'cBRL': '0.000000',
+        'STT': '0.000000'
       },
       network: defaultNetwork,
       userId: user.id,
       loadedAt: new Date().toISOString(),
       syncStatus: 'emergency',
-      syncError: `${reason} - Usando valores reais da blockchain como emergência`,
+      syncError: `${reason} - Sem dados disponíveis`,
       fromCache: true,
       isEmergency: true
     };
     
     setCachedBalances(emergencyBalances);
     return emergencyBalances;
-  }, [user?.id, user?.publicKey, defaultNetwork, cachedBalances, setCachedBalances, setBalancesLoading]);
+  }, [user?.id, user?.publicKey, defaultNetwork]); // Removido cachedBalances, setCachedBalances, setBalancesLoading das dependências
 
 
   // Carregar dados iniciais
   useEffect(() => {
     if (isAuthenticated && user?.publicKey && user?.id) {
       // CRÍTICO: Verificar se há cache de outro usuário e limpar se necessário
-      if (cachedBalances?.userId && cachedBalances.userId !== user.id) {
+      if (cachedBalances?.userId && user?.id && cachedBalances.userId !== user.id) {
+        console.warn('🧹 [CachedBalances] Limpando cache de outro usuário');
         clearCachedBalances();
       }
       
@@ -259,12 +228,12 @@ export const useCachedBalances = () => {
   //   // eslint-disable-next-line react-hooks/exhaustive-deps
   // }, [isAuthenticated, user?.publicKey, user?.userPlan]);
 
-  // VALORES DE EMERGÊNCIA para useCachedBalances - Valores reais da blockchain
+  // VALORES DE EMERGÊNCIA para useCachedBalances - Valores zerados para novos usuários
   const emergencyValues = {
-    'AZE-t': '3.764648',
-    'AZE': '3.764648',
-    'cBRL': '102335.350000',
-    'STT': '999999794.500001'
+    'AZE-t': '0.000000',
+    'AZE': '0.000000',
+    'cBRL': '0.000000',
+    'STT': '0.000000'
   };
 
   // Funções de conveniência COM PROTEÇÃO TOTAL
@@ -335,7 +304,7 @@ export const useCachedBalances = () => {
     isValid: isCacheValid(),
     lastUpdate: balancesLastUpdate,
     syncStatus: getSyncStatus(),
-    reloadBalances: () => loadBalances(true),
+    reloadBalances: (force = false) => loadBalances(force),
     getBalance,
     formatBalance,
     getCorrectAzeSymbol,

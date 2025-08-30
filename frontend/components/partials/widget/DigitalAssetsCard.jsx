@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Card from "@/components/ui/Card";
 import Icon from "@/components/ui/Icon";
 import useCachedBalances from "@/hooks/useCachedBalances";
@@ -120,13 +120,43 @@ const DigitalAssetsCard = () => {
 
   const assetCategories = processAssetData();
 
-  if (loading) {
+  // Estado para controlar timeout do skeleton
+  const [skeletonTimeout, setSkeletonTimeout] = useState(false);
+  
+  // Timeout de 3 segundos para parar skeleton mesmo se API falhar
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSkeletonTimeout(true);
+    }, 2500);
+    
+    return () => clearTimeout(timer);
+  }, []);
+  
+  // Só mostrar skeleton se está carregando E não passou do timeout E não tem dados válidos
+  const shouldShowSkeleton = loading && !skeletonTimeout && (!balances || !balances.balancesTable || balances.isEmergency);
+
+  if (shouldShowSkeleton) {
     return (
       <Card title="Ativos Digitais" subtitle="Veja o detalhamento dos seus ativos por categoria">
         <div className="space-y-4">
-          <div className="flex items-center justify-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500"></div>
-          </div>
+          {/* Skeleton para categorias de ativos */}
+          {Array.from({ length: 3 }).map((_, index) => (
+            <div
+              key={index}
+              className="border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden"
+            >
+              <div className="flex justify-between items-center p-4 bg-slate-50 dark:bg-slate-800">
+                <div className="flex items-center space-x-3">
+                  <div className="h-5 w-5 bg-slate-200 dark:bg-slate-600 rounded animate-pulse"></div>
+                  <div className="h-5 w-24 bg-slate-200 dark:bg-slate-600 rounded animate-pulse"></div>
+                </div>
+                <div className="flex flex-col items-end space-y-1">
+                  <div className="h-3 w-8 bg-slate-200 dark:bg-slate-600 rounded animate-pulse"></div>
+                  <div className="h-5 w-20 bg-gradient-to-r from-slate-200 to-slate-300 dark:from-slate-600 dark:to-slate-500 rounded animate-pulse"></div>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       </Card>
     );

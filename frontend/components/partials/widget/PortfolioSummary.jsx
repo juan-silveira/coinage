@@ -7,6 +7,7 @@ import SyncStatusIndicator from "@/components/ui/SyncStatusIndicator";
 import useAuthStore from "@/store/authStore";
 import useConfig from "@/hooks/useConfig";
 import balanceBackupService from "@/services/balanceBackupService";
+import { FeaturedBalanceSkeleton, PortfolioCardSkeleton } from "@/components/skeleton/BalanceSkeleton";
 import {
   getTokenPrice,
   formatCurrency as formatCurrencyHelper,
@@ -18,61 +19,8 @@ const PortfolioSummary = () => {
   const { defaultNetwork } = useConfig();
   const [emergencyApplied, setEmergencyApplied] = useState(false);
 
-  // PROTEÇÃO FINAL: Aplicar backup APENAS se realmente não há dados E a API está falhando
-  useEffect(() => {
-    const applyEmergencyBackup = async () => {
-      // Só aplicar se não está loading e não foi aplicado ainda
-      if (!user?.id || loading || emergencyApplied) return;
-      
-      // NOVA CONDIÇÃO: Só aplicar se não há saldos válidos E o syncStatus indica problema
-      const hasValidBalances = balances?.balancesTable && 
-        Object.keys(balances.balancesTable).length > 0 && 
-        Object.values(balances.balancesTable).some(val => parseFloat(val) > 0);
-
-      const apiIsWorking = syncStatus?.status === 'success' && !syncStatus?.fromCache;
-      
-      // Não aplicar backup se a API está funcionando normalmente
-      if (apiIsWorking || hasValidBalances) return;
-
-      if (!hasValidBalances) {
-        try {
-          const backupResult = await balanceBackupService.getBalances(user.id);
-          
-          if (backupResult && backupResult.data) {
-            const emergencyBalances = {
-              ...backupResult.data,
-              network: defaultNetwork,
-              userId: user.id,
-              loadedAt: new Date().toISOString(),
-              syncStatus: 'portfolio_emergency',
-              syncError: 'Portfolio detectou saldos zerados - aplicando backup',
-              fromCache: true,
-              isEmergency: backupResult.isEmergency || false
-            };
-            
-            setCachedBalances(emergencyBalances);
-            setEmergencyApplied(true);
-          }
-        } catch (error) {
-          console.error('❌ [PortfolioSummary] Erro no backup de emergência:', error);
-        }
-      }
-    };
-
-    // Usar timeout para dar tempo do loading parar
-    const timer = setTimeout(() => {
-      applyEmergencyBackup();
-    }, 1000);
-    
-    return () => clearTimeout(timer);
-  }, [user?.id, balances, loading, emergencyApplied, defaultNetwork, setCachedBalances, syncStatus]);
-
-  // Reset emergency quando API voltar a funcionar
-  useEffect(() => {
-    if (syncStatus?.status === 'success' && !syncStatus?.fromCache && emergencyApplied) {
-      setEmergencyApplied(false);
-    }
-  }, [syncStatus, emergencyApplied]);
+  // REMOVIDO: Backup automático que estava causando problemas de segurança
+  // REMOVIDO: Sistema de reset de emergency (não mais usado)
 
 
   // Usar formatação centralizada
@@ -130,13 +78,13 @@ const PortfolioSummary = () => {
 
   // Usar preços centralizados de @/constants/tokenPrices
 
-  // VALORES DE EMERGÊNCIA para PortfolioSummary
+  // VALORES DE EMERGÊNCIA para PortfolioSummary - ZERADOS PARA SEGURANÇA
   const emergencyValues = {
-    [getCorrectAzeSymbol()]: '3.965024',
-    'cBRL': '101390.000000',
-    'STT': '999999794.500000',
-    'CNT': '0.000000',  // Valor padrão para CNT
-    'MJD': '0.000000',  // Valor padrão para MJD
+    [getCorrectAzeSymbol()]: '0.000000',
+    'cBRL': '0.000000',
+    'STT': '0.000000',
+    'CNT': '0.000000',
+    'MJD': '0.000000',
     'PCN': '0.000000'   // Valor padrão para PCN
   };
 
@@ -211,9 +159,21 @@ const PortfolioSummary = () => {
 
   const summaryData = getSummaryData();
 
-  // Só mostrar skeleton se é primeira carga (não há dados ainda) E está loading
-  // Durante atualizações, manter interface intacta
-  const isFirstLoad = loading && (!balances || !balances.balancesTable || Object.keys(balances.balancesTable).length === 0);
+  // Estado para controlar timeout do skeleton
+  const [skeletonTimeout, setSkeletonTimeout] = useState(false);
+  
+  // Timeout de 3 segundos para parar skeleton mesmo se API falhar
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSkeletonTimeout(true);
+    }, 2500); // 2.5 segundos
+    
+    return () => clearTimeout(timer);
+  }, []);
+  
+  // Só mostrar skeleton se está carregando E não passou do timeout E não tem dados válidos
+  const isReallyLoading = loading && !skeletonTimeout && (!balances || !balances.balancesTable || balances.isEmergency);
+  const isFirstLoad = isReallyLoading;
 
   if (isFirstLoad) {
     return (
@@ -279,7 +239,20 @@ const PortfolioSummary = () => {
 
         {/* Seção do gráfico donut */}
         <div className="flex items-center justify-center">
-          <PortfolioDonutChart />
+          {isFirstLoad ? (
+            <div className="animate-pulse">
+              <div className="h-32 w-32 border-8 border-slate-200 dark:border-slate-700 rounded-full">
+                <div className="flex items-center justify-center h-full">
+                  <div className="text-center space-y-1">
+                    <div className="h-3 w-12 bg-slate-200 dark:bg-slate-700 rounded mx-auto" />
+                    <div className="h-5 w-16 bg-slate-200 dark:bg-slate-700 rounded mx-auto" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <PortfolioDonutChart />
+          )}
         </div>
           {/* Seção esquerda - Patrimônio total */}
           <div className="bg-white dark:bg-slate-800 rounded-lg p-4 text-center flex flex-col justify-center">
@@ -287,52 +260,74 @@ const PortfolioSummary = () => {
               {user?.name || "USUÁRIO"}, este é o seu patrimônio
               <SyncStatusIndicator syncStatus={syncStatus} />
             </div>
-            <div className="text-2xl font-bold text-slate-900 dark:text-white balance">
-              {formatCurrency(summaryData.totalPortfolio)}
-            </div>
+            {isFirstLoad ? (
+              <div className="animate-pulse">
+                <div className="h-8 w-40 bg-gradient-to-r from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-600 rounded mx-auto" />
+              </div>
+            ) : (
+              <div className="text-2xl font-bold text-slate-900 dark:text-white balance">
+                {formatCurrency(summaryData.totalPortfolio)}
+              </div>
+            )}
           </div>
 
           {/* Grid 2x2 - Desktop: ao lado | Mobile: abaixo */}
           <div className="grid grid-cols-2 gap-2">
-            {/* Saldo disponível */}
-            <div className="bg-white dark:bg-slate-800 rounded-lg p-3 text-center">
-              <div className="text-xs text-slate-500 dark:text-slate-400 font-medium mb-1">
-                Saldo disponível
-              </div>
-              <div className="text-lg font-bold text-slate-900 dark:text-white balance">
-                {formatCurrency(summaryData.availableBalance)}
-              </div>
-            </div>
+            {isFirstLoad ? (
+              <>
+                {/* Skeletons for all 4 cards */}
+                {Array.from({ length: 4 }).map((_, index) => (
+                  <div key={index} className="bg-white dark:bg-slate-800 rounded-lg p-3 text-center">
+                    <div className="animate-pulse space-y-2">
+                      <div className="h-3 w-20 bg-slate-200 dark:bg-slate-700 rounded mx-auto" />
+                      <div className="h-6 w-24 bg-gradient-to-r from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-600 rounded mx-auto" />
+                    </div>
+                  </div>
+                ))}
+              </>
+            ) : (
+              <>
+                {/* Saldo disponível */}
+                <div className="bg-white dark:bg-slate-800 rounded-lg p-3 text-center">
+                  <div className="text-xs text-slate-500 dark:text-slate-400 font-medium mb-1">
+                    Saldo disponível
+                  </div>
+                  <div className="text-lg font-bold text-slate-900 dark:text-white balance">
+                    {formatCurrency(summaryData.availableBalance)}
+                  </div>
+                </div>
 
-            {/* Saldo projetado */}
-            <div className="bg-white dark:bg-slate-800 rounded-lg p-3 text-center">
-              <div className="text-xs text-slate-500 dark:text-slate-400 font-medium mb-1">
-                Saldo projetado
-              </div>
-              <div className="text-lg font-bold text-slate-900 dark:text-white balance">
-                {formatCurrency(summaryData.projectedBalance)}
-              </div>
-            </div>
+                {/* Saldo projetado */}
+                <div className="bg-white dark:bg-slate-800 rounded-lg p-3 text-center">
+                  <div className="text-xs text-slate-500 dark:text-slate-400 font-medium mb-1">
+                    Saldo projetado
+                  </div>
+                  <div className="text-lg font-bold text-slate-900 dark:text-white balance">
+                    {formatCurrency(summaryData.projectedBalance)}
+                  </div>
+                </div>
 
-            {/* Total investido */}
-            <div className="bg-white dark:bg-slate-800 rounded-lg p-3 text-center">
-              <div className="text-xs text-slate-500 dark:text-slate-400 font-medium mb-1">
-                Total investido
-              </div>
-              <div className="text-lg font-bold text-slate-900 dark:text-white balance">
-                {formatCurrency(summaryData.totalInvested)}
-              </div>
-            </div>
+                {/* Total investido */}
+                <div className="bg-white dark:bg-slate-800 rounded-lg p-3 text-center">
+                  <div className="text-xs text-slate-500 dark:text-slate-400 font-medium mb-1">
+                    Total investido
+                  </div>
+                  <div className="text-lg font-bold text-slate-900 dark:text-white balance">
+                    {formatCurrency(summaryData.totalInvested)}
+                  </div>
+                </div>
 
-            {/* Total em ordem */}
-            <div className="bg-white dark:bg-slate-800 rounded-lg p-3 text-center">
-              <div className="text-xs text-slate-500 dark:text-slate-400 font-medium mb-1">
-                Total em Ordem
-              </div>
-              <div className="text-lg font-bold text-slate-900 dark:text-white balance">
-                {formatCurrency(summaryData.totalInOrder)}
-              </div>
-            </div>
+                {/* Total em ordem */}
+                <div className="bg-white dark:bg-slate-800 rounded-lg p-3 text-center">
+                  <div className="text-xs text-slate-500 dark:text-slate-400 font-medium mb-1">
+                    Total em Ordem
+                  </div>
+                  <div className="text-lg font-bold text-slate-900 dark:text-white balance">
+                    {formatCurrency(summaryData.totalInOrder)}
+                  </div>
+                </div>
+              </>
+            )}
           </div>
           
       </div>

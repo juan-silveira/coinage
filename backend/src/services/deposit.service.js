@@ -3,6 +3,7 @@ const { v4: uuidv4 } = require('uuid');
 const amqp = require('amqplib');
 const NotificationService = require('./notification.service');
 const mintService = require('./mint.service');
+const userTaxesService = require('./userTaxes.service');
 
 class DepositService {
   constructor() {
@@ -39,7 +40,7 @@ class DepositService {
   }
 
   /**
-   * Iniciar processo de depósito
+   * Iniciar processo de depósito (TRANSAÇÃO ÚNICA)
    */
   async initiateDeposit(amount, userId) {
     try {
@@ -62,23 +63,67 @@ class DepositService {
         throw new Error('Usuário não possui empresa associada');
       }
 
-      // Criar transação FINANCEIRA (depósito PIX) - SEM dados blockchain
+      // Calcular taxa usando UserTaxesService
+      const feeCalculation = await userTaxesService.calculateDepositFee(userId, amount);
+      const fee = feeCalculation.fee;
+      const totalAmount = feeCalculation.totalAmount; // Valor total que o usuário deve pagar
+      const netAmount = amount; // Valor que será creditado em cBRL
+
+      // Endereços e configurações padrão
+      const ADMIN_ADDRESS = process.env.ADMIN_WALLET_ADDRESS || '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb3';
+      const CONTRACT_ADDRESS = process.env.CBRL_TOKEN_ADDRESS || '0x0A8c73967e4Eee8ffA06484C3fBf65E6Ae3b9804';
+      const NETWORK = process.env.BLOCKCHAIN_NETWORK || 'testnet';
+
+      // CRIAR TRANSAÇÃO ÚNICA com campos unificados e padronizados
       const transaction = await this.prisma.transaction.create({
         data: {
           id: uuidv4(),
           userId: userId,
           companyId: companyId,
-          transactionType: 'deposit',
+          transactionType: 'deposit', // Padronizado como 'deposit'
+          
+          // Status principal
           status: 'pending',
-          // CAMPOS FINANCEIROS (não blockchain)
-          amount: parseFloat(amount),
-          currency: 'BRL',
-          // METADATA com dados do PIX
+          
+          // Valores
+          amount: parseFloat(totalAmount), // Total a pagar (amount + fee)
+          fee: parseFloat(fee),
+          net_amount: parseFloat(netAmount), // Valor que será creditado
+          currency: 'cBRL', // Depósito resulta em cBRL
+          
+          // Blockchain fields (preenchidos desde o início)
+          network: NETWORK,
+          contractAddress: CONTRACT_ADDRESS,
+          fromAddress: ADMIN_ADDRESS, // Endereço admin (mint vem do admin)
+          toAddress: user?.blockchainAddress || user?.publicKey, // Endereço do usuário
+          functionName: 'mint',
+          
+          // PIX - Inicialmente pendente
+          pix_status: 'pending',
+          pix_key: 'contato@coinage.com.br',
+          pix_key_type: 'EMAIL',
+          
+          // Blockchain - Inicialmente null (só inicia após PIX confirmado)
+          blockchain_status: null,
+          
+          // Tipo de operação
+          operation_type: 'deposit',
+          
+          // Metadata
           metadata: {
+            type: 'deposit',
             paymentMethod: 'pix',
-            description: `Depósito PIX de R$ ${amount}`,
+            description: `Depósito PIX de R$ ${netAmount}`,
             source: 'user_deposit',
-            timestamp: new Date().toISOString()
+            network: NETWORK,
+            contractAddress: CONTRACT_ADDRESS,
+            functionName: 'mint',
+            timestamp: new Date().toISOString(),
+            fee: fee,
+            totalAmount: totalAmount,
+            netAmount: netAmount,
+            adminAddress: ADMIN_ADDRESS,
+            userAddress: user?.blockchainAddress || user?.publicKey
           }
         }
       });
@@ -88,7 +133,9 @@ class DepositService {
       const pixData = {
         pixPaymentId,
         transactionId: transaction.id,
-        amount: parseFloat(amount),
+        amount: parseFloat(totalAmount), // Total a pagar
+        netAmount: parseFloat(netAmount), // Valor líquido
+        fee: parseFloat(fee),
         status: 'pending',
         qrCode: `00020126580014br.gov.bcb.pix2536pix-qr.mercadopago.com/instore/o/v2/${pixPaymentId}5204000053039865802BR5925Coinage Tecnologia6009Sao Paulo62070503***6304${Math.random().toString(36).substring(2, 6).toUpperCase()}`,
         pixKey: 'contato@coinage.com.br',
@@ -96,11 +143,13 @@ class DepositService {
         createdAt: new Date()
       };
 
-      console.log(`📱 PIX mock criado: ${pixPaymentId} para transação ${transaction.id}`);
+      console.log(`📱 PIX mock criado: ${pixPaymentId} para transação única ${transaction.id}`);
 
       return {
         transactionId: transaction.id,
-        amount: amount,
+        amount: netAmount, // Valor líquido
+        totalAmount: totalAmount, // Total a pagar
+        fee: fee,
         status: 'pending',
         pixPaymentId: pixPaymentId,
         pixData: pixData
@@ -113,199 +162,11 @@ class DepositService {
   }
 
   /**
-   * Confirmar depósito PIX (sem dados blockchain)
+   * Confirmar depósito PIX (atualizar apenas status PIX)
    */
-  async confirmDeposit(transactionId, pixData = null) {
+  async confirmPixDeposit(transactionId, pixData = null) {
     try {
-      // Buscar transação
-      const transaction = await this.prisma.transaction.findUnique({
-        where: { id: transactionId }
-      });
-
-      if (!transaction) {
-        throw new Error('Transação não encontrada');
-      }
-
-      if (transaction.status !== 'pending') {
-        throw new Error('Transação não está pendente');
-      }
-
-      // Atualizar transação FINANCEIRA (PIX) - SEM dados blockchain
-      const updatedTransaction = await this.prisma.transaction.update({
-        where: { id: transactionId },
-        data: {
-          status: 'confirmed',
-          confirmedAt: new Date(),
-          metadata: {
-            ...transaction.metadata,
-            pixConfirmation: {
-              confirmedAt: new Date().toISOString(),
-              ...(pixData && {
-                pixId: pixData.pixId,
-                payerDocument: pixData.payerDocument,
-                payerName: pixData.payerName,
-                paidAmount: pixData.paidAmount
-              })
-            }
-          }
-        }
-      });
-
-      // Pular atualização de saldo para este teste
-      console.log(`💰 Pulando atualização de saldo para teste`);
-
-      // NOVO: Criar transação de mint separada
-      let mintTransaction = null;
-      try {
-        // Buscar dados do usuário para obter o endereço da carteira
-        const user = await this.prisma.user.findUnique({
-          where: { id: transaction.userId },
-          select: { publicKey: true, email: true }
-        });
-
-        if (user && user.publicKey) {
-          console.log(`🏭 Criando transação de mint para depósito ${transactionId}`);
-          
-          // Importar o serviço de mint transaction
-          const MintTransactionService = require('./mintTransaction.service');
-          const mintTransactionService = new MintTransactionService();
-          
-          // Criar transação de mint vinculada ao depósito
-          mintTransaction = await mintTransactionService.createMintTransaction(
-            transactionId,
-            transaction.userId,
-            transaction.metadata.amount || transaction.amount,
-            user.publicKey
-          );
-          
-          console.log(`✅ Transação de mint criada: ${mintTransaction.id}`);
-          
-          // Processar mint diretamente na blockchain
-          const mintResult = await mintService.mintCBRL(
-            user.publicKey,
-            transaction.amount.toString(),
-            'testnet',
-            transactionId
-          );
-
-          console.log(`✅ Mint executado com sucesso:`, mintResult);
-
-          // Atualizar transação de mint com resultado da blockchain
-          await mintTransactionService.updateMintResult(mintTransaction.id, mintResult);
-          
-          // Atualizar metadata da transação de DEPÓSITO (link para mint)
-          await this.prisma.transaction.update({
-            where: { id: transactionId },
-            data: {
-              metadata: {
-                ...updatedTransaction.metadata,
-                linkedMint: {
-                  mintTransactionId: mintTransaction.id,
-                  amountMinted: mintResult.amountMinted,
-                  tokenSymbol: 'cBRL',
-                  mintedAt: new Date().toISOString()
-                }
-              }
-            }
-          });
-        } else {
-          console.warn(`⚠️ Usuário ${transaction.userId} não possui carteira configurada para mint`);
-        }
-      } catch (mintError) {
-        console.error('❌ Erro durante mint automático:', mintError);
-        
-        // Salvar erro do mint na metadata (não interromper o processo)
-        await this.prisma.transaction.update({
-          where: { id: transactionId },
-          data: {
-            metadata: {
-              ...updatedTransaction.metadata,
-              mint: {
-                success: false,
-                error: mintError.message || 'Erro durante mint automático',
-                attemptedAt: new Date().toISOString()
-              }
-            }
-          }
-        });
-      }
-
-      // Pular criação de notificação para este teste
-      console.log(`📧 Pulando criação de notificação para teste`);
-
-      console.log(`✅ Depósito confirmado: ${transactionId}`);
-
-      return updatedTransaction;
-
-    } catch (error) {
-      console.error('❌ Erro ao confirmar depósito:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Atualizar saldo do usuário
-   */
-  async updateUserBalance(userId, amount) {
-    try {
-      // Atualizar balance do usuário diretamente na tabela users
-      await this.prisma.user.update({
-        where: { id: userId },
-        data: {
-          balance: {
-            increment: parseFloat(amount)
-          }
-        }
-      });
-
-      console.log(`💰 Saldo atualizado para usuário ${userId}: +R$ ${amount}`);
-
-    } catch (error) {
-      console.error('❌ Erro ao atualizar saldo:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Obter status de um depósito
-   */
-  async getDepositStatus(transactionId) {
-    try {
-      const transaction = await this.prisma.transaction.findUnique({
-        where: { id: transactionId },
-        select: {
-          id: true,
-          status: true,
-          amount: true,
-          currency: true,
-          transactionType: true,
-          createdAt: true,
-          confirmedAt: true,
-          txHash: true,
-          blockNumber: true,
-          gasUsed: true,
-          metadata: true
-        }
-      });
-
-      if (!transaction) {
-        throw new Error('Transação não encontrada');
-      }
-
-      return transaction;
-
-    } catch (error) {
-      console.error('❌ Erro ao obter status do depósito:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Confirmar pagamento PIX e enviar para processamento blockchain
-   */
-  async confirmPixPayment(transactionId, pixData) {
-    try {
-      console.log(`💳 Confirmando pagamento PIX para transação ${transactionId}`);
+      if (!this.prisma) await this.init();
       
       // Buscar transação
       const transaction = await this.prisma.transaction.findUnique({
@@ -316,49 +177,85 @@ class DepositService {
         throw new Error('Transação não encontrada');
       }
 
-      // Verificar se já foi confirmado (evitar duplicação)
-      if (transaction.metadata?.pix_confirmed) {
-        console.log(`✅ PIX já confirmado para transação ${transactionId}`);
-        return transaction;
+      if (transaction.pix_status !== 'pending') {
+        throw new Error('PIX não está pendente');
       }
 
-      // Atualizar transação com dados do PIX confirmado
-      const updatedTransaction = await this.prisma.transaction.update({
-        where: { id: transactionId },
-        data: {
-          status: 'processing',
-          metadata: {
-            ...transaction.metadata,
-            pix_confirmed: true,
-            pix_confirmation_date: new Date().toISOString(),
-            pix_id: pixData.pixId,
-            pix_payer_document: pixData.payerDocument,
-            pix_payer_name: pixData.payerName,
-            pix_paid_amount: pixData.paidAmount
-          }
+      // TRANSAÇÃO ATÔMICA: Atualizar PIX e controlar fila blockchain
+      const updatedTransaction = await this.prisma.$transaction(async (prisma) => {
+        // Verificar se blockchain já foi iniciado (prevenir múltiplos envios para fila)
+        const currentTransaction = await prisma.transaction.findUnique({
+          where: { id: transactionId }
+        });
+
+        if (currentTransaction.blockchain_status !== null) {
+          console.log(`🛡️ BLOCKCHAIN JÁ INICIADO: ${transactionId} (status: ${currentTransaction.blockchain_status})`);
+          return currentTransaction; // Retornar sem enviar novamente para fila
         }
+
+        // Atualizar atomicamente PIX e iniciar blockchain
+        return await prisma.transaction.update({
+          where: { id: transactionId },
+          data: {
+            // PIX confirmado
+            pix_status: 'confirmed',
+            pix_confirmed_at: new Date(),
+            pix_transaction_id: pixData?.pixId || `mock_pix_${Date.now()}`,
+            pix_end_to_end_id: pixData?.endToEndId || `E${Date.now()}`,
+            
+            // Iniciar blockchain ATOMICAMENTE
+            blockchain_status: 'pending',
+            
+            // Status geral ainda pendente (aguardando blockchain)
+            status: 'pending',
+            
+            // Atualizar metadata
+            metadata: {
+              ...currentTransaction.metadata,
+              pixConfirmation: {
+                confirmedAt: new Date().toISOString(),
+                ...(pixData && {
+                  pixId: pixData.pixId,
+                  payerDocument: pixData.payerDocument,
+                  payerName: pixData.payerName,
+                  paidAmount: pixData.paidAmount
+                })
+              }
+            }
+          }
+        });
       });
 
-      console.log(`✅ PIX confirmado para transação ${transactionId}`);
+      // VERIFICAR SE JÁ FOI ENVIADO PARA FILA (blockchain_status mudou de null para pending)
+      if (transaction.blockchain_status === null && updatedTransaction.blockchain_status === 'pending') {
+        // Buscar endereço blockchain do usuário
+        const user = await this.prisma.user.findUnique({
+          where: { id: transaction.userId },
+          select: { blockchainAddress: true, publicKey: true }
+        });
+        
+        const recipientAddress = user?.blockchainAddress || user?.publicKey;
+        if (!recipientAddress) {
+          throw new Error('Usuário não possui endereço blockchain configurado');
+        }
 
-      // Enviar para fila de processamento blockchain
-      if (this.rabbitMQChannel) {
-        const message = {
+        // ENVIAR PARA FILA APENAS UMA VEZ
+        await this.connectToRabbitMQ();
+        const mintData = {
           transactionId: transactionId,
-          userId: transaction.user_id,
-          amount: transaction.amount,
-          type: 'deposit_mint',
-          currentRetry: 0,
-          timestamp: new Date().toISOString()
+          userId: transaction.userId,
+          recipientAddress: recipientAddress, // Endereço para receber os tokens
+          amount: transaction.net_amount, // Usar valor líquido
+          network: 'testnet'
         };
 
-        await this.rabbitMQChannel.sendToQueue(
-          'deposits.processing',
-          Buffer.from(JSON.stringify(message)),
-          { persistent: true }
-        );
+        await this.rabbitMQChannel.sendToQueue('blockchain.mint', Buffer.from(JSON.stringify(mintData)), {
+          persistent: true
+        });
 
-        console.log(`📤 Transação ${transactionId} enviada para processamento blockchain`);
+        console.log(`✅ PIX confirmado para transação ${transactionId}, enviado para mint (PRIMEIRA VEZ)`);
+      } else {
+        console.log(`🛡️ PIX confirmado para ${transactionId}, mas blockchain JÁ INICIADO - NÃO enviado para fila novamente`);
       }
 
       return updatedTransaction;
@@ -370,212 +267,209 @@ class DepositService {
   }
 
   /**
-   * Listar depósitos de um usuário
+   * Confirmar mint blockchain (atualizar apenas status blockchain) - COM LOCK ATÔMICO
    */
-  async getUserDeposits(userId, page = 1, limit = 10, status = null) {
+  async confirmBlockchainMint(transactionId, blockchainData) {
     try {
-      const skip = (page - 1) * limit;
+      if (!this.prisma) await this.init();
       
-      const where = {
-        userId: userId,
-        type: 'deposit'
-      };
+      // TRANSAÇÃO ATÔMICA COM LOCK PARA PREVENIR DUPLICAÇÃO
+      const result = await this.prisma.$transaction(async (prisma) => {
+        // Buscar E LOCKEAR transação atomicamente
+        const transaction = await prisma.transaction.findUnique({
+          where: { id: transactionId }
+        });
 
-      if (status) {
-        where.status = status;
-      }
-
-      const [deposits, total] = await Promise.all([
-        this.prisma.transaction.findMany({
-          where: where,
-          select: {
-            id: true,
-            amount: true,
-            status: true,
-            createdAt: true,
-            confirmedAt: true,
-            blockchainTxHash: true,
-            blockNumber: true,
-            gasUsed: true
-          },
-          orderBy: { createdAt: 'desc' },
-          skip: skip,
-          take: limit
-        }),
-        this.prisma.transaction.count({ where: where })
-      ]);
-
-      return {
-        deposits,
-        pagination: {
-          page,
-          limit,
-          total,
-          pages: Math.ceil(total / limit)
+        if (!transaction) {
+          throw new Error('Transação não encontrada');
         }
-      };
 
-    } catch (error) {
-      console.error('❌ Erro ao listar depósitos:', error);
-      throw error;
-    }
-  }
+        // VERIFICAÇÃO CRÍTICA: Se já foi processado, ABORTAR imediatamente
+        if (transaction.blockchain_status === 'confirmed') {
+          console.log(`🛡️ DUPLICATA DETECTADA E BLOQUEADA: ${transactionId} já foi processado`);
+          return { already_processed: true, transaction };
+        }
 
-  /**
-   * Processar depósito da fila (chamado pelo worker)
-   */
-  async processDepositFromQueue(depositMessage) {
-    const maxRetries = depositMessage.retryCount || 0;
-    const currentRetry = depositMessage.currentRetry || 0;
-    
-    try {
-      console.log(`🔄 Processando depósito da fila: ${depositMessage.transactionId} (Tentativa ${currentRetry + 1})`);
-      
-      // Buscar dados da transação
-      const transaction = await this.prisma.transaction.findUnique({
-        where: { id: depositMessage.transactionId },
-        include: { user: true }
+        if (transaction.blockchain_status !== 'pending') {
+          throw new Error(`Blockchain status inválido: ${transaction.blockchain_status}. Esperado: pending`);
+        }
+
+        // VALIDAR: PIX deve estar confirmado antes de confirmar status geral
+        if (transaction.pix_status !== 'confirmed') {
+          throw new Error(`PIX deve estar confirmado antes da blockchain. PIX status: ${transaction.pix_status}`);
+        }
+
+        // Atualizar ATOMICAMENTE para confirmed
+        return await prisma.transaction.update({
+          where: { id: transactionId },
+          data: {
+            // Blockchain confirmado
+            blockchain_status: 'confirmed',
+            blockchain_confirmed_at: new Date(),
+            blockchain_tx_hash: blockchainData.txHash,
+            blockchain_block_number: blockchainData.blockNumber,
+            
+            // Dados blockchain (usar txHash como campo principal)
+            txHash: blockchainData.txHash, // Campo principal unificado
+            blockNumber: blockchainData.blockNumber,
+            fromAddress: blockchainData.fromAddress || transaction.fromAddress,
+            toAddress: blockchainData.toAddress || transaction.toAddress,
+            gasUsed: blockchainData.gasUsed,
+            
+            // Status geral CONFIRMADO (só agora que PIX + Blockchain estão ok)
+            status: 'confirmed',
+            confirmedAt: new Date(),
+            
+            // Atualizar metadata
+            metadata: {
+              ...transaction.metadata,
+              blockchainConfirmation: {
+                confirmedAt: new Date().toISOString(),
+                txHash: blockchainData.txHash,
+                blockNumber: blockchainData.blockNumber,
+                gasUsed: blockchainData.gasUsed
+              }
+            }
+          }
+        });
       });
 
-      if (!transaction) {
-        throw new Error(`Transação não encontrada: ${depositMessage.transactionId}`);
+      // Se já foi processado, retornar sem fazer nada
+      if (result.already_processed) {
+        return result.transaction;
       }
 
-      // VALIDAÇÃO CRÍTICA: Verificar se o PIX foi confirmado
-      if (!transaction.metadata?.pix_confirmed) {
-        console.log(`⚠️ PIX ainda não confirmado para transação ${transaction.id}`);
-        throw new Error('PIX payment not confirmed yet');
-      }
+      // Notificar usuário (somente se não foi processado anteriormente)
+      await this.notificationService.createNotification({
+        userId: result.userId,
+        type: 'success',
+        title: 'Depósito Confirmado',
+        message: `Seu depósito de ${result.net_amount} cBRL foi confirmado com sucesso!`,
+        data: {
+          transactionId: result.id,
+          amount: result.net_amount,
+          type: 'deposit_confirmed'
+        }
+      });
 
-      // Verificar se é um depósito confirmado
-      if (transaction.type !== 'deposit' || transaction.status !== 'processing') {
-        console.log(`⚠️ Transação ${transaction.id} não está pronta para processamento`);
-        return;
-      }
+      console.log(`✅ Blockchain confirmado para transação ${transactionId}`);
 
-      // Verificar se já foi processado (evitar duplicação)
-      if (transaction.blockchain_data?.tx_hash) {
-        console.log(`✅ Transação ${transaction.id} já foi processada na blockchain`);
-        return;
-      }
-
-      // Obter endereço da carteira do usuário
-      const userWallet = transaction.user.public_key;
-      if (!userWallet) {
-        throw new Error(`Usuário ${transaction.user.id} não possui carteira configurada`);
-      }
-
-      // Configurações do token cBRL
-      const TOKEN_CONTRACT_ADDRESS = process.env.CBRL_CONTRACT_ADDRESS || '0x0A8c73967e4Eee8ffA06484C3fBf65E6Ae3b9804';
-      if (!TOKEN_CONTRACT_ADDRESS || !process.env.ADMIN_WALLET_PRIVATE_KEY) {
-        // Se não configurado, usar simulação
-        console.warn('⚠️ Contrato cBRL não configurado, usando simulação');
-        
-        // Simular processamento na blockchain
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        
-        // Gerar hash simulado da transação
-        const blockchainTxHash = `0x${Math.random().toString(16).substr(2, 64)}`;
-        const blockNumber = Math.floor(Math.random() * 1000000) + 1;
-        const gasUsed = Math.floor(Math.random() * 100000) + 21000;
-        
-        // Confirmar depósito com dados simulados
-        await this.confirmDeposit(
-          depositMessage.transactionId,
-          blockchainTxHash,
-          blockNumber,
-          gasUsed
-        );
-      } else {
-        // Executar mint real na blockchain
-        const blockchainService = require('./blockchain.service');
-        const { loadLocalABI } = require('../contracts');
-        const { ethers } = require('ethers');
-
-        // Carregar ABI do token
-        const tokenABI = loadLocalABI('default_token_abi');
-
-        // Calcular quantidade a mintar (valor do depósito menos taxas)
-        const amountToMint = transaction.amount; // Já descontadas as taxas
-        const amountInWei = ethers.parseUnits(amountToMint.toString(), 18);
-
-        console.log(`🏭 Mintando ${amountToMint} cBRL para ${userWallet}`);
-
-        // Executar mint na blockchain
-        const mintResult = await blockchainService.executeContractFunction(
-          TOKEN_CONTRACT_ADDRESS,
-          tokenABI,
-          'mint',
-          [userWallet, amountInWei],
-          'testnet', // ou usar transaction.network se disponível
-          {
-            privateKey: process.env.ADMIN_WALLET_PRIVATE_KEY,
-            gasLimit: 200000
-          }
-        );
-
-        console.log(`✅ Mint executado: ${mintResult.transactionHash}`);
-        
-        // Confirmar depósito com dados reais da blockchain
-        await this.confirmDeposit(
-          depositMessage.transactionId,
-          mintResult.transactionHash,
-          mintResult.blockNumber,
-          mintResult.gasUsed
-        );
-      }
-
-      console.log(`✅ Depósito processado com sucesso: ${depositMessage.transactionId}`);
+      return result;
 
     } catch (error) {
-      console.error('❌ Erro ao processar depósito da fila:', error);
-      
-      // Marcar transação como falha
-      await this.markTransactionAsFailed(depositMessage.transactionId, error.message);
-      
+      console.error('❌ Erro ao confirmar blockchain:', error);
       throw error;
     }
   }
 
   /**
-   * Marcar transação como falha
+   * Marcar falha no PIX
    */
-  async markTransactionAsFailed(transactionId, errorMessage) {
+  async failPixDeposit(transactionId, reason) {
     try {
-      await this.prisma.transaction.update({
+      if (!this.prisma) await this.init();
+      
+      const transaction = await this.prisma.transaction.findUnique({
+        where: { id: transactionId }
+      });
+      
+      return await this.prisma.transaction.update({
         where: { id: transactionId },
         data: {
+          pix_status: 'failed',
+          pix_failed_at: new Date(),
           status: 'failed',
+          failedAt: new Date(),
           metadata: {
-            error: errorMessage,
+            ...(transaction?.metadata || {}),
+            failureReason: reason,
             failedAt: new Date().toISOString()
           }
         }
       });
 
-      console.log(`❌ Transação marcada como falha: ${transactionId}`);
-
     } catch (error) {
-      console.error('❌ Erro ao marcar transação como falha:', error);
+      console.error('❌ Erro ao marcar falha PIX:', error);
+      throw error;
     }
   }
 
   /**
-   * Fechar conexões
+   * Marcar falha no blockchain
    */
-  async closeConnections() {
+  async failBlockchainMint(transactionId, reason) {
     try {
-      if (this.rabbitMQChannel) {
-        await this.rabbitMQChannel.close();
-      }
-      if (this.rabbitMQConnection) {
-        await this.rabbitMQConnection.close();
-      }
-      await this.prisma.$disconnect();
+      if (!this.prisma) await this.init();
+      
+      const transaction = await this.prisma.transaction.findUnique({
+        where: { id: transactionId }
+      });
+      
+      return await this.prisma.transaction.update({
+        where: { id: transactionId },
+        data: {
+          blockchain_status: 'failed',
+          blockchain_failed_at: new Date(),
+          status: 'failed',
+          failedAt: new Date(),
+          metadata: {
+            ...(transaction?.metadata || {}),
+            blockchainFailureReason: reason,
+            failedAt: new Date().toISOString()
+          }
+        }
+      });
+
     } catch (error) {
-      console.error('❌ Erro ao fechar conexões:', error);
+      console.error('❌ Erro ao marcar falha blockchain:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Obter status do depósito
+   */
+  async getDepositStatus(transactionId) {
+    try {
+      if (!this.prisma) await this.init();
+      
+      const transaction = await this.prisma.transaction.findUnique({
+        where: { id: transactionId },
+        include: {
+          user: {
+            select: {
+              id: true,
+              email: true,
+              name: true
+            }
+          }
+        }
+      });
+      
+      if (!transaction) {
+        throw new Error('Transação não encontrada');
+      }
+      
+      return {
+        id: transaction.id,
+        amount: transaction.net_amount || transaction.amount,
+        fee: transaction.fee,
+        totalAmount: transaction.amount,
+        status: transaction.status,
+        pixStatus: transaction.pix_status,
+        blockchainStatus: transaction.blockchain_status,
+        pixTransactionId: transaction.pix_transaction_id,
+        blockchainTxHash: transaction.blockchain_tx_hash || transaction.txHash,
+        createdAt: transaction.createdAt,
+        confirmedAt: transaction.confirmedAt,
+        metadata: transaction.metadata
+      };
+      
+    } catch (error) {
+      console.error('❌ Erro ao obter status do depósito:', error);
+      throw error;
     }
   }
 }
 
-module.exports = DepositService;
+module.exports = new DepositService();
