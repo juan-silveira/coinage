@@ -78,6 +78,10 @@ const DepositConfirmationPage = () => {
               
               console.log('🎉 [FETCH-STATUS] Estados atualizados - UI deve mudar para VERDE agora!');
               console.log('🎉 [FETCH-STATUS] Dados completos da transação:', JSON.stringify(unifiedTransaction, null, 2));
+              
+              // MOSTRAR SUCESSO mas NÃO redirecionar automaticamente
+              console.log('🎉 [CONFIRMED] Depósito confirmado - mostrando tela de sucesso');
+              showSuccess('Depósito Concluído!', 'Seu depósito foi processado com sucesso na blockchain');
             } else if (unifiedTransaction.blockchainStatus === 'failed') {
               setMintStatus('Falha no processamento do depósito');
               setProcessingMint(false); // Parar processamento quando falha
@@ -105,6 +109,9 @@ const DepositConfirmationPage = () => {
             }
             
             console.log('✅ Transação unificada encontrada:', unifiedTransaction);
+            console.log('🔍 [DEBUG] Status PIX:', unifiedTransaction.pixStatus);
+            console.log('🔍 [DEBUG] Status Blockchain:', unifiedTransaction.blockchainStatus);
+            console.log('🔍 [DEBUG] Status Geral:', unifiedTransaction.status);
           } else {
             // Nenhuma transação encontrada ainda
             console.log('ℹ️ Nenhuma transação encontrada ainda');
@@ -121,7 +128,7 @@ const DepositConfirmationPage = () => {
     } catch (error) {
       console.error('❌ Erro ao buscar status da transação:', error);
     }
-  }, []);
+  }, [router, showSuccess]);
 
   // Buscar dados da transação
   useEffect(() => {
@@ -289,20 +296,7 @@ const DepositConfirmationPage = () => {
       }
       shouldStopPolling.current = true;
     };
-  }, [txId, mintTransaction?.status]); // Adicionado status como dependência para parar quando confirmado
-
-  // useEffect específico para parar polling quando confirmado
-  useEffect(() => {
-    if (mintTransaction && mintTransaction.status === 'confirmed') {
-      console.log('🛑 [STATUS-CHECK] Transação confirmada - parando polling definitivamente');
-      shouldStopPolling.current = true;
-      if (pollingInterval.current) {
-        clearInterval(pollingInterval.current);
-        pollingInterval.current = null;
-        console.log('🛑 [STATUS-CHECK] Polling parado com sucesso');
-      }
-    }
-  }, [mintTransaction?.status]);
+  }, [txId]); // Apenas txId como dependência para evitar loop infinito
 
   // DEBUG: Função para confirmar PIX manualmente
   const handleDebugConfirmPix = async () => {
@@ -636,7 +630,7 @@ const DepositConfirmationPage = () => {
                       Valor:
                     </span>
                     <span className="text-lg font-bold text-gray-900 dark:text-white">
-                      R$ {transaction.amount?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      R$ {(transaction.totalAmount || transaction.amount || 0)?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                     </span>
                   </div>
 

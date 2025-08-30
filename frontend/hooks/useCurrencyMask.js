@@ -44,9 +44,16 @@ const useCurrencyMask = (initialValue = '') => {
   const formatDisplayValue = useCallback((val) => {
     if (!val) return 'R$ 0,00';
 
-    // Remover formatação e converter para número
-    const cleanValue = val.toString().replace(/[^\d,]/g, '').replace(',', '.');
-    const amount = parseFloat(cleanValue);
+    // Converter para número, tratando tanto formato americano (123.45) quanto brasileiro (123,45)
+    let amount;
+    if (typeof val === 'number') {
+      amount = val;
+    } else {
+      const cleanValue = val.toString()
+        .replace(/[^\d,.]/g, '') // Permitir ponto E vírgula
+        .replace(',', '.'); // Converter vírgula para ponto se houver
+      amount = parseFloat(cleanValue);
+    }
 
     if (isNaN(amount)) return 'R$ 0,00';
 
@@ -62,13 +69,68 @@ const useCurrencyMask = (initialValue = '') => {
   // Função para obter valor numérico limpo
   const getNumericValue = useCallback((val = value) => {
     if (!val) return 0;
-    const cleanValue = val.toString().replace(/[^\d,]/g, '').replace(',', '.');
-    return parseFloat(cleanValue) || 0;
+    
+    // Se já é um número, retornar diretamente
+    if (typeof val === 'number') return val;
+    
+    const stringVal = val.toString().trim();
+    console.log('🔍 [getNumericValue] INPUT:', stringVal);
+    
+    // Detectar formato brasileiro (tem vírgula como separador decimal)
+    if (stringVal.includes(',')) {
+      // Formato brasileiro: 1.000,50 ou 1000,50
+      // Remover pontos (separadores de milhares) e trocar vírgula por ponto
+      const cleanValue = stringVal
+        .replace(/\./g, '') // Remove pontos (separadores de milhares)
+        .replace(',', '.'); // Converte vírgula decimal para ponto
+      
+      const result = parseFloat(cleanValue);
+      console.log('🔍 [getNumericValue] BRASILEIRO - Clean:', cleanValue, 'Result:', result);
+      return isNaN(result) ? 0 : result;
+    } else {
+      // Formato sem vírgula - pode ser número simples ou com ponto
+      // Remover tudo exceto dígitos e ponto
+      const cleanValue = stringVal.replace(/[^\d.]/g, '');
+      
+      // Se não tem nenhum dígito, retornar 0
+      if (!cleanValue || cleanValue === '.') return 0;
+      
+      // CORREÇÃO CRÍTICA: Se tem ponto e 3 dígitos após ponto (ex: "1.000"),
+      // É separador de milhares brasileiro, NÃO decimal americano
+      if (cleanValue.includes('.')) {
+        const parts = cleanValue.split('.');
+        if (parts.length === 2 && parts[1].length === 3 && parts[1] === '000') {
+          // É separador de milhares: "1.000" = 1000
+          const result = parseInt(parts[0]) * 1000;
+          console.log('🔍 [getNumericValue] MILHARES - Clean:', cleanValue, 'Result:', result);
+          return result;
+        } else if (parts.length === 2 && parts[1].length <= 2) {
+          // É decimal americano: "10.50" = 10.5
+          const result = parseFloat(cleanValue);
+          console.log('🔍 [getNumericValue] AMERICANO - Clean:', cleanValue, 'Result:', result);
+          return isNaN(result) ? 0 : result;
+        } else {
+          // Múltiplos pontos ou formato estranho - tratar como milhares
+          const onlyDigits = cleanValue.replace(/\./g, '');
+          const result = parseInt(onlyDigits);
+          console.log('🔍 [getNumericValue] MULTIPLOS PONTOS - Clean:', onlyDigits, 'Result:', result);
+          return isNaN(result) ? 0 : result;
+        }
+      } else {
+        // Apenas dígitos: "1000" = 1000
+        const result = parseInt(cleanValue);
+        console.log('🔍 [getNumericValue] INTEIRO - Clean:', cleanValue, 'Result:', result);
+        return isNaN(result) ? 0 : result;
+      }
+    }
   }, [value]);
 
   // Função para validar se o valor é válido (mínimo R$ 10,00)
   const isValidAmount = useCallback((val = value) => {
-    return getNumericValue(val) >= 10;
+    const numericValue = getNumericValue(val);
+    const isValid = numericValue >= 10;
+    console.log('🔍 [isValidAmount] Value:', val, 'Numeric:', numericValue, 'Valid:', isValid, '>=10?', numericValue >= 10);
+    return isValid;
   }, [value, getNumericValue]);
 
   // Função para lidar com tecla pressionada

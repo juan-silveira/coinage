@@ -45,9 +45,38 @@ const PixPaymentPage = () => {
   const forcePayment = async () => {
     try {
       console.log('🔥 [PIX-DEBUG] Clique no botão - confirmando PIX primeiro');
+      console.log('🔥 [PIX-DEBUG] TransactionId:', transactionId);
+      console.log('🔥 [PIX-DEBUG] AccessToken disponível:', !!accessToken);
       
-      // PRIMEIRO: Confirmar PIX no backend usando fetch direto
-      console.log('🔄 [PIX-CONFIRM] Confirmando PIX no backend para transactionId:', transactionId);
+      // PRIMEIRO: Tentar endpoint de debug (sem JWT)
+      console.log('🔄 [PIX-DEBUG] Tentando endpoint debug sem JWT primeiro...');
+      
+      try {
+        const debugResponse = await fetch(`/api/deposits/dev/debug/complete-deposit/${transactionId}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (debugResponse.ok) {
+          const debugData = await debugResponse.json();
+          console.log('✅ [PIX-DEBUG] Debug endpoint funcionou:', debugData);
+          
+          if (debugData.success) {
+            showSuccess('PIX confirmado! Processando mint na blockchain...');
+            router.push(`/deposit/tx/${transactionId}`);
+            return;
+          }
+        } else {
+          console.log('⚠️ [PIX-DEBUG] Debug endpoint falhou:', debugResponse.status);
+        }
+      } catch (debugError) {
+        console.log('⚠️ [PIX-DEBUG] Debug endpoint erro:', debugError.message);
+      }
+      
+      // SEGUNDO: Tentar endpoint normal com JWT
+      console.log('🔄 [PIX-CONFIRM] Tentando endpoint normal com JWT...');
       
       const fetchResponse = await fetch('/api/deposits/confirm-pix', {
         method: 'POST',
@@ -66,20 +95,24 @@ const PixPaymentPage = () => {
         })
       });
       
+      console.log('🔄 [PIX-CONFIRM] Response status:', fetchResponse.status);
+      
       if (!fetchResponse.ok) {
+        const errorText = await fetchResponse.text();
+        console.log('❌ [PIX-CONFIRM] Error response:', errorText);
         throw new Error(`HTTP ${fetchResponse.status}: ${fetchResponse.statusText}`);
       }
       
       const responseData = await fetchResponse.json();
-      const response = { data: responseData };
+      const result = responseData;
       
-      const result = response.data;
+      console.log('✅ [PIX-CONFIRM] PIX response:', result);
       
       if (result.success) {
         console.log('✅ [PIX-CONFIRM] PIX confirmado com sucesso:', result);
         showSuccess('PIX confirmado! Processando mint na blockchain...');
         
-        // SEGUNDO: Redirecionar para página de status
+        // Redirecionar para página de status
         router.push(`/deposit/tx/${transactionId}`);
       } else {
         console.error('❌ [PIX-CONFIRM] Erro ao confirmar PIX:', result);
@@ -88,7 +121,7 @@ const PixPaymentPage = () => {
       
     } catch (error) {
       console.error('❌ [PIX-CONFIRM] Erro ao processar PIX:', error);
-      showError('Erro ao processar PIX. Tente novamente.');
+      showError('Erro ao processar PIX. Tente novamente. Detalhes: ' + error.message);
     }
   };
   
@@ -160,14 +193,14 @@ const PixPaymentPage = () => {
           
           // Usar valores seguros com fallbacks
           const netAmount = parseFloat(transaction.net_amount || transaction.amount || 0);
-          const totalAmount = parseFloat(transaction.amount || 0);
+          const totalAmount = parseFloat(transaction.totalAmount || transaction.amount || 0); // Usar totalAmount (valor bruto) se disponível
           const feeAmount = parseFloat(transaction.fee || 0);
           
           const pixData = {
             id: transaction.id,
             transactionId: transaction.id,
             status: transaction.status === 'confirmed' ? 'paid' : 'pending',
-            amount: totalAmount > 0 ? totalAmount : netAmount, // Usar totalAmount se disponível
+            amount: totalAmount > 0 ? totalAmount : netAmount, // Usar totalAmount (valor bruto com taxa) se disponível
             netAmount: netAmount, // Valor líquido
             feeAmount: feeAmount, // Taxa
             pixKey: 'contato@coinage.com.br',

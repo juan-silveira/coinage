@@ -7,6 +7,7 @@ const blockchainQueueService = require('./blockchainQueue.service');
 const burnService = require('./burn.service');
 const blockchainService = require('./blockchain.service');
 const transactionService = require('./transaction.service');
+const withdrawTransactionService = require('./withdrawTransaction.service');
 
 class WithdrawService {
   constructor() {
@@ -237,6 +238,30 @@ class WithdrawService {
           }
         }
       });
+
+      // Buscar empresa do usuário
+      const userCompany = await this.prisma.userCompany.findFirst({
+        where: { userId: userId },
+        include: { company: true }
+      });
+
+      const companyId = userCompany?.company?.id;
+      if (!companyId) {
+        throw new Error('Usuário não possui empresa associada');
+      }
+
+      // Criar transação padronizada de saque
+      const standardTransaction = await withdrawTransactionService.createWithdrawTransaction({
+        userId,
+        companyId,
+        amount,
+        fee,
+        netAmount,
+        pixKey: userPixKey ? userPixKey.keyValue : pixKey,
+        pixKeyType: userPixKey ? userPixKey.keyType : 'UNKNOWN',
+        userAddress: user.publicKey,
+        withdrawalId
+      });
       
       // Note: No database balance update needed since we're using blockchain balances
       // The actual token burn will happen later during withdrawal confirmation
@@ -333,47 +358,15 @@ class WithdrawService {
 
       console.log(`✅ Burn executado com sucesso:`, burnResult);
 
-      // Salvar transação de burn no banco de dados
-      console.log(`🔍 [DEBUG] Iniciando tentativa de salvar transação burn...`);
-      try {
-        console.log(`💾 Salvando transação burn no banco de dados...`);
-        
-        // Verificar se transactionService está disponível
-        console.log('🔍 TransactionService type:', typeof transactionService);
-        console.log('🔍 recordBurnTransaction method type:', typeof transactionService.recordBurnTransaction);
-        
-        // Buscar empresa padrão
-        const defaultCompany = await this.prisma.company.findFirst({
-          where: { isActive: true }
-        });
-        
-        console.log('🏢 Default company found:', defaultCompany ? defaultCompany.name : 'NOT FOUND');
-        
-        if (!defaultCompany) {
-          throw new Error('No default company found');
-        }
-        
-        console.log('🔄 Calling recordBurnTransaction...');
-        const burnTransaction = await transactionService.recordBurnTransaction({
-          companyId: defaultCompany.id,
-          userId: withdrawal.user.id,
-          contractAddress: process.env.CBRL_TOKEN_ADDRESS || '0x0A8c73967e4Eee8ffA06484C3fBf65E6Ae3b9804',
-          fromAddress: withdrawal.user.publicKey,
-          gasPayer: withdrawal.user.publicKey,
-          amount: burnResult.amountBurned,
-          amountWei: BigInt(parseFloat(burnResult.amountBurned) * 1e18),
-          txHash: burnResult.transactionHash,
-          blockNumber: BigInt(burnResult.blockNumber),
-          gasUsed: BigInt(burnResult.gasUsed),
-          network: 'testnet'
-        });
-        
-        console.log(`✅ Transação burn salva no banco:`, burnTransaction.id);
-        
-      } catch (transactionError) {
-        console.error('❌ Erro ao salvar transação burn:', transactionError.message);
-        console.error('❌ Stack trace:', transactionError.stack);
-        // Não falhar o saque por erro na gravação da transação
+      // Buscar transação padronizada associada ao withdrawal
+      let standardTransaction = await withdrawTransactionService.findByWithdrawalId(withdrawalId);
+      
+      if (standardTransaction) {
+        // Atualizar transação padronizada com dados do burn
+        await withdrawTransactionService.updateWithBurnData(standardTransaction.id, burnResult);
+        console.log(`✅ Transação padronizada atualizada com dados do burn`);
+      } else {
+        console.warn('⚠️ Transação padronizada não encontrada para withdrawalId:', withdrawalId);
       }
 
       // Atualizar saque com dados do burn
@@ -448,6 +441,17 @@ class WithdrawService {
           }
         }
       });
+
+      // Atualizar transação padronizada com dados do PIX
+      const standardTransaction = await withdrawTransactionService.findByWithdrawalId(withdrawalId);
+      if (standardTransaction) {
+        await withdrawTransactionService.updateWithPixData(standardTransaction.id, {
+          pixTransactionId,
+          pixEndToEndId,
+          amount: withdrawal.netAmount
+        });
+        console.log(`✅ Transação padronizada atualizada com dados do PIX`);
+      }
 
       console.log(`✅ PIX processado com sucesso: ${pixTransactionId}`);
       

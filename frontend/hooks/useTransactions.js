@@ -92,51 +92,115 @@ const useTransactions = (initialParams = {}) => {
     let tokenName = metadata.tokenName || (tx.currency === 'cBRL' ? 'Coinage Real Brasil' : 'Azore');
     let amount = 0;
 
-    // Determinar tipo baseado nos metadados
-    if (metadata.operation) {
+    // Helper function to parse decimal values from different formats
+    const parseDecimalValue = (value) => {
+      if (!value) return 0;
+      
+      // Se for um número simples
+      if (typeof value === 'number') return value;
+      
+      // Se for string, tentar converter
+      if (typeof value === 'string') return parseFloat(value);
+      
+      // Se for objeto Decimal.js do Prisma: {s: 1, e: 1, d: [97]} = 97
+      if (typeof value === 'object' && value.d && Array.isArray(value.d)) {
+        const { s = 1, e = 0, d } = value;
+        
+        // Casos específicos baseados nos dados reais:
+        if (d.length === 1) {
+          // Caso simples: {s: 1, e: 1, d: [97]} = 97
+          return d[0] * s;
+        }
+        
+        if (d.length === 2) {
+          // Caso com decimais: {s: 1, e: 1, d: [44, 500000]} = 44.5
+          // O segundo elemento representa a parte decimal
+          const integerPart = d[0];
+          const decimalPart = d[1];
+          
+          // Converter decimal part para string e determinar casas decimais
+          const decimalStr = decimalPart.toString();
+          const decimalValue = decimalPart / Math.pow(10, decimalStr.length);
+          
+          return (integerPart + decimalValue) * s;
+        }
+        
+        // Fallback: tentar reconstruir manualmente
+        console.warn('Formato Decimal.js não reconhecido:', value);
+        return 0;
+      }
+      
+      // Fallback para outros objetos
+      if (typeof value === 'object' && value.toString) {
+        try {
+          const str = value.toString();
+          const parsed = parseFloat(str);
+          if (!isNaN(parsed)) return parsed;
+        } catch (error) {
+          console.warn('Erro ao converter toString:', value, error);
+        }
+      }
+      
+      return 0;
+    };
+
+    // PRIORIZAR transactionType do banco, depois metadados
+    if (tx.transactionType === 'deposit') {
+      type = 'deposit';
+      subType = 'credit';
+      // DEPÓSITO: Usar net_amount (valor líquido que o usuário recebe)
+      amount = parseDecimalValue(tx.net_amount) || parseDecimalValue(tx.amount) || 0;
+    } else if (tx.transactionType === 'withdraw') {
+      type = 'withdraw';
+      subType = 'debit';
+      // SAQUE: Usar amount (valor bruto que foi solicitado) como valor negativo
+      amount = -(parseDecimalValue(tx.amount) || parseDecimalValue(tx.net_amount) || 0);
+    } else if (metadata.operation) {
+      // Fallback para metadados se transactionType não for direto
       switch (metadata.operation) {
         case 'mint':
           type = 'deposit';
           subType = 'credit';
-          amount = parseFloat(metadata.amount || 0);
+          // MINT (depósito): usar net_amount
+          amount = parseDecimalValue(tx.net_amount) || parseDecimalValue(metadata.netAmount) || parseDecimalValue(metadata.amount) || 0;
           break;
         case 'burn':
           type = 'withdraw';
           subType = 'debit';
-          amount = -parseFloat(metadata.amount || 0);
-          // tokenSymbol e tokenName já foram definidos dos metadados
+          // BURN (saque): usar amount (valor bruto)
+          amount = -(parseDecimalValue(tx.amount) || parseDecimalValue(metadata.amount) || parseDecimalValue(tx.net_amount) || 0);
           break;
         case 'transfer':
           type = 'transfer';
-          // Determinar se é crédito ou débito baseado nos endereços
-          // Por agora, usar valor positivo para crédito
-          amount = parseFloat(metadata.amount || 0);
+          amount = parseDecimalValue(tx.net_amount) || parseDecimalValue(metadata.amount) || 0;
           subType = amount >= 0 ? 'credit' : 'debit';
           break;
         case 'withdraw':
           type = 'withdraw';
           subType = 'debit';
-          amount = -parseFloat(metadata.amount || 0);
+          // WITHDRAW: usar amount (valor bruto)
+          amount = -(parseDecimalValue(tx.amount) || parseDecimalValue(metadata.amount) || parseDecimalValue(tx.net_amount) || 0);
           break;
         case 'deposit':
           type = 'deposit';
           subType = 'credit';
-          amount = parseFloat(metadata.amount || 0);
+          // DEPOSIT: usar net_amount (valor líquido)
+          amount = parseDecimalValue(tx.net_amount) || parseDecimalValue(metadata.netAmount) || parseDecimalValue(metadata.amount) || 0;
           break;
         case 'exchange':
           type = 'exchange';
           subType = 'debit';
-          amount = parseFloat(metadata.amount || 0);
+          amount = parseDecimalValue(tx.net_amount) || parseDecimalValue(metadata.amount) || 0;
           break;
         case 'stake':
           type = 'stake';
           subType = 'debit';
-          amount = -parseFloat(metadata.amount || 0);
+          amount = -(parseDecimalValue(tx.net_amount) || parseDecimalValue(metadata.amount) || 0);
           break;
         case 'unstake':
           type = 'unstake';
           subType = 'credit';
-          amount = parseFloat(metadata.amount || 0);
+          amount = parseDecimalValue(tx.net_amount) || parseDecimalValue(metadata.amount) || 0;
           break;
         case 'grant_role':
         case 'revoke_role':
@@ -147,13 +211,13 @@ const useTransactions = (initialParams = {}) => {
         default:
           // Para operações desconhecidas, usar o transactionType
           type = tx.transactionType || 'transfer';
-          amount = parseFloat(metadata.amount || 0);
+          amount = parseDecimalValue(tx.net_amount) || parseDecimalValue(metadata.amount) || 0;
           subType = amount >= 0 ? 'credit' : 'debit';
       }
     } else {
       // Se não há operação nos metadados, usar o transactionType
       type = tx.transactionType || 'transfer';
-      amount = parseFloat(metadata.amount || 0);
+      amount = parseDecimalValue(tx.net_amount) || parseDecimalValue(tx.amount) || 0;
       subType = amount >= 0 ? 'credit' : 'debit';
     }
 

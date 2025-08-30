@@ -244,7 +244,18 @@ const LastTransactions = () => {
                   {/* Valor com cor */}
                   <td className="px-4 py-3 whitespace-nowrap">
                     <span className={`text-sm font-medium ${getTransactionColor(transaction.subType)}`}>
-                      {transaction.amount > 0 ? '+' : ''}{transaction.amount.toFixed(2)}
+                      {(() => {
+                        const amount = Number(transaction.amount) || 0;
+                        const absAmount = Math.abs(amount);
+                        if (isNaN(absAmount)) return '0.00';
+                        
+                        // Para saques, mostrar o sinal negativo
+                        if (transaction.type === 'withdraw' || transaction.subType === 'debit') {
+                          return '-' + absAmount.toFixed(2);
+                        }
+                        // Para depósitos, mostrar o sinal positivo
+                        return '+' + absAmount.toFixed(2);
+                      })()}
                     </span>
                   </td>
                   

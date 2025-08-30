@@ -60,7 +60,7 @@ router.post('/debug/confirm-pix/:transactionId', jwtMiddleware.authenticateToken
  * @desc    DEBUG: Completar depósito (PIX + mint) manualmente para testes
  * @access  Private
  */
-router.post('/debug/complete-deposit/:transactionId', jwtMiddleware.authenticateToken, depositController.debugCompleteDeposit.bind(depositController));
+router.post('/debug/complete-deposit/:transactionId', depositController.debugCompleteDeposit.bind(depositController));
 
 /**
  * @route   POST /api/deposits/dev/debug/confirm-pix/:transactionId

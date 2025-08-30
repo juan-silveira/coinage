@@ -69,13 +69,18 @@ class DepositService {
       const totalAmount = feeCalculation.totalAmount; // Valor total que o usuário deve pagar
       const netAmount = amount; // Valor que será creditado em cBRL
 
-      // CRIAR TRANSAÇÃO ÚNICA com campos unificados
+      // Endereços e configurações padrão
+      const ADMIN_ADDRESS = process.env.ADMIN_WALLET_ADDRESS || '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb3';
+      const CONTRACT_ADDRESS = process.env.CBRL_TOKEN_ADDRESS || '0x0A8c73967e4Eee8ffA06484C3fBf65E6Ae3b9804';
+      const NETWORK = process.env.BLOCKCHAIN_NETWORK || 'testnet';
+
+      // CRIAR TRANSAÇÃO ÚNICA com campos unificados e padronizados
       const transaction = await this.prisma.transaction.create({
         data: {
           id: uuidv4(),
           userId: userId,
           companyId: companyId,
-          transactionType: 'deposit',
+          transactionType: 'deposit', // Padronizado como 'deposit'
           
           // Status principal
           status: 'pending',
@@ -85,6 +90,13 @@ class DepositService {
           fee: parseFloat(fee),
           net_amount: parseFloat(netAmount), // Valor que será creditado
           currency: 'cBRL', // Depósito resulta em cBRL
+          
+          // Blockchain fields (preenchidos desde o início)
+          network: NETWORK,
+          contractAddress: CONTRACT_ADDRESS,
+          fromAddress: ADMIN_ADDRESS, // Endereço admin (mint vem do admin)
+          toAddress: user?.blockchainAddress || user?.publicKey, // Endereço do usuário
+          functionName: 'mint',
           
           // PIX - Inicialmente pendente
           pix_status: 'pending',
@@ -99,13 +111,19 @@ class DepositService {
           
           // Metadata
           metadata: {
+            type: 'deposit',
             paymentMethod: 'pix',
             description: `Depósito PIX de R$ ${netAmount}`,
             source: 'user_deposit',
+            network: NETWORK,
+            contractAddress: CONTRACT_ADDRESS,
+            functionName: 'mint',
             timestamp: new Date().toISOString(),
             fee: fee,
             totalAmount: totalAmount,
-            netAmount: netAmount
+            netAmount: netAmount,
+            adminAddress: ADMIN_ADDRESS,
+            userAddress: user?.blockchainAddress || user?.publicKey
           }
         }
       });
@@ -291,11 +309,11 @@ class DepositService {
             blockchain_tx_hash: blockchainData.txHash,
             blockchain_block_number: blockchainData.blockNumber,
             
-            // Dados blockchain originais (manter compatibilidade)
-            txHash: blockchainData.txHash,
+            // Dados blockchain (usar txHash como campo principal)
+            txHash: blockchainData.txHash, // Campo principal unificado
             blockNumber: blockchainData.blockNumber,
-            fromAddress: blockchainData.fromAddress,
-            toAddress: blockchainData.toAddress,
+            fromAddress: blockchainData.fromAddress || transaction.fromAddress,
+            toAddress: blockchainData.toAddress || transaction.toAddress,
             gasUsed: blockchainData.gasUsed,
             
             // Status geral CONFIRMADO (só agora que PIX + Blockchain estão ok)
