@@ -1,10 +1,10 @@
-const DepositService = require('../services/deposit.service');
+const depositService = require('../services/deposit.service');
 const userActionsService = require('../services/userActions.service');
 const userTaxesService = require('../services/userTaxes.service');
 
 class DepositController {
   constructor() {
-    this.depositService = new DepositService();
+    this.depositService = depositService; // Usar instância singleton
   }
 
   /**
@@ -166,36 +166,73 @@ class DepositController {
   }
 
   /**
-   * Confirmar depósito na blockchain
+   * Confirmar depósito PIX
    */
-  async confirmDeposit(req, res) {
+  async confirmPixDeposit(req, res) {
     try {
-      const { transactionId, blockchainTxHash, blockNumber, gasUsed } = req.body;
+      const { transactionId, pixData } = req.body;
       
       // Validações
-      if (!transactionId || !blockchainTxHash) {
+      if (!transactionId) {
+        return res.status(400).json({
+          success: false,
+          message: 'ID da transação é obrigatório'
+        });
+      }
+
+      // Confirmar PIX
+      const result = await this.depositService.confirmPixDeposit(transactionId, pixData);
+      
+      res.json({
+        success: true,
+        message: 'PIX confirmado com sucesso',
+        data: result
+      });
+
+    } catch (error) {
+      console.error('Erro ao confirmar PIX:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Erro ao confirmar PIX',
+        error: error.message
+      });
+    }
+  }
+
+  /**
+   * Confirmar depósito na blockchain
+   */
+  async confirmBlockchainDeposit(req, res) {
+    try {
+      const { transactionId, txHash, blockNumber, fromAddress, toAddress, gasUsed } = req.body;
+      
+      // Validações
+      if (!transactionId || !txHash) {
         return res.status(400).json({
           success: false,
           message: 'ID da transação e hash da blockchain são obrigatórios'
         });
       }
 
-      // Confirmar depósito
-      const result = await this.depositService.confirmDeposit(
-        transactionId, 
-        blockchainTxHash, 
-        blockNumber, 
+      // Confirmar blockchain
+      const blockchainData = {
+        txHash,
+        blockNumber,
+        fromAddress,
+        toAddress,
         gasUsed
-      );
+      };
+      
+      const result = await this.depositService.confirmBlockchainMint(transactionId, blockchainData);
       
       res.json({
         success: true,
-        message: 'Depósito confirmado com sucesso',
+        message: 'Mint blockchain confirmado com sucesso',
         data: result
       });
 
     } catch (error) {
-      console.error('Erro ao confirmar depósito:', error);
+      console.error('Erro ao confirmar blockchain:', error);
       res.status(500).json({
         success: false,
         message: 'Erro interno do servidor',
@@ -408,26 +445,13 @@ class DepositController {
 
       await this.depositService.init();
 
-      // 1. Primeiro confirmar o PIX
-      await this.depositService.confirmPixPayment(transactionId, {
+      // 1. Confirmar PIX (que já dispara o mint worker automaticamente)
+      const result = await this.depositService.confirmPixDeposit(transactionId, {
         pixId: `pix-debug-${Date.now()}`,
         payerDocument: '000.000.000-00',
         payerName: 'Teste Debug',
         paidAmount: amount || 100
       });
-
-      console.log(`✅ [DEBUG] PIX confirmado para ${transactionId}`);
-
-      // 2. Confirmar depósito PIX (sem dados blockchain) e disparar mint automático
-      const result = await this.depositService.confirmDeposit(
-        transactionId,
-        {
-          pixId: `pix-debug-${Date.now()}`,
-          payerDocument: '000.000.000-00',
-          payerName: 'Teste Debug',
-          paidAmount: amount || 100
-        }
-      );
 
       console.log(`✅ [DEBUG] Depósito confirmado e mint executado para ${transactionId}`);
 

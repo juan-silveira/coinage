@@ -2,6 +2,7 @@ const prismaConfig = require('../config/prisma');
 const { v4: uuidv4 } = require('uuid');
 const amqp = require('amqplib');
 const NotificationService = require('./notification.service');
+const UserTaxesService = require('./userTaxes.service');
 const blockchainQueueService = require('./blockchainQueue.service');
 const burnService = require('./burn.service');
 const blockchainService = require('./blockchain.service');
@@ -106,10 +107,17 @@ class WithdrawService {
   }
 
   /**
-   * Calcular taxa de saque
+   * Calcular taxa de saque usando UserTaxesService
    */
-  async calculateFee(amount) {
-    return this.withdrawalFee;
+  async calculateFee(amount, userId) {
+    try {
+      const feeCalculation = await UserTaxesService.calculateWithdrawFee(userId, amount);
+      return feeCalculation.fee;
+    } catch (error) {
+      console.error('❌ Erro ao calcular taxa com UserTaxesService, usando taxa padrão:', error);
+      // Fallback para taxa fixa se houver erro
+      return this.withdrawalFee;
+    }
   }
 
   /**
@@ -172,8 +180,8 @@ class WithdrawService {
       const cBrlBalance = parseFloat(blockchainBalances.balancesTable?.['cBRL'] || '0');
       console.log('🔍 [WithdrawService] cBRL parsed:', cBrlBalance);
       
-      // Calcular taxa
-      const fee = await this.calculateFee(amount);
+      // Calcular taxa usando UserTaxesService
+      const fee = await this.calculateFee(amount, userId);
       const netAmount = amount - fee; // Valor que o usuário realmente recebe via PIX
       
       // Debug logging para entender os valores

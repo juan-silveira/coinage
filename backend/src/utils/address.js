@@ -32,28 +32,33 @@ function isValidChecksum(address) {
 }
 
 /**
- * Normaliza um endereço para lowercase (para comparação/busca no banco)
+ * Normaliza um endereço para o formato checksum correto (para comparação/busca no banco)
  * @param {string} address - Endereço Ethereum
- * @returns {string} - Endereço em lowercase
+ * @returns {string} - Endereço no formato checksum com 0x
  */
 function normalizeAddress(address) {
   if (!address || typeof address !== 'string') {
     throw new Error('Endereço inválido');
   }
   
-  const cleanAddress = address.replace(/^0x/i, '');
-  return cleanAddress.toLowerCase();
+  // Usar ethers para obter o endereço no formato checksum correto
+  try {
+    return ethers.getAddress(address);
+  } catch (error) {
+    throw new Error(`Endereço inválido: ${error.message}`);
+  }
 }
 
 /**
- * Compara dois endereços Ethereum ignorando case
+ * Compara dois endereços Ethereum considerando o checksum
  * @param {string} address1 - Primeiro endereço
  * @param {string} address2 - Segundo endereço  
  * @returns {boolean} - true se os endereços são iguais
  */
 function addressesEqual(address1, address2) {
   try {
-    return normalizeAddress(address1) === normalizeAddress(address2);
+    // Comparar os endereços no formato checksum
+    return ethers.getAddress(address1) === ethers.getAddress(address2);
   } catch (error) {
     return false;
   }

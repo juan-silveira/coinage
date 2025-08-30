@@ -7,6 +7,7 @@ const crypto = require('crypto');
 const requireApiAdmin = async (req, res, next) => {
   try {
     if (!req.user) {
+      console.log('🔍 [ADMIN] Usuário não autenticado');
       return res.status(401).json({
         success: false,
         message: 'Usuário não autenticado',
@@ -14,14 +15,22 @@ const requireApiAdmin = async (req, res, next) => {
       });
     }
 
-    if (!req.user.isApiAdminUser()) {
+    console.log('🔍 [ADMIN] Verificando permissões:', {
+      userId: req.user.id,
+      isApiAdmin: req.user.isApiAdmin,
+      roles: req.user.userCompanies?.map(uc => uc.role)
+    });
+
+    if (!req.user.isApiAdmin) {
+      console.log('🔍 [ADMIN] Acesso negado - não é API Admin');
       return res.status(403).json({
         success: false,
-        message: 'Acesso negado: permissões de API_ADMIN necessárias',
-        error: 'API_ADMIN_PERMISSION_REQUIRED'
+        message: 'Acesso negado: permissões de APP_ADMIN ou SUPER_ADMIN necessárias',
+        error: 'APP_ADMIN_PERMISSION_REQUIRED'
       });
     }
 
+    console.log('🔍 [ADMIN] Permissões OK, prosseguindo');
     next();
   } catch (error) {
     console.error('Erro na verificação de API_ADMIN:', error);
@@ -179,7 +188,7 @@ const requireSameCompany = async (req, res, next) => {
 
     const companyId = req.params.companyId || req.params.id;
     
-    if (req.user.companyId !== companyId && !req.user.isApiAdminUser()) {
+    if (req.user.companyId !== companyId && !req.user.isApiAdmin) {
       return res.status(403).json({
         success: false,
         message: 'Acesso negado: usuário não pertence ao company especificado',
@@ -210,7 +219,7 @@ const addUserInfo = (req, res, next) => {
       'X-User-Email': req.user.email,
       'X-Company-ID': req.user.companyId,
       'X-User-Roles': req.user.roles.join(','),
-      'X-User-Is-Api-Admin': req.user.isApiAdminUser(),
+      'X-User-Is-Api-Admin': req.user.isApiAdmin,
       'X-User-Is-Company-Admin': req.user.isCompanyAdminUser()
     });
   }

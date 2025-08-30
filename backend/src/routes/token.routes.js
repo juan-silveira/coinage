@@ -809,4 +809,21 @@ router.post('/:contractAddress/deactivate', tokenController.deactivateToken);
  */
 router.post('/:contractAddress/activate', tokenController.activateToken);
 
+// Endpoint de debug (sem autenticação)
+router.get('/debug/:contractAddress', async (req, res) => {
+  try {
+    const { contractAddress } = req.params;
+    const contract = await global.prisma.smartContract.findFirst({
+      where: { address: contractAddress }
+    });
+    res.json({
+      contractAddress,
+      found: !!contract,
+      contract
+    });
+  } catch (error) {
+    res.json({ error: error.message });
+  }
+});
+
 module.exports = router; 

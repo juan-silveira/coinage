@@ -16,7 +16,7 @@ class UserTaxesService {
     try {
       if (!this.prisma) await this.init();
 
-      // Buscar taxas existentes
+      // Buscar taxas existentes (usando userId como campo do Prisma)
       let userTaxes = await this.prisma.userTaxes.findUnique({
         where: { userId: userId }
       });
@@ -50,12 +50,10 @@ class UserTaxesService {
       const defaultTaxes = await this.prisma.userTaxes.create({
         data: {
           userId: userId,
-          depositFeePercent: 0.5,     // 0.5%
-          withdrawFeePercent: 0.5,    // 0.5%
-          minDepositFee: 1.0,          // R$ 1,00
-          minWithdrawFee: 1.0,         // R$ 1,00
-          exchangeFeePercent: 0.3,     // 0.3%
-          transferFeePercent: 0.1,     // 0.1%
+          depositFee: 3.0,           // R$ 3,00 taxa fixa
+          withdrawFee: 1.0,          // R$ 1,00 taxa fixa
+          exchangeFeePercent: 0.3,  // 0.3%
+          transferFeePercent: 0.1,  // 0.1%
           gasSubsidyEnabled: false,
           gasSubsidyPercent: 0,
           isVip: false,
@@ -82,10 +80,8 @@ class UserTaxesService {
       const updatedTaxes = await this.prisma.userTaxes.update({
         where: { userId: userId },
         data: {
-          depositFeePercent: 0.5,
-          withdrawFeePercent: 0.5,
-          minDepositFee: 1.0,
-          minWithdrawFee: 1.0,
+          depositFee: 3.0,
+          withdrawFee: 1.0,
           exchangeFeePercent: 0.3,
           transferFeePercent: 0.1,
           gasSubsidyEnabled: false,
@@ -112,7 +108,7 @@ class UserTaxesService {
     try {
       const userTaxes = await this.getUserTaxes(userId);
       
-      // Usar taxa fixa para depósito
+      // Usar taxa fixa para depósito (campo depositFee)
       const fee = userTaxes.depositFee || 3.0; // Taxa fixa padrão R$ 3,00
 
       return {
@@ -134,30 +130,18 @@ class UserTaxesService {
   }
 
   /**
-   * Calcular taxa de saque
+   * Calcular taxa de saque usando taxa fixa do banco
    */
   async calculateWithdrawFee(userId, amount) {
     try {
       const userTaxes = await this.getUserTaxes(userId);
       
-      // Calcular taxa percentual
-      let fee = (amount * userTaxes.withdrawFeePercent) / 100;
-      
-      // Aplicar mínimo
-      if (fee < userTaxes.minWithdrawFee) {
-        fee = userTaxes.minWithdrawFee;
-      }
-      
-      // Aplicar máximo se definido
-      if (userTaxes.maxWithdrawFee && fee > userTaxes.maxWithdrawFee) {
-        fee = userTaxes.maxWithdrawFee;
-      }
+      // Usar taxa fixa do banco de dados (campo withdrawFee)
+      const fee = userTaxes.withdrawFee || 1.0; // Fallback para R$ 1,00
 
       return {
         fee: parseFloat(fee.toFixed(2)),
-        feePercent: userTaxes.withdrawFeePercent,
-        minFee: userTaxes.minWithdrawFee,
-        maxFee: userTaxes.maxWithdrawFee,
+        feeType: 'fixed', // Taxa fixa, não percentual
         netAmount: parseFloat((amount - fee).toFixed(2)),
         grossAmount: amount,
         isVip: userTaxes.isVip,

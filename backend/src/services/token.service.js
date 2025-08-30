@@ -576,13 +576,21 @@ class TokenService {
       }
 
       // Buscar e atualizar o contrato diretamente
-      const contract = await global.prisma.smartContract.findUnique({ where: { address: require('../utils/address').normalizeAddress(contractAddress) } });
+      const contract = await global.prisma.smartContract.findFirst({ 
+        where: { 
+          address: contractAddress
+        } 
+      });
       
       if (!contract) {
         throw new Error('Token não encontrado');
       }
 
-      await contract.update({ isActive: false });
+      // Atualizar usando Prisma
+      await global.prisma.smartContract.update({
+        where: { id: contract.id },
+        data: { isActive: false }
+      });
       
       return {
         success: true,
@@ -608,9 +616,9 @@ class TokenService {
       }
 
       // Buscar e atualizar o contrato diretamente (incluindo inativos)
-      const contract = await this.SmartContract.findOne({
-        where: {
-          address: require('../utils/address').normalizeAddress(contractAddress)
+      const contract = await global.prisma.smartContract.findFirst({
+        where: { 
+          address: contractAddress
         }
       });
       
@@ -618,7 +626,11 @@ class TokenService {
         throw new Error('Token não encontrado');
       }
 
-      await contract.update({ isActive: true });
+      // Atualizar usando Prisma
+      await global.prisma.smartContract.update({
+        where: { id: contract.id },
+        data: { isActive: true }
+      });
       
       return {
         success: true,

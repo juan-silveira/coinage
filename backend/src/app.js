@@ -452,38 +452,7 @@ app.use('/api/test/email', testEmailRoutes);
 app.use('/api/test-simple', testSimpleRoutes);
 // app.use('/api/debug', debugUserRoutes); // Temporariamente desabilitado
 
-// TESTE: Rota de mint dev diretamente no app.js (sem middleware)
-app.get('/api/mint-dev/by-deposit/:depositTransactionId', async (req, res) => {
-  try {
-    console.log('🧪 MINT-DEV: Chamada direta no app.js, sem middleware');
-    const { depositTransactionId } = req.params;
-    
-    const MintTransactionService = require('./services/mintTransaction.service');
-    const mintService = new MintTransactionService();
-    
-    const mintTransaction = await mintService.getMintByDepositId(depositTransactionId);
-    
-    if (!mintTransaction) {
-      return res.json({
-        success: true,
-        message: 'Nenhuma transação de mint encontrada para este depósito',
-        data: null
-      });
-    }
-
-    res.json({
-      success: true,
-      data: mintTransaction
-    });
-  } catch (error) {
-    console.error('❌ MINT-DEV: Erro:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erro interno ao buscar transação de mint',
-      error: error.message
-    });
-  }
-});
+// Removed deprecated mint dev route - using unified transaction architecture
 
 // ========================================
 // DEPOSIT APIs - Estrutura organizada
@@ -493,7 +462,7 @@ app.get('/api/mint-dev/by-deposit/:depositTransactionId', async (req, res) => {
 app.post('/api/deposit', async (req, res) => {
   try {
     console.log('💰 [DEPOSIT] Criando novo depósito');
-    const { userId, amount, currency = 'BRL', paymentMethod = 'pix' } = req.body;
+    const { userId, amount, currency = 'cBRL', paymentMethod = 'pix' } = req.body;
     
     if (!userId || !amount) {
       return res.status(400).json({
@@ -597,12 +566,13 @@ app.post('/api/deposit/pix', async (req, res) => {
     const prismaConfig = require('./config/prisma');
     const prisma = prismaConfig.getPrisma();
     
-    // Confirmar PIX (não tem blockchain)
+    // Confirmar PIX (mas manter status pending até blockchain confirmar)
     const depositTransaction = await prisma.transaction.update({
       where: { id: transactionId },
       data: {
-        status: 'confirmed',
-        confirmedAt: new Date(),
+        status: 'pending', // MANTER PENDING até blockchain confirmar
+        pix_status: 'confirmed', // Confirmar apenas PIX
+        pix_confirmed_at: new Date(),
         metadata: {
           ...((await prisma.transaction.findUnique({ where: { id: transactionId } }))?.metadata || {}),
           pix_confirmed: true,
@@ -787,8 +757,11 @@ app.use('/api/admin/tokens', authenticateJWT, apiRateLimiter, addUserInfo, logAu
 const authenticateHybrid = (req, res, next) => {
   // Verificar se há JWT token no header
   const authHeader = req.headers.authorization;
+  console.log('🔍 [HYBRID] AuthHeader:', authHeader ? 'presente' : 'ausente');
+  
   if (authHeader && authHeader.startsWith('Bearer ')) {
     const token = authHeader.substring(7);
+    console.log('🔍 [HYBRID] Token parts:', token.split('.').length);
     // Se parece com JWT (3 partes separadas por pontos), usar JWT middleware
     if (token.split('.').length === 3) {
       console.log('🔄 Usando autenticação JWT para tokens');

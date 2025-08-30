@@ -66,9 +66,16 @@ const WithdrawReceiptPage = () => {
     }).format(new Date(dateString));
   };
 
+  const truncateString = (str, maxLength = 20) => {
+    if (!str) return '-';
+    if (str.length <= maxLength) return str;
+    return `${str.slice(0, maxLength)}...`;
+  };
+
   const getStatusColor = (status) => {
     switch (status) {
       case 'COMPLETED':
+      case 'CONFIRMED':
         return 'text-green-600 dark:text-green-400';
       case 'PROCESSING':
       case 'BURN_COMPLETED':
@@ -87,6 +94,8 @@ const WithdrawReceiptPage = () => {
     switch (status) {
       case 'COMPLETED':
         return 'Concluído';
+      case 'CONFIRMED':
+        return 'Confirmado';
       case 'PROCESSING':
         return 'Processando';
       case 'BURN_COMPLETED':
@@ -223,7 +232,7 @@ const WithdrawReceiptPage = () => {
           {/* Status do saque */}
           <div className="text-center mb-8">
             <div className="mb-4">
-              {withdrawal.status === 'COMPLETED' ? (
+              {withdrawal.status === 'COMPLETED' || withdrawal.status === 'CONFIRMED' ? (
                 <div className="mx-auto w-20 h-20 bg-green-100 dark:bg-green-900/20 rounded-full flex items-center justify-center">
                   <Icon icon="heroicons:check-circle" className="h-12 w-12 text-green-600 dark:text-green-400" />
                 </div>
@@ -242,9 +251,13 @@ const WithdrawReceiptPage = () => {
               {getStatusText(withdrawal.status)}
             </h2>
             
-            <div className="text-4xl font-bold text-gray-900 dark:text-white mb-2">
-              {formatDisplayValue(withdrawal.amount)}
+            <div className="text-4xl font-bold text-gray-900 dark:text-white mb-1">
+              {formatDisplayValue(withdrawal.netAmount || (withdrawal.amount - (withdrawal.fee || 0)))}
             </div>
+            
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+              Valor líquido recebido
+            </p>
             
             <p className="text-gray-500 dark:text-gray-400">
               Saque realizado em {formatDateTime(withdrawal.createdAt)}
@@ -260,6 +273,16 @@ const WithdrawReceiptPage = () => {
               </span>
               <span className="text-gray-900 dark:text-white font-mono text-sm">
                 {withdrawal.id}
+              </span>
+            </div>
+
+            {/* Valor solicitado */}
+            <div className="flex justify-between items-center">
+              <span className="text-gray-600 dark:text-gray-400 font-medium">
+                Valor Solicitado:
+              </span>
+              <span className="text-gray-900 dark:text-white font-semibold">
+                {formatDisplayValue(withdrawal.amount)}
               </span>
             </div>
 
@@ -309,8 +332,8 @@ const WithdrawReceiptPage = () => {
                   Hash Blockchain:
                 </span>
                 <div className="text-right">
-                  <span className="text-gray-900 dark:text-white font-mono text-sm break-all">
-                    {withdrawal.burnTxHash}
+                  <span className="text-gray-900 dark:text-white font-mono text-sm" title={withdrawal.burnTxHash}>
+                    {truncateString(withdrawal.burnTxHash, 16)}
                   </span>
                   <div className="text-xs text-blue-500 dark:text-blue-400 mt-1">
                     <a 
@@ -332,21 +355,26 @@ const WithdrawReceiptPage = () => {
                 <span className="text-gray-600 dark:text-gray-400 font-medium">
                   ID PIX:
                 </span>
-                <span className="text-gray-900 dark:text-white font-mono text-sm">
-                  {withdrawal.pixTransactionId}
+                <span className="text-gray-900 dark:text-white font-mono text-sm" title={withdrawal.pixTransactionId}>
+                  {truncateString(withdrawal.pixTransactionId, 24)}
                 </span>
               </div>
             )}
 
             {/* End to End ID */}
             {withdrawal.pixEndToEndId && (
-              <div className="flex justify-between items-center">
+              <div className="flex justify-between items-start">
                 <span className="text-gray-600 dark:text-gray-400 font-medium">
                   End-to-End ID:
                 </span>
-                <span className="text-gray-900 dark:text-white font-mono text-sm">
-                  {withdrawal.pixEndToEndId}
-                </span>
+                <div className="text-right">
+                  <span className="text-gray-900 dark:text-white font-mono text-sm" title={withdrawal.pixEndToEndId}>
+                    {truncateString(withdrawal.pixEndToEndId, 24)}
+                  </span>
+                  <div className="text-xs text-gray-500 dark:text-gray-400">
+                    Identificador único PIX
+                  </div>
+                </div>
               </div>
             )}
 

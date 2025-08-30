@@ -9,7 +9,7 @@ import useAuthStore from "@/store/authStore";
 import { useAlertContext } from "@/contexts/AlertContext";
 import useDarkmode from "@/hooks/useDarkMode";
 // import usePixPaymentMonitor from "@/hooks/usePixPaymentMonitor"; // Removido - usando lógica local
-// Removed mock service - using only real API
+// Using fetch directly instead of api service to avoid interceptor issues
 
 const PixPaymentPage = () => {
   const params = useParams();
@@ -18,7 +18,7 @@ const PixPaymentPage = () => {
   
   useDocumentTitle('Pagamento PIX', 'Coinage', true);
 
-  const { user } = useAuthStore();
+  const { user, accessToken } = useAuthStore();
   const { showSuccess, showError } = useAlertContext();
   const [isDark] = useDarkmode();
 
@@ -44,38 +44,51 @@ const PixPaymentPage = () => {
   // Função para forçar pagamento (desenvolvimento) - REDIRECIONA IMEDIATAMENTE
   const forcePayment = async () => {
     try {
-      console.log('🔥 [PIX-DEBUG] Clique no botão - redirecionando IMEDIATAMENTE para processamento');
+      console.log('🔥 [PIX-DEBUG] Clique no botão - confirmando PIX primeiro');
       
-      // REDIRECIONAR IMEDIATAMENTE SEM DELAY
-      router.push(`/deposit/tx/${transactionId}`);
+      // PRIMEIRO: Confirmar PIX no backend usando fetch direto
+      console.log('🔄 [PIX-CONFIRM] Confirmando PIX no backend para transactionId:', transactionId);
       
-      // Processar PIX em background (não bloquear o redirecionamento)
-      setTimeout(async () => {
-        try {
-          console.log('🔄 [PIX-BACKGROUND] Confirmando PIX no backend para transactionId:', transactionId);
-          
-          const response = await fetch('http://localhost:8800/api/deposit/pix', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              transactionId: transactionId,
-              pixPaymentId: transactionId,
-              paidAmount: payment?.amount || 0
-            })
-          });
-          
-          const result = await response.json();
-          console.log('✅ [PIX-BACKGROUND] PIX processado em background:', result);
-        } catch (error) {
-          console.error('❌ [PIX-BACKGROUND] Erro ao processar PIX em background:', error);
-        }
-      }, 100); // Processar PIX em background após redirecionamento
+      const fetchResponse = await fetch('/api/deposits/confirm-pix', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken || ''}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          transactionId: transactionId,
+          pixData: {
+            pixId: `debug-pix-${Date.now()}`,
+            payerDocument: '000.000.000-00',
+            payerName: 'Usuario Debug Test',
+            paidAmount: payment?.amount || 0
+          }
+        })
+      });
+      
+      if (!fetchResponse.ok) {
+        throw new Error(`HTTP ${fetchResponse.status}: ${fetchResponse.statusText}`);
+      }
+      
+      const responseData = await fetchResponse.json();
+      const response = { data: responseData };
+      
+      const result = response.data;
+      
+      if (result.success) {
+        console.log('✅ [PIX-CONFIRM] PIX confirmado com sucesso:', result);
+        showSuccess('PIX confirmado! Processando mint na blockchain...');
+        
+        // SEGUNDO: Redirecionar para página de status
+        router.push(`/deposit/tx/${transactionId}`);
+      } else {
+        console.error('❌ [PIX-CONFIRM] Erro ao confirmar PIX:', result);
+        showError('Erro ao confirmar PIX: ' + result.message);
+      }
       
     } catch (error) {
-      console.error('❌ [PIX] Erro no redirecionamento:', error);
-      showError('Erro', 'Erro ao redirecionar para processamento');
+      console.error('❌ [PIX-CONFIRM] Erro ao processar PIX:', error);
+      showError('Erro ao processar PIX. Tente novamente.');
     }
   };
   
@@ -120,57 +133,80 @@ const PixPaymentPage = () => {
 
       try {
         setLoading(true);
+        setError(null);
         
-        // BUSCAR DIRETAMENTE NO POSTGRES USANDO UUID REAL
-        const apiUrl = `http://localhost:8800/api/deposits/dev/status/${transactionId}`;
-        console.log('🔍 [PIX] Fazendo requisição para:', apiUrl);
+        // Usar fetch direto para evitar problemas com interceptors do axios
+        console.log('🔍 [PIX] Fazendo requisição para:', `/api/deposits/dev/status/${transactionId}`);
         
-        const response = await fetch(apiUrl);
-        
-        if (response.ok) {
-          const backendData = await response.json();
-          console.log('✅ [PIX] Resposta do backend:', backendData);
-          
-          if (backendData.success && backendData.data) {
-            const transaction = backendData.data;
-            
-            // Construir dados PIX baseados na transação REAL do banco
-            const netAmount = parseFloat(transaction.amount) || 0;
-            const totalAmount = transaction.metadata?.total_amount || (netAmount + 3);
-            const feeAmount = transaction.metadata?.fee_amount || 3;
-            
-            const pixData = {
-              transactionId: transaction.id,
-              status: transaction.status === 'confirmed' ? 'paid' : 'pending',
-              amount: totalAmount, // Valor total do PIX
-              netAmount: netAmount, // Valor líquido
-              feeAmount: feeAmount, // Taxa
-              pixKey: 'contato@coinage.com.br',
-              qrCode: `00020126580014br.gov.bcb.pix2536pix-qr.mercadopago.com/instore/o/v2/${transactionId}5204000053039865802BR5925Coinage Tecnologia6009Sao Paulo62070503***6304OZ0H`,
-              createdAt: transaction.createdAt,
-              expiresAt: new Date(new Date(transaction.createdAt).getTime() + 30 * 60 * 1000).toISOString(),
-              bankData: {
-                name: 'Coinage Tecnologia Ltda',
-                cnpj: '12.345.678/0001-90',
-                bank: 'Banco Inter',
-                agency: '0001',
-                account: '1234567-8'
-              }
-            };
-            
-            console.log('✅ [PIX] Dados PIX construídos:', pixData);
-            setPayment(pixData);
-            
-          } else {
-            throw new Error('Transação não encontrada no backend');
+        const fetchResponse = await fetch(`/api/deposits/dev/status/${transactionId}`, {
+          headers: {
+            'Authorization': `Bearer ${accessToken || ''}`,
+            'Content-Type': 'application/json'
           }
+        });
+        
+        if (!fetchResponse.ok) {
+          throw new Error(`HTTP ${fetchResponse.status}: ${fetchResponse.statusText}`);
+        }
+        
+        const responseData = await fetchResponse.json();
+        console.log('✅ [PIX] Resposta do backend:', responseData);
+        
+        // Simular estrutura do axios para compatibilidade
+        const response = { data: responseData };
+        
+        if (response.data.success && response.data.data) {
+          const transaction = response.data.data;
+          
+          // Usar valores seguros com fallbacks
+          const netAmount = parseFloat(transaction.net_amount || transaction.amount || 0);
+          const totalAmount = parseFloat(transaction.amount || 0);
+          const feeAmount = parseFloat(transaction.fee || 0);
+          
+          const pixData = {
+            id: transaction.id,
+            transactionId: transaction.id,
+            status: transaction.status === 'confirmed' ? 'paid' : 'pending',
+            amount: totalAmount > 0 ? totalAmount : netAmount, // Usar totalAmount se disponível
+            netAmount: netAmount, // Valor líquido
+            feeAmount: feeAmount, // Taxa
+            pixKey: 'contato@coinage.com.br',
+            qrCode: `00020126580014br.gov.bcb.pix2536pix-qr.mercadopago.com/instore/o/v2/${transactionId}5204000053039865802BR5925Coinage Tecnologia6009Sao Paulo62070503***6304OZ0H`,
+            createdAt: transaction.createdAt || new Date().toISOString(),
+            expiresAt: transaction.createdAt ? 
+              new Date(new Date(transaction.createdAt).getTime() + 30 * 60 * 1000).toISOString() :
+              new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+            bankData: {
+              name: 'Coinage Tecnologia Ltda',
+              cnpj: '12.345.678/0001-90',
+              bank: 'Banco Inter',
+              agency: '0001',
+              account: '1234567-8'
+            },
+            // Adicionar flag de erro se valores estão zerados
+            error: totalAmount === 0 && netAmount === 0 ? 'Valores da transação não encontrados' : null
+          };
+          
+          console.log('✅ [PIX] Dados PIX construídos:', pixData);
+          setPayment(pixData);
+          
+          // Atualizar status local baseado no status da transação
+          if (transaction.status === 'confirmed') {
+            setStatus('paid');
+          } else if (transaction.status === 'failed') {
+            setStatus('expired');
+          } else {
+            setStatus('pending');
+          }
+          
         } else {
-          throw new Error(`Erro na API: ${response.status} - Transação não encontrada`);
+          throw new Error(response.data.message || 'Transação não encontrada no backend');
         }
         
       } catch (error) {
         console.error('❌ [PIX] Erro ao buscar dados da transação:', error);
-        setError(`Erro ao carregar transação ${transactionId}: ${error.message}`);
+        const errorMessage = error.message || 'Erro desconhecido';
+        setError(`Erro ao carregar transação ${transactionId}: ${errorMessage}`);
       } finally {
         setLoading(false);
       }
@@ -349,7 +385,7 @@ const PixPaymentPage = () => {
                 <div className="text-center">
                   <Button
                     onClick={forcePayment}
-                    disabled={monitorLoading || payment.amount === 0 || payment.error}
+                    disabled={monitorLoading || (payment.amount || 0) === 0 || payment.error}
                     className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 text-sm disabled:bg-gray-400"
                   >
                     {monitorLoading ? (
@@ -433,9 +469,9 @@ const PixPaymentPage = () => {
                   <span className="text-gray-600 dark:text-gray-400 font-medium">
                     Valor:
                   </span>
-                  <span className={`text-2xl font-bold ${payment.amount === 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-white'}`}>
-                    R$ {payment.amount?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                    {payment.amount === 0 && <span className="text-sm ml-2">(ERRO)</span>}
+                  <span className={`text-2xl font-bold ${(payment.amount || 0) === 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-white'}`}>
+                    R$ {(payment.amount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    {(payment.amount || 0) === 0 && <span className="text-sm ml-2">(ERRO)</span>}
                   </span>
                 </div>
 
@@ -445,7 +481,7 @@ const PixPaymentPage = () => {
                     ID do Pagamento:
                   </span>
                   <span className="font-mono text-sm text-gray-900 dark:text-white">
-                    #{payment.id}
+                    #{payment.id || 'N/A'}
                   </span>
                 </div>
 
@@ -455,12 +491,12 @@ const PixPaymentPage = () => {
                     Criado em:
                   </span>
                   <span className="text-gray-900 dark:text-white">
-                    {new Date(payment.createdAt).toLocaleString('pt-BR')}
+                    {payment.createdAt ? new Date(payment.createdAt).toLocaleString('pt-BR') : 'N/A'}
                   </span>
                 </div>
 
                 {/* Expira em */}
-                {isPending && (
+                {isPending && payment.expiresAt && (
                   <div className="flex justify-between items-center">
                     <span className="text-gray-600 dark:text-gray-400 font-medium">
                       Expira em:
@@ -522,7 +558,7 @@ const PixPaymentPage = () => {
           </Card>
 
           {/* QR Code */}
-          {isPending && payment.amount > 0 && !payment.error && (
+          {isPending && (payment.amount || 0) > 0 && !payment.error && (
             <Card className="mb-6">
               <div className="p-6 text-center">
                 <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
