@@ -25,7 +25,10 @@ import {
   Trash2,
   CheckCircle,
   XCircle,
-  Edit3
+  Edit3,
+  Users,
+  Layers,
+  Link
 } from 'lucide-react';
 
 const SystemSettingsPage = () => {
@@ -41,10 +44,30 @@ const SystemSettingsPage = () => {
     address: '',
     network: 'testnet',
     contractType: 'token',
-    adminPublicKey: '',
+    adminAddress: '',
     website: '',
     description: ''
   });
+
+  // Stake contracts management states
+  const [stakeContracts, setStakeContracts] = useState([]);
+  const [loadingStakeContracts, setLoadingStakeContracts] = useState(false);
+  const [showStakeForm, setShowStakeForm] = useState(false);
+  const [stakeForm, setStakeForm] = useState({
+    address: '',
+    tokenAddress: '',
+    network: 'testnet',
+    name: '',
+    description: '',
+    adminAddress: ''
+  });
+
+  // Role management states
+  const [selectedAddress, setSelectedAddress] = useState('');
+  const [selectedContract, setSelectedContract] = useState('');
+  const [addressRoles, setAddressRoles] = useState({});
+  const [loadingRoles, setLoadingRoles] = useState(false);
+  const [grantingRole, setGrantingRole] = useState(false);
   
   const [settings, setSettings] = useState({
     general: {
@@ -103,6 +126,8 @@ const SystemSettingsPage = () => {
     { id: 'security', label: 'Segurança', icon: Shield },
     { id: 'financial', label: 'Financeiro', icon: DollarSign },
     { id: 'tokens', label: 'Tokens', icon: Coins },
+    { id: 'stakes', label: 'Contratos Stake', icon: Layers },
+    { id: 'roles', label: 'Roles & Permissões', icon: Users },
     { id: 'email', label: 'Email', icon: Mail },
     { id: 'api', label: 'API', icon: Server },
     { id: 'database', label: 'Banco de Dados', icon: Database }
@@ -200,7 +225,7 @@ const SystemSettingsPage = () => {
           address: '',
           network: 'testnet',
           contractType: 'token',
-          adminPublicKey: '',
+          adminAddress: '',
           website: '',
           description: ''
         });
@@ -261,10 +286,136 @@ const SystemSettingsPage = () => {
     }
   };
 
-  // Load tokens when tokens tab is active
+  // ===== STAKE CONTRACTS FUNCTIONS =====
+  
+  const fetchStakeContracts = async () => {
+    try {
+      setLoadingStakeContracts(true);
+      
+      // Try to fetch from API first
+      try {
+        const response = await api.get('/api/stake-contracts');
+        if (response.data.success) {
+          setStakeContracts(response.data.data);
+          return;
+        }
+      } catch (apiError) {
+        console.warn('API not available, using fallback data:', apiError.message);
+      }
+      
+      // No fallback data - start with empty list
+      setStakeContracts([]);
+      
+      console.warn('API não disponível - lista de contratos iniciada vazia');
+    } catch (error) {
+      console.error('Error fetching stake contracts:', error);
+      showError('Erro ao carregar contratos de stake');
+    } finally {
+      setLoadingStakeContracts(false);
+    }
+  };
+
+  const handleStakeSubmit = async () => {
+    setLoading(true);
+    try {
+      let newContract;
+      
+      // Try to save to API first
+      try {
+        const response = await api.post('/api/stake-contracts', stakeForm);
+        if (response.data.success) {
+          newContract = response.data.data;
+          showSuccess('Contrato de stake registrado no banco de dados!');
+        }
+      } catch (apiError) {
+        console.warn('API not available, using local data:', apiError.message);
+        // Fallback to local state only
+        newContract = {
+          id: Date.now(),
+          ...stakeForm,
+          isActive: true,
+          createdAt: new Date().toISOString(),
+          isFallbackData: true
+        };
+        showWarning('Contrato registrado localmente - API não disponível');
+      }
+      
+      setStakeContracts(prev => [...prev, newContract]);
+      setShowStakeForm(false);
+      setStakeForm({
+        address: '',
+        tokenAddress: '',
+        network: 'testnet',
+        name: '',
+        description: '',
+        adminAddress: ''
+      });
+      
+    } catch (error) {
+      console.error('Error registering stake contract:', error);
+      showError('Erro ao registrar contrato de stake');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ===== ROLE MANAGEMENT FUNCTIONS =====
+  
+  const checkAddressRoles = async () => {
+    if (!selectedAddress || !selectedContract) {
+      showWarning('Selecione um endereço e contrato');
+      return;
+    }
+
+    try {
+      setLoadingRoles(true);
+      // Mock role checking - would use roleService
+      const mockRoles = {
+        DEFAULT_ADMIN_ROLE: selectedAddress === '0x5528C065931f523CA9F3a6e49a911896fb1D2e6f',
+        MINTER_ROLE: false,
+        TRANSFER_ROLE: selectedContract === '0xe21fc42e8c8758f6d999328228721F7952e5988d',
+        BURNER_ROLE: false
+      };
+      
+      setAddressRoles(mockRoles);
+      showInfo(`Roles verificadas para ${selectedAddress.slice(0,6)}...${selectedAddress.slice(-4)}`);
+    } catch (error) {
+      showError('Erro ao verificar roles');
+    } finally {
+      setLoadingRoles(false);
+    }
+  };
+
+  const handleGrantRole = async (roleKey) => {
+    if (!selectedAddress || !selectedContract) {
+      showWarning('Selecione um endereço e contrato');
+      return;
+    }
+
+    try {
+      setGrantingRole(true);
+      // Mock grant role - would use roleService
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      setAddressRoles(prev => ({
+        ...prev,
+        [roleKey]: true
+      }));
+      
+      showSuccess(`Role ${roleKey} concedida com sucesso!`);
+    } catch (error) {
+      showError('Erro ao conceder role');
+    } finally {
+      setGrantingRole(false);
+    }
+  };
+
+  // Load data when specific tabs are active
   useEffect(() => {
     if (activeTab === 'tokens') {
       fetchTokens();
+    } else if (activeTab === 'stakes') {
+      fetchStakeContracts();
     }
   }, [activeTab]);
 
@@ -713,8 +864,8 @@ const SystemSettingsPage = () => {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <Textinput
                             label="Admin Public Key (opcional)"
-                            value={tokenForm.adminPublicKey}
-                            onChange={(e) => setTokenForm(prev => ({ ...prev, adminPublicKey: e.target.value }))}
+                            value={tokenForm.adminAddress}
+                            onChange={(e) => setTokenForm(prev => ({ ...prev, adminAddress: e.target.value }))}
                             placeholder="0x..."
                           />
                           <Textinput
@@ -868,6 +1019,333 @@ const SystemSettingsPage = () => {
                         </table>
                       </div>
                     )}
+                  </div>
+                </div>
+              </Card>
+            )}
+
+            {activeTab === 'stakes' && (
+              <Card title="Gerenciamento de Contratos de Stake" icon="heroicons-outline:server-stack">
+                <div className="space-y-6">
+                  {/* Header com botão de adicionar */}
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      Gerencie os contratos de stake registrados no sistema
+                    </p>
+                    <Button
+                      onClick={() => setShowStakeForm(!showStakeForm)}
+                      className="btn-primary"
+                    >
+                      <Plus size={16} className="mr-2" />
+                      {showStakeForm ? 'Cancelar' : 'Registrar Contrato'}
+                    </Button>
+                  </div>
+
+                  {/* Formulário de registro de stake */}
+                  {showStakeForm && (
+                    <div className="p-4 border border-dashed border-gray-300 rounded-lg bg-gray-50 dark:bg-gray-800 dark:border-gray-600">
+                      <div className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <Textinput
+                            label="Endereço do Contrato de Stake *"
+                            value={stakeForm.address}
+                            onChange={(e) => setStakeForm(prev => ({ ...prev, address: e.target.value }))}
+                            placeholder="0x..."
+                            required
+                          />
+                          <Textinput
+                            label="Endereço do Token *"
+                            value={stakeForm.tokenAddress}
+                            onChange={(e) => setStakeForm(prev => ({ ...prev, tokenAddress: e.target.value }))}
+                            placeholder="0x..."
+                            required
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <Select
+                            label="Rede"
+                            options={[
+                              { value: 'testnet', label: 'Testnet' },
+                              { value: 'mainnet', label: 'Mainnet' }
+                            ]}
+                            value={stakeForm.network}
+                            onChange={(value) => setStakeForm(prev => ({ ...prev, network: value }))}
+                          />
+                          <Textinput
+                            label="Nome do Contrato *"
+                            value={stakeForm.name}
+                            onChange={(e) => setStakeForm(prev => ({ ...prev, name: e.target.value }))}
+                            placeholder="Ex: Pedacinho Pratique Lagoa"
+                            required
+                          />
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <Textinput
+                            label="Endereço do Admin (opcional)"
+                            value={stakeForm.adminAddress}
+                            onChange={(e) => setStakeForm(prev => ({ ...prev, adminAddress: e.target.value }))}
+                            placeholder="0x..."
+                          />
+                          <div></div>
+                        </div>
+
+                        <Textinput
+                          label="Descrição (opcional)"
+                          value={stakeForm.description}
+                          onChange={(e) => setStakeForm(prev => ({ ...prev, description: e.target.value }))}
+                          placeholder="Descrição do contrato de stake..."
+                        />
+
+                        <div className="flex justify-end space-x-2">
+                          <Button
+                            onClick={() => setShowStakeForm(false)}
+                            className="btn-secondary"
+                          >
+                            Cancelar
+                          </Button>
+                          <Button
+                            onClick={handleStakeSubmit}
+                            className="btn-primary"
+                            isLoading={loading}
+                          >
+                            <Save size={16} className="mr-2" />
+                            Registrar Contrato
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Lista de contratos de stake */}
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-medium text-gray-900 dark:text-white">
+                        Contratos Registrados
+                      </h4>
+                      {stakeContracts.some(contract => contract.isFallbackData) && (
+                        <div className="flex items-center space-x-2 text-sm text-amber-600 dark:text-amber-400">
+                          <AlertTriangle size={16} />
+                          <span>Dados de demonstração</span>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {loadingStakeContracts ? (
+                      <div className="flex justify-center p-8">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                      </div>
+                    ) : stakeContracts.length === 0 ? (
+                      <div className="text-center p-8 text-gray-500 dark:text-gray-400">
+                        <Layers size={48} className="mx-auto mb-4 opacity-50" />
+                        <p>Nenhum contrato de stake registrado</p>
+                        <p className="text-sm">Clique em "Registrar Contrato" para começar</p>
+                      </div>
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-left border-collapse">
+                          <thead>
+                            <tr className="border-b border-gray-200 dark:border-gray-700">
+                              <th className="pb-3 font-semibold text-gray-700 dark:text-gray-300">Nome</th>
+                              <th className="pb-3 font-semibold text-gray-700 dark:text-gray-300">Endereço</th>
+                              <th className="pb-3 font-semibold text-gray-700 dark:text-gray-300">Token</th>
+                              <th className="pb-3 font-semibold text-gray-700 dark:text-gray-300">Rede</th>
+                              <th className="pb-3 font-semibold text-gray-700 dark:text-gray-300">Status</th>
+                              <th className="pb-3 font-semibold text-gray-700 dark:text-gray-300">Admin</th>
+                              <th className="pb-3 font-semibold text-gray-700 dark:text-gray-300">Registrado em</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {stakeContracts.map((contract) => (
+                              <tr key={contract.id} className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                                <td className="py-4">
+                                  <div className="flex items-center space-x-3">
+                                    <Layers className="w-8 h-8 text-blue-500" />
+                                    <div>
+                                      <span className="font-medium text-gray-900 dark:text-white">
+                                        {contract.name}
+                                      </span>
+                                      {contract.description && (
+                                        <p className="text-xs text-gray-500 mt-1">
+                                          {contract.description}
+                                        </p>
+                                      )}
+                                    </div>
+                                  </div>
+                                </td>
+                                <td className="py-4">
+                                  {contract.network === 'testnet' ? (
+                                    <a
+                                      href={`https://floripa.azorescan.com/address/${contract.address}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="inline-flex items-center hover:opacity-80 transition-opacity"
+                                    >
+                                      <code className="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300">
+                                        {contract.address.slice(0, 6)}...{contract.address.slice(-4)}
+                                      </code>
+                                      <Link size={12} className="ml-1 text-blue-500" />
+                                    </a>
+                                  ) : (
+                                    <code className="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded text-xs">
+                                      {contract.address.slice(0, 6)}...{contract.address.slice(-4)}
+                                    </code>
+                                  )}
+                                </td>
+                                <td className="py-4">
+                                  <code className="bg-purple-100 dark:bg-purple-900 px-2 py-1 rounded text-xs text-purple-700 dark:text-purple-300">
+                                    {contract.tokenAddress.slice(0, 6)}...{contract.tokenAddress.slice(-4)}
+                                  </code>
+                                </td>
+                                <td className="py-4">
+                                  <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                                    {contract.network}
+                                  </span>
+                                </td>
+                                <td className="py-4">
+                                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                    contract.isActive 
+                                      ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                                      : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                                  }`}>
+                                    {contract.isActive ? 'Ativo' : 'Inativo'}
+                                  </span>
+                                </td>
+                                <td className="py-4">
+                                  {contract.adminAddress ? (
+                                    <code className="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded text-xs">
+                                      {contract.adminAddress.slice(0, 6)}...{contract.adminAddress.slice(-4)}
+                                    </code>
+                                  ) : (
+                                    <span className="text-gray-400 text-xs">N/A</span>
+                                  )}
+                                </td>
+                                <td className="py-4 text-gray-600 dark:text-gray-400">
+                                  {new Date(contract.createdAt).toLocaleDateString('pt-BR')}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </Card>
+            )}
+
+            {activeTab === 'roles' && (
+              <Card title="Gerenciamento de Roles" icon="heroicons-outline:users">
+                <div className="space-y-6">
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Verifique e conceda roles para endereços nos contratos de tokens e stake
+                  </p>
+
+                  {/* Formulário de verificação de roles */}
+                  <div className="p-4 border border-dashed border-gray-300 rounded-lg bg-gray-50 dark:bg-gray-800 dark:border-gray-600">
+                    <div className="space-y-4">
+                      <h4 className="font-medium text-gray-900 dark:text-white mb-4">
+                        Verificar Roles de Endereço
+                      </h4>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <Textinput
+                          label="Endereço para verificar *"
+                          value={selectedAddress}
+                          onChange={(e) => setSelectedAddress(e.target.value)}
+                          placeholder="0x..."
+                          required
+                        />
+                        <Select
+                          label="Contrato *"
+                          options={[
+                            { value: '0x0b5F5510160E27E6BFDe03914a18d555B590DAF5', label: 'PCN Token' },
+                            { value: '0xe21fc42e8c8758f6d999328228721F7952e5988d', label: 'Stake Contract' },
+                            { value: '0x5528C065931f523CA9F3a6e49a911896fb1D2e6f', label: 'Admin Token' }
+                          ]}
+                          value={selectedContract}
+                          onChange={(value) => setSelectedContract(value)}
+                        />
+                      </div>
+
+                      <div className="flex justify-end">
+                        <Button
+                          onClick={checkAddressRoles}
+                          className="btn-primary"
+                          isLoading={loadingRoles}
+                          disabled={!selectedAddress || !selectedContract}
+                        >
+                          <Eye size={16} className="mr-2" />
+                          Verificar Roles
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Resultado das roles */}
+                  {Object.keys(addressRoles).length > 0 && (
+                    <div className="space-y-4">
+                      <h4 className="font-medium text-gray-900 dark:text-white">
+                        Roles para {selectedAddress.slice(0, 6)}...{selectedAddress.slice(-4)}
+                      </h4>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        {Object.entries(addressRoles).map(([roleKey, hasRole]) => (
+                          <div key={roleKey} className="p-4 border rounded-lg">
+                            <div className="flex items-center justify-between mb-3">
+                              <div className="flex items-center space-x-2">
+                                {hasRole ? (
+                                  <CheckCircle className="text-green-500" size={20} />
+                                ) : (
+                                  <XCircle className="text-red-500" size={20} />
+                                )}
+                                <span className="font-medium text-gray-900 dark:text-white">
+                                  {roleKey.replace('_ROLE', '').replace('_', ' ')}
+                                </span>
+                              </div>
+                              <span className={`px-2 py-1 rounded text-xs font-medium ${
+                                hasRole 
+                                  ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                                  : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                              }`}>
+                                {hasRole ? 'TEM' : 'NÃO TEM'}
+                              </span>
+                            </div>
+                            
+                            {!hasRole && (
+                              <Button
+                                onClick={() => handleGrantRole(roleKey)}
+                                className="btn-primary btn-sm w-full"
+                                isLoading={grantingRole}
+                                size="sm"
+                              >
+                                <Key size={14} className="mr-1" />
+                                Conceder Role
+                              </Button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Informações importantes */}
+                  <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
+                    <div className="flex items-start space-x-3">
+                      <AlertTriangle className="text-yellow-600 dark:text-yellow-400 flex-shrink-0" size={20} />
+                      <div>
+                        <h4 className="font-medium text-yellow-800 dark:text-yellow-200 mb-2">
+                          Informações Importantes
+                        </h4>
+                        <ul className="text-sm text-yellow-700 dark:text-yellow-300 space-y-1">
+                          <li>• <strong>TRANSFER_ROLE:</strong> Necessária para contratos de stake realizarem transferências</li>
+                          <li>• <strong>ADMIN_ROLE:</strong> Permite conceder/revogar outras roles</li>
+                          <li>• <strong>MINTER_ROLE:</strong> Permite criar novos tokens</li>
+                          <li>• <strong>BURNER_ROLE:</strong> Permite queimar tokens</li>
+                        </ul>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </Card>

@@ -20,6 +20,8 @@ const testSimpleRoutes = require('./routes/test-simple.routes');
 const contractRoutes = require('./routes/contract.routes');
 const tokenRoutes = require('./routes/token.routes');
 const stakeRoutes = require('./routes/stake.routes');
+const stakeContractRoutes = require('./routes/stakeContracts.routes');
+const contractsInteractRoutes = require('./routes/contracts.routes');
 const companyRoutes = require('./routes/company.routes');
 const logRoutes = require('./routes/log.routes');
 const userRoutes = require('./routes/user.routes');
@@ -727,6 +729,12 @@ app.post('/api/deposit/mint', async (req, res) => {
 
 // Rotas de empresas (com autenticação JWT e rate limiting)
 app.use('/api/companies', authenticateJWT, apiRateLimiter, addUserInfo, logAuthenticatedRequest, companyRoutes);
+
+// Rotas de contratos de stake (com autenticação JWT)
+app.use('/api/stake-contracts', authenticateJWT, apiRateLimiter, addUserInfo, logAuthenticatedRequest, stakeContractRoutes);
+
+// Rotas de interação com contratos (com autenticação JWT)
+app.use('/api/contracts', authenticateJWT, apiRateLimiter, addUserInfo, logAuthenticatedRequest, contractsInteractRoutes);
 
 // Rotas de autenticação (públicas)
 app.use('/api/auth', loginRateLimiter, authRoutes);

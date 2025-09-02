@@ -34,7 +34,7 @@ class StakeService {
         abi = [],
         network = 'testnet',
         contractType = 'STAKE',
-        adminPublicKey,
+        adminAddress,
         metadata = {}
       } = stakeData;
 
@@ -94,7 +94,7 @@ class StakeService {
         abi: finalABI,
         network,
         contractType,
-        adminPublicKey: adminPublicKey ? adminPublicKey : null,
+        adminAddress: adminAddress ? adminAddress : null,
         metadata: {
           ...metadata,
           ...stakeInfo,
@@ -151,7 +151,7 @@ class StakeService {
           network: stake.network,
           contractType: stake.contractType,
           metadata: stake.metadata,
-          adminPublicKey: stake.adminPublicKey
+          adminAddress: stake.adminAddress
         }
       };
     } catch (error) {
@@ -322,7 +322,7 @@ class StakeService {
   /**
    * Verifica se um usuário tem a role DEFAULT_ADMIN_ROLE em um stake
    */
-  async verifyStakeAdmin(stakeAddress, adminPublicKey) {
+  async verifyStakeAdmin(stakeAddress, adminAddress) {
     try {
       // Obter stake do banco
       const stake = await this.Stake.findByAddress(stakeAddress);
@@ -347,7 +347,7 @@ class StakeService {
 
       // Verificar se o usuário tem a role DEFAULT_ADMIN_ROLE
       const DEFAULT_ADMIN_ROLE = '0x0000000000000000000000000000000000000000000000000000000000000000';
-      const hasRole = await contractInstanceForStakeAdminVerify.hasRole(DEFAULT_ADMIN_ROLE, adminPublicKey);
+      const hasRole = await contractInstanceForStakeAdminVerify.hasRole(DEFAULT_ADMIN_ROLE, adminAddress);
 
       return hasRole;
     } catch (error) {

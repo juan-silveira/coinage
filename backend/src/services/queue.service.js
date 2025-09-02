@@ -516,16 +516,16 @@ class QueueService {
         case 'contract_write':
           return await contractService.executeWriteOperation(data);
         case 'contract_grant_role':
-          const { contractAddress, role, targetAddress, adminPublicKey } = data;
-          console.log(`🔍 Processando contract_grant_role: ${contractAddress}, ${role}, ${targetAddress}, ${adminPublicKey}`);
-          const grantResult = await contractService.grantRole(contractAddress, role, targetAddress, adminPublicKey);
+          const { contractAddress, role, targetAddress, adminAddress } = data;
+          console.log(`🔍 Processando contract_grant_role: ${contractAddress}, ${role}, ${targetAddress}, ${adminAddress}`);
+          const grantResult = await contractService.grantRole(contractAddress, role, targetAddress, adminAddress);
           console.log(`✅ Resultado grantRole:`, JSON.stringify(grantResult, null, 2));
           return grantResult;
         case 'contract_has_role':
           const { contractAddress: hasRoleContract, role: hasRoleRole, targetAddress: hasRoleTarget } = data;
           return await contractService.hasRole(hasRoleContract, hasRoleRole, hasRoleTarget);
         case 'contract_revoke_role':
-          const { contractAddress: revokeContract, role: revokeRole, targetAddress: revokeTarget, adminPublicKey: revokeAdmin } = data;
+          const { contractAddress: revokeContract, role: revokeRole, targetAddress: revokeTarget, adminAddress: revokeAdmin } = data;
           console.log(`🔍 Processando contract_revoke_role: ${revokeContract}, ${revokeRole}, ${revokeTarget}, ${revokeAdmin}`);
           const revokeResult = await contractService.revokeRole(revokeContract, revokeRole, revokeTarget, revokeAdmin);
           console.log(`✅ Resultado revokeRole:`, JSON.stringify(revokeResult, null, 2));
@@ -579,7 +579,7 @@ class QueueService {
               data.stakeAddress || data.address,
               'stake',
               [data.user, data.amount, data.customTimestamp || 0],
-              null // Não precisamos do adminPublicKey, igual ao controller original
+              null // Não precisamos do adminAddress, igual ao controller original
             );
             
             console.log(`✅ Stake invest processado com sucesso: ${result.data?.transactionHash || 'sem hash'}`);
@@ -938,8 +938,8 @@ class QueueService {
    */
   async processContractGrantRole(data) {
     const contractService = require('./contract.service');
-    const { contractAddress, role, targetAddress, adminPublicKey } = data;
-    return await contractService.grantRole(contractAddress, role, targetAddress, adminPublicKey);
+    const { contractAddress, role, targetAddress, adminAddress } = data;
+    return await contractService.grantRole(contractAddress, role, targetAddress, adminAddress);
   }
 
   /**
@@ -947,8 +947,8 @@ class QueueService {
    */
   async processContractRevokeRole(data) {
     const contractService = require('./contract.service');
-    const { contractAddress, role, targetAddress, adminPublicKey } = data;
-    return await contractService.revokeRole(contractAddress, role, targetAddress, adminPublicKey);
+    const { contractAddress, role, targetAddress, adminAddress } = data;
+    return await contractService.revokeRole(contractAddress, role, targetAddress, adminAddress);
   }
 
   /**
@@ -1082,7 +1082,7 @@ class QueueService {
         data.stakeAddress || data.address,
         'unstake',
         [data.user, data.amount],
-        null // Não precisamos do adminPublicKey, igual ao controller original
+        null // Não precisamos do adminAddress, igual ao controller original
       );
 
       console.log(`✅ Stake withdraw processado com sucesso: ${result.data?.transactionHash || 'sem hash'}`);
@@ -1150,7 +1150,7 @@ class QueueService {
         data.stakeAddress || data.address,
         'claimReward',
         [data.user],
-        null // Não precisamos do adminPublicKey, igual ao controller original
+        null // Não precisamos do adminAddress, igual ao controller original
       );
 
       console.log(`✅ Stake claim rewards processado com sucesso: ${result.data?.transactionHash || 'sem hash'}`);
@@ -1217,7 +1217,7 @@ class QueueService {
         data.stakeAddress || data.address,
         'compound',
         [data.user],
-        null // Não precisamos do adminPublicKey, igual ao controller original
+        null // Não precisamos do adminAddress, igual ao controller original
       );
 
       console.log(`✅ Stake compound processado com sucesso: ${result.data?.transactionHash || 'sem hash'}`);
@@ -1284,7 +1284,7 @@ class QueueService {
         data.stakeAddress || data.address,
         'depositRewards',
         [data.amount],
-        null // Não precisamos do adminPublicKey, igual ao controller original
+        null // Não precisamos do adminAddress, igual ao controller original
       );
 
       console.log(`✅ Stake deposit rewards processado com sucesso: ${result.data?.transactionHash || 'sem hash'}`);
@@ -1351,7 +1351,7 @@ class QueueService {
         data.stakeAddress || data.address,
         'distributeReward',
         [data.percentageInBasisPoints || 10000], // Default 100% em basis points
-        null // Não precisamos do adminPublicKey, igual ao controller original
+        null // Não precisamos do adminAddress, igual ao controller original
       );
 
       console.log(`✅ Stake distribute rewards processado com sucesso: ${result.data?.transactionHash || 'sem hash'}`);

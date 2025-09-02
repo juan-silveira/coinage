@@ -35,7 +35,7 @@ const stakeController = require('../controllers/stake.controller');
  *         contractType:
  *           type: string
  *           description: Tipo do contrato (STAKE)
- *         adminPublicKey:
+ *         adminAddress:
  *           type: string
  *           pattern: '^0x[a-fA-F0-9]{40}$'
  *           description: PublicKey do usuário admin do stake
@@ -244,7 +244,7 @@ router.post('/:address/claim-rewards', stakeController.claimRewards);
  */
 router.post('/:address/compound', stakeController.compoundRewards);
 
-// ===== ROTAS QUE SOMENTE O adminPublicKey DO STAKE PODE CHAMAR =====
+// ===== ROTAS QUE SOMENTE O adminAddress DO STAKE PODE CHAMAR =====
 
 /**
  * @swagger
@@ -267,12 +267,12 @@ router.post('/:address/compound', stakeController.compoundRewards);
  *             type: object
  *             required:
  *               - amount
- *               - adminPublicKey
+ *               - adminAddress
  *             properties:
  *               amount:
  *                 type: string
  *                 description: Quantidade de tokens de recompensa
- *               adminPublicKey:
+ *               adminAddress:
  *                 type: string
  *                 pattern: '^0x[a-fA-F0-9]{40}$'
  *                 description: PublicKey do admin do stake
@@ -307,12 +307,12 @@ router.post('/:address/deposit-rewards', stakeController.depositRewards);
  *             type: object
  *             required:
  *               - percentageInBasisPoints
- *               - adminPublicKey
+ *               - adminAddress
  *             properties:
  *               percentageInBasisPoints:
  *                 type: number
  *                 description: "Percentual em pontos-base (ex: 5.40% = 540)"
- *               adminPublicKey:
+ *               adminAddress:
  *                 type: string
  *                 pattern: '^0x[a-fA-F0-9]{40}$'
  *                 description: PublicKey do admin do stake
@@ -347,12 +347,12 @@ router.post('/:address/distribute-rewards', stakeController.distributeRewards);
  *             type: object
  *             required:
  *               - amount
- *               - adminPublicKey
+ *               - adminAddress
  *             properties:
  *               amount:
  *                 type: string
  *                 description: Quantidade de tokens de recompensa
- *               adminPublicKey:
+ *               adminAddress:
  *                 type: string
  *                 pattern: '^0x[a-fA-F0-9]{40}$'
  *                 description: PublicKey do admin do stake
@@ -387,12 +387,12 @@ router.post('/:address/withdraw-reward-tokens', stakeController.withdrawRewardTo
  *             type: object
  *             required:
  *               - newDurationInDays
- *               - adminPublicKey
+ *               - adminAddress
  *             properties:
  *               newDurationInDays:
  *                 type: number
  *                 description: Nova duração do ciclo em dias
- *               adminPublicKey:
+ *               adminAddress:
  *                 type: string
  *                 pattern: '^0x[a-fA-F0-9]{40}$'
  *                 description: PublicKey do admin do stake
@@ -427,12 +427,12 @@ router.post('/:address/set-cycle-duration', stakeController.setCycleDuration);
  *             type: object
  *             required:
  *               - status
- *               - adminPublicKey
+ *               - adminAddress
  *             properties:
  *               status:
  *                 type: boolean
  *                 description: true para permitir reinvestir, false para ativar blacklist
- *               adminPublicKey:
+ *               adminAddress:
  *                 type: string
  *                 pattern: '^0x[a-fA-F0-9]{40}$'
  *                 description: PublicKey do admin do stake
@@ -467,13 +467,13 @@ router.post('/:address/set-allow-restake', stakeController.setAllowRestake);
  *             type: object
  *             required:
  *               - user
- *               - adminPublicKey
+ *               - adminAddress
  *             properties:
  *               user:
  *                 type: string
  *                 pattern: '^0x[a-fA-F0-9]{40}$'
  *                 description: Endereço do usuário
- *               adminPublicKey:
+ *               adminAddress:
  *                 type: string
  *                 pattern: '^0x[a-fA-F0-9]{40}$'
  *                 description: PublicKey do admin do stake
@@ -508,12 +508,12 @@ router.post('/:address/remove-from-blacklist', stakeController.removeFromBlackli
  *             type: object
  *             required:
  *               - blocked
- *               - adminPublicKey
+ *               - adminAddress
  *             properties:
  *               blocked:
  *                 type: boolean
  *                 description: true para bloquear novos investimentos
- *               adminPublicKey:
+ *               adminAddress:
  *                 type: string
  *                 pattern: '^0x[a-fA-F0-9]{40}$'
  *                 description: PublicKey do admin do stake
@@ -548,12 +548,12 @@ router.post('/:address/set-staking-blocked', stakeController.setStakingBlocked);
  *             type: object
  *             required:
  *               - timestamp
- *               - adminPublicKey
+ *               - adminAddress
  *             properties:
  *               timestamp:
  *                 type: number
  *                 description: Timestamp do timelock
- *               adminPublicKey:
+ *               adminAddress:
  *                 type: string
  *                 pattern: '^0x[a-fA-F0-9]{40}$'
  *                 description: PublicKey do admin do stake
@@ -588,12 +588,12 @@ router.post('/:address/set-timelock', stakeController.setTimelock);
  *             type: object
  *             required:
  *               - allow
- *               - adminPublicKey
+ *               - adminAddress
  *             properties:
  *               allow:
  *                 type: boolean
  *                 description: true para permitir retiradas parciais
- *               adminPublicKey:
+ *               adminAddress:
  *                 type: string
  *                 pattern: '^0x[a-fA-F0-9]{40}$'
  *                 description: PublicKey do admin do stake
@@ -628,12 +628,12 @@ router.post('/:address/set-allow-partial-withdrawal', stakeController.setAllowPa
  *             type: object
  *             required:
  *               - value
- *               - adminPublicKey
+ *               - adminAddress
  *             properties:
  *               value:
  *                 type: string
  *                 description: Novo valor mínimo em wei
- *               adminPublicKey:
+ *               adminAddress:
  *                 type: string
  *                 pattern: '^0x[a-fA-F0-9]{40}$'
  *                 description: PublicKey do admin do stake
@@ -668,13 +668,13 @@ router.post('/:address/update-min-value-stake', stakeController.updateMinValueSt
  *             type: object
  *             required:
  *               - user
- *               - adminPublicKey
+ *               - adminAddress
  *             properties:
  *               user:
  *                 type: string
  *                 pattern: '^0x[a-fA-F0-9]{40}$'
  *                 description: Endereço do usuário
- *               adminPublicKey:
+ *               adminAddress:
  *                 type: string
  *                 pattern: '^0x[a-fA-F0-9]{40}$'
  *                 description: PublicKey do admin do stake
@@ -709,13 +709,13 @@ router.post('/:address/add-to-whitelist', stakeController.addToWhitelist);
  *             type: object
  *             required:
  *               - user
- *               - adminPublicKey
+ *               - adminAddress
  *             properties:
  *               user:
  *                 type: string
  *                 pattern: '^0x[a-fA-F0-9]{40}$'
  *                 description: Endereço do usuário
- *               adminPublicKey:
+ *               adminAddress:
  *                 type: string
  *                 pattern: '^0x[a-fA-F0-9]{40}$'
  *                 description: PublicKey do admin do stake
@@ -750,12 +750,12 @@ router.post('/:address/remove-from-whitelist', stakeController.removeFromWhiteli
  *             type: object
  *             required:
  *               - enabled
- *               - adminPublicKey
+ *               - adminAddress
  *             properties:
  *               enabled:
  *                 type: boolean
  *                 description: true para ativar whitelist
- *               adminPublicKey:
+ *               adminAddress:
  *                 type: string
  *                 pattern: '^0x[a-fA-F0-9]{40}$'
  *                 description: PublicKey do admin do stake

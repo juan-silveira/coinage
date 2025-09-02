@@ -48,7 +48,7 @@ const contractController = require('../controllers/contract.controller');
  *           type: boolean
  *           description: Se o contrato está ativo
 
- *         adminPublicKey:
+ *         adminAddress:
  *           type: string
  *           pattern: '^0x[a-fA-F0-9]{40}$'
  *           description: PublicKey do usuário admin do token
@@ -280,7 +280,7 @@ router.post('/:address/events/query', contractController.getContractEvents);
  * /api/contracts/{address}/grant-role:
  *   post:
  *     summary: Concede uma role a um endereço
- *     description: Concede uma role específica a um endereço. Para admin role, automaticamente atualiza adminPublicKey e revoga role do admin anterior.
+ *     description: Concede uma role específica a um endereço. Para admin role, automaticamente atualiza adminAddress e revoga role do admin anterior.
  *     tags: [Token Management]
  *     security:
  *       - ApiKeyAuth: []

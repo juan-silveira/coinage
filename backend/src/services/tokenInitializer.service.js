@@ -70,7 +70,7 @@ class TokenInitializerService {
             version: tokenData.version,
             isVerified: tokenData.isVerified,
             isActive: tokenData.isActive,
-            adminPublicKey: tokenData.adminPublicKey,
+            adminAddress: tokenData.adminAddress,
             metadata: tokenData.metadata,
             deployedAt: new Date()
           });

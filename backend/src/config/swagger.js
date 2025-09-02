@@ -535,7 +535,7 @@ const options = {
               type: 'string',
               description: 'Tipo do contrato (STAKE)'
             },
-            adminPublicKey: {
+            adminAddress: {
               type: 'string',
               pattern: '^0x[a-fA-F0-9]{40}$',
               description: 'PublicKey do usuário admin do stake'
@@ -591,7 +591,7 @@ const options = {
               type: 'object',
               description: 'Metadados adicionais'
             },
-            adminPublicKey: {
+            adminAddress: {
               type: 'string',
               description: 'PublicKey do admin do stake'
             }

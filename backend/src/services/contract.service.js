@@ -3,6 +3,12 @@ const blockchainService = require('./blockchain.service');
 const transactionService = require('./transaction.service');
 const prismaConfig = require('../config/prisma');
 
+// Contract type IDs
+const CONTRACT_TYPE_IDS = {
+  TOKEN: '43667189-7fb5-45e6-a6a8-7541df3bcf1a',
+  STAKE: 'b357140e-acc3-42ba-9828-fa6f9a109be1'
+};
+
 // Função para obter o serviço de webhook
 const getWebhookService = () => {
   if (!global.webhookService) {
@@ -401,7 +407,7 @@ class ContractService {
   /**
    * Verifica se um usuário tem a role DEFAULT_ADMIN_ROLE em um token
    */
-  async verifyTokenAdmin(contractAddress, adminPublicKey) {
+  async verifyTokenAdmin(contractAddress, adminAddress) {
     try {
       // Obter contrato do banco
       const contract = await global.prisma.smartContract.findUnique({ where: { address: require('../utils/address').normalizeAddress(contractAddress) } });
@@ -426,7 +432,7 @@ class ContractService {
 
       // Verificar se o usuário tem a role DEFAULT_ADMIN_ROLE
       const DEFAULT_ADMIN_ROLE = '0x0000000000000000000000000000000000000000000000000000000000000000';
-      const hasRole = await contractInstanceForAdminCheck.hasRole(DEFAULT_ADMIN_ROLE, adminPublicKey);
+      const hasRole = await contractInstanceForAdminCheck.hasRole(DEFAULT_ADMIN_ROLE, adminAddress);
 
       return hasRole;
     } catch (error) {
@@ -482,7 +488,7 @@ class ContractService {
 
       // Atualizar o admin do contrato no banco
       await this.SmartContract.updateContract(contractAddress, {
-        adminPublicKey: newAdminPublicKey
+        adminAddress: newAdminPublicKey
       });
 
       return {
@@ -550,7 +556,7 @@ class ContractService {
 
       // Atualizar o admin do contrato no banco
       await this.SmartContract.updateContract(contractAddress, {
-        adminPublicKey: newAdminPublicKey
+        adminAddress: newAdminPublicKey
       });
 
       return {
@@ -594,7 +600,7 @@ class ContractService {
 
       // Atualizar o admin do contrato no banco
       await this.SmartContract.updateContract(contractAddress, {
-        adminPublicKey: newAdminPublicKey
+        adminAddress: newAdminPublicKey
       });
 
       return {
@@ -659,21 +665,21 @@ class ContractService {
   /**
    * Concede role de admin para um token
    */
-  async grantTokenAdminRole(address, adminPublicKey) {
+  async grantTokenAdminRole(address, adminAddress) {
     try {
       const contract = await global.prisma.smartContract.findUnique({ where: { address: require('../utils/address').normalizeAddress(address) } });
       if (!contract) {
         throw new Error('Token não encontrado');
       }
 
-      // Validar formato do adminPublicKey
-      if (!ethers.isAddress(adminPublicKey)) {
-        throw new Error('adminPublicKey deve ser um endereço válido');
+      // Validar formato do adminAddress
+      if (!ethers.isAddress(adminAddress)) {
+        throw new Error('adminAddress deve ser um endereço válido');
       }
 
-      // Atualizar adminPublicKey
+      // Atualizar adminAddress
       await this.SmartContract.update(
-        { adminPublicKey: adminPublicKey.toLowerCase() },
+        { adminAddress: adminAddress.toLowerCase() },
         { where: { address: require('../utils/address').normalizeAddress(address) } }
       );
 
@@ -682,7 +688,7 @@ class ContractService {
         message: 'Role de admin concedida com sucesso',
         data: {
           address,
-          adminPublicKey: adminPublicKey.toLowerCase(),
+          adminAddress: adminAddress.toLowerCase(),
           timestamp: new Date().toISOString()
         }
       };
@@ -953,7 +959,7 @@ class ContractService {
   }
 
   /**
-   * Atualiza adminPublicKey e revoga role do admin anterior
+   * Atualiza adminAddress e revoga role do admin anterior
    */
   async updateAdminPublicKey(contractAddress, newAdminAddress) {
     try {
@@ -963,19 +969,19 @@ class ContractService {
       }
 
       // Se já existe um admin, revogar a role dele
-      if (contract.adminPublicKey && contract.adminPublicKey !== newAdminAddress) {
+      if (contract.adminAddress && contract.adminAddress !== newAdminAddress) {
         // Verificar se o novo admin realmente tem a role de admin
         const hasRoleResult = await this.hasRole(contractAddress, 'admin', newAdminAddress);
         
         if (hasRoleResult.data.hasRole) {
           // Revogar role do admin anterior
-          await this.revokeRole(contractAddress, 'admin', contract.adminPublicKey, newAdminAddress);
+          await this.revokeRole(contractAddress, 'admin', contract.adminAddress, newAdminAddress);
         }
       }
 
-      // Atualizar adminPublicKey no banco
+      // Atualizar adminAddress no banco
       await this.SmartContract.update(
-        { adminPublicKey: require('../utils/address').toChecksumAddress(newAdminAddress) },
+        { adminAddress: require('../utils/address').toChecksumAddress(newAdminAddress) },
         { where: { address: require('../utils/address').normalizeAddress(contractAddress) } }
       );
 
@@ -989,7 +995,7 @@ class ContractService {
         }
       };
     } catch (error) {
-      throw new Error(`Erro ao atualizar adminPublicKey: ${error.message}`);
+      throw new Error(`Erro ao atualizar adminAddress: ${error.message}`);
     }
   }
 
@@ -1033,7 +1039,7 @@ class ContractService {
           network: contract.network,
           contractType: contract.contractType,
           metadata: contract.metadata,
-          adminPublicKey: contract.adminPublicKey
+          adminAddress: contract.adminAddress
         }
       };
     } catch (error) {
@@ -1054,7 +1060,7 @@ class ContractService {
         abi = [],
         network = 'testnet',
         contractType = 'ERC20',
-        adminPublicKey,
+        adminAddress,
         website,
         description,
         metadata = {}
@@ -1136,14 +1142,15 @@ class ContractService {
         name: tokenInfo.name || name || 'Token ERC-20', // Garantir que sempre tenha um nome
         address: require('../utils/address').toChecksumAddress(address),
         companyId: firstCompany.id,
+        contractTypeId: CONTRACT_TYPE_IDS.TOKEN, // Hardcoded token contract type ID
         abi: finalABI,
         network,
         metadata: {
           ...metadata,
           ...tokenInfo, // Inclui name, symbol, decimals, totalSupply da blockchain
           contractType,
-          adminPublicKey: adminPublicKey || null, // Dados do gasPayer/admin
-          gasPayer: adminPublicKey || null, // Adicionar gasPayer explicitamente 
+          adminAddress: adminAddress || null, // Dados do gasPayer/admin
+          gasPayer: adminAddress || null, // Adicionar gasPayer explicitamente 
           website: website || null, // Website se fornecido
           description: description || null, // Description se fornecido
           explorer: network === 'mainnet' ? 'https://azorescan.com' : 'https://floripa.azorescan.com'
