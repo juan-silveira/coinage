@@ -688,7 +688,7 @@ export default function ContractInteractPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
             {contracts.map(contract => {
-              console.log('Contract full data:', contract);
+              // console.log('Contract full data:', contract);
               return (
               <button
                 key={contract.id}

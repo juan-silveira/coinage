@@ -1,5 +1,5 @@
 "use client";
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Lock, 
   Unlock, 
@@ -7,86 +7,101 @@ import {
   Clock, 
   Percent,
   Award,
-  Info
+  Info,
+  Loader2
 } from 'lucide-react';
 import Image from '@/components/ui/Image';
+import stakeContractsService from '@/services/stakeContractsService';
+import { useAuth } from '@/hooks/useAuth';
+import { useAlertContext } from '@/contexts/AlertContext';
 
 const StakeTab = () => {
-  const stakeOptions = [
-    {
-      title: 'CNT - Coinage',
-      subtitle: '(Renda Digital)',
-      risk: 'Baixo',
-      riskLevel: 1,
-      currency: 'CNT',
-      receivableInteger: '2.054',
-      receivableDecimals: '324568',
-      quarterlyReturn: '14.40%',
-      stakedInteger: '938',
-      stakedDecimals: '92',
-      distributedInteger: '11.001',
-      distributedDecimals: '123456',
-      vencimento: '01/01/26',
-      disponivel: '2538',
-      aliquota: '22.5%',
-    },
-    {
-      title: 'IMB - Imobiliário',
-      subtitle: '(Renda Digital)',
-      risk: 'Baixo',
-      riskLevel: 1,
-      currency: 'IMB',
-      receivableInteger: '834',
-      receivableDecimals: '887412',
-      quarterlyReturn: '14.31%',
-      stakedInteger: '880',
-      stakedDecimals: '37',
-      distributedInteger: '9.870',
-      distributedDecimals: '543210',
-      vencimento: '01/07/26',
-      disponivel: '4838',
-      aliquota: '20%',
-    },
-    {
-      title: 'MJD - Meu Jurídico Digital',
-      subtitle: '(Renda Digital)',
-      risk: 'Baixo',
-      riskLevel: 1,
-      currency: 'MJD',
-      receivableInteger: '1.120',
-      receivableDecimals: '102030',
-      quarterlyReturn: '13.80%',
-      stakedInteger: '857',
-      stakedDecimals: '90',
-      distributedInteger: '10.500',
-      distributedDecimals: '987654',
-      vencimento: '01/01/27',
-      disponivel: '4046',
-      aliquota: '17.5%',
-    },
-  ];
+  const { user } = useAuth();
+  const { showError } = useAlertContext();
+  const [loading, setLoading] = useState(true);
+  const [publicStakeContracts, setPublicStakeContracts] = useState([]);
 
-  const getRiskBadge = (risk, level) => {
+
+  useEffect(() => {
+    loadPublicStakeContracts();
+  }, [user]);
+
+  const loadPublicStakeContracts = async (forceRefresh = false) => {
+    try {
+      setLoading(true);
+      
+      // Limpar cache se forceRefresh
+      if (forceRefresh) {
+        stakeContractsService.clearCache();
+      }
+      
+      const userAddress = user?.walletAddress || user?.blockchainAddress || user?.publicKey;
+      
+      const result = await stakeContractsService.categorizeStakeContracts(userAddress, forceRefresh);
+      
+      // Validar resultado antes de definir estado
+      if (result && Array.isArray(result.publicStakes)) {
+        setPublicStakeContracts(result.publicStakes);
+      } else {
+        console.warn('Invalid result from categorizeStakeContracts:', result);
+        setPublicStakeContracts([]);
+      }
+    } catch (error) {
+      console.error('Error loading public stake contracts:', error);
+      setPublicStakeContracts([]); // Garantir estado válido em caso de erro
+      showError('Erro ao carregar contratos de stake. Tente novamente mais tarde.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatContractToStakeOption = (contract) => {
+    // Validar dados do contrato
+    if (!contract || typeof contract !== 'object') {
+      console.warn('Invalid contract for stake option formatting:', contract);
+      return null;
+    }
+
+    return {
+      title: contract.name || 'Unknown Contract',
+      subtitle: '(Smart Contract)',
+      risk: 'Variável',
+      riskLevel: 2,
+      currency: contract.symbol || 'STAKE',
+      receivableInteger: '0',
+      receivableDecimals: '00',
+      quarterlyReturn: 'Variável',
+      stakedInteger: '0',
+      stakedDecimals: '00',
+      distributedInteger: '0',
+      distributedDecimals: '000000',
+      vencimento: 'Sem prazo',
+      disponivel: 'N/A',
+      aliquota: 'N/A',
+      type: 'contract',
+      contractAddress: contract.address || '',
+      network: contract.network || ''
+    };
+  };
+
+  // Usar apenas contratos de stake reais com validação
+  const allStakeOptions = publicStakeContracts
+    .map(formatContractToStakeOption)
+    .filter(option => option !== null); // Filtrar opções inválidas
+
+  const getRiskBadge = (risk) => {
     const colors = {
       'Baixo': 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400',
       'Médio': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400',
       'Alto': 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400',
+      'Variável': 'bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-400',
     };
     
     return (
-      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${colors[risk] || colors['Baixo']}`}>
+      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${colors[risk] || colors['Variável']}`}>
         {risk}
       </span>
     );
-  };
-
-  const getCurrencyColor = (currency) => {
-    const colors = {
-      'CNT': 'bg-blue-600',
-      'IMB': 'bg-indigo-600',
-      'MJD': 'bg-purple-600',
-    };
-    return colors[currency] || 'bg-gray-600';
   };
 
   return (
@@ -105,8 +120,16 @@ const StakeTab = () => {
       </div>
 
       {/* Stake Options Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-        {stakeOptions.map((option, index) => (
+      {loading ? (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="w-8 h-8 animate-spin text-purple-500" />
+          <span className="ml-2 text-gray-600 dark:text-gray-400">
+            Carregando opções de stake...
+          </span>
+        </div>
+      ) : allStakeOptions.length > 0 ? (
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+          {allStakeOptions.map((option, index) => (
           <div key={index} className="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden">
             <div className="p-6">
               {/* Header */}
@@ -149,7 +172,7 @@ const StakeTab = () => {
               <div className="space-y-3 mb-4">
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600 dark:text-gray-400">Risco:</span>
-                  {getRiskBadge(option.risk, option.riskLevel)}
+                  {getRiskBadge(option.risk)}
                 </div>
                 
                 <div className="flex justify-between items-center">
@@ -218,6 +241,19 @@ const StakeTab = () => {
           </div>
         ))}
       </div>
+      ) : (
+        <div className="text-center py-12">
+          <div className="flex flex-col items-center">
+            <Award className="h-16 w-16 text-gray-400 mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+              Nenhum contrato de stake disponível
+            </h3>
+            <p className="text-gray-500 dark:text-gray-400">
+              Não há contratos de stake público disponíveis no momento
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Info Section */}
       <div className="bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 rounded-lg p-6">
