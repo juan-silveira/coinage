@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import Icon from "@/components/ui/Icon";
 import useConfig from "@/hooks/useConfig";
+import { BalanceDisplay } from "@/utils/balanceUtils";
 
 // Hook personalizado para detectar tamanho da tela
 const useScreenSize = () => {
@@ -43,16 +44,14 @@ const BalancesTable = ({ balances, loading = false }) => {
     return tokenNames[symbol] || `${symbol} Token`;
   };
 
-  // Função para formatar o saldo com truncamento para valores muito longos
-  const formatBalance = (balance) => {
+  // Função para formatar o saldo com truncamento para valores muito longos (mantendo para compatibilidade com mobile)
+  const formatBalanceForMobile = (balance) => {
     if (balance === '0' || balance === 0 || !balance) {
-      return '0.000000';
+      return '0';
     }
     
-    const formatted = parseFloat(balance).toFixed(6);
-    
     // Aplicar truncamento apenas em telas menores que 768px
-    if (isMobile && formatted.length > 12) {
+    if (isMobile) {
       const num = parseFloat(balance);
       if (num >= 1000000) {
         return (num / 1000000).toFixed(2) + 'M';
@@ -63,7 +62,7 @@ const BalancesTable = ({ balances, loading = false }) => {
       }
     }
     
-    return formatted;
+    return balance; // Retorna o valor original para desktop usar BalanceDisplay
   };
 
   // Função para obter o símbolo correto do AZE baseado na rede
@@ -76,7 +75,7 @@ const BalancesTable = ({ balances, loading = false }) => {
   // Função para obter saldo específico (mesma lógica do useCacheData)
   const getBalanceForSymbol = (symbol, balancesData) => {
     if (!balancesData) {
-      return '0.000000';
+      return '0';
     }
 
     // Se o símbolo é AZE, usar o símbolo correto baseado na rede
@@ -87,7 +86,7 @@ const BalancesTable = ({ balances, loading = false }) => {
 
     // Tentar obter da balancesTable primeiro
     if (balancesData.balancesTable && balancesData.balancesTable[symbol]) {
-      return formatBalance(balancesData.balancesTable[symbol]);
+      return balancesData.balancesTable[symbol];
     }
 
     // Se não encontrou na balancesTable, tentar na tokenBalances
@@ -96,24 +95,24 @@ const BalancesTable = ({ balances, loading = false }) => {
         t.tokenSymbol === symbol || t.tokenName === symbol
       );
       if (token) {
-        return formatBalance(token.balanceEth || token.balance);
+        return token.balanceEth || token.balance;
       }
     }
 
     // Se é AZE/AZE-t e temos azeBalance
     if ((symbol === 'AZE' || symbol === 'AZE-t') && balancesData.azeBalance) {
-      return formatBalance(balancesData.azeBalance.balanceEth);
+      return balancesData.azeBalance.balanceEth;
     }
 
     // Se é AZE/AZE-t, tentar buscar em qualquer lugar que possa ter o valor
     if (symbol === 'AZE' || symbol === 'AZE-t') {
       // Tentar AZE primeiro
       if (balancesData.balancesTable && balancesData.balancesTable.AZE) {
-        return formatBalance(balancesData.balancesTable.AZE);
+        return balancesData.balancesTable.AZE;
       }
       // Tentar AZE-t
       if (balancesData.balancesTable && balancesData.balancesTable['AZE-t']) {
-        return formatBalance(balancesData.balancesTable['AZE-t']);
+        return balancesData.balancesTable['AZE-t'];
       }
       // Tentar na tokenBalances com qualquer variação
       if (balancesData.tokenBalances && Array.isArray(balancesData.tokenBalances)) {
@@ -122,12 +121,12 @@ const BalancesTable = ({ balances, loading = false }) => {
           t.tokenName === 'AZE' || t.tokenName === 'AZE-t'
         );
         if (azeToken) {
-          return formatBalance(azeToken.balanceEth || azeToken.balance);
+          return azeToken.balanceEth || azeToken.balance;
         }
       }
     }
 
-    return '0.000000';
+    return '0';
   };
 
   // Processar dados dos balances
@@ -165,11 +164,11 @@ const BalancesTable = ({ balances, loading = false }) => {
     if (!allTokens.has(correctAzeSymbol)) {
       // Usar a lógica de busca para obter o valor correto
       const azeBalance = getBalanceForSymbol('AZE', balances);
-      tokenEntries.push([correctAzeSymbol, parseFloat(azeBalance)]);
+      tokenEntries.push([correctAzeSymbol, azeBalance]);
     }
     if (!allTokens.has('cBRL')) {
       const cbrlBalance = getBalanceForSymbol('cBRL', balances);
-      tokenEntries.push(['cBRL', parseFloat(cbrlBalance)]);
+      tokenEntries.push(['cBRL', cbrlBalance]);
     }
   }
 
@@ -252,9 +251,15 @@ const BalancesTable = ({ balances, loading = false }) => {
                   </span>
                 </td>
                 <td className="w-24 md:w-32 text-slate-900 dark:text-slate-300 text-sm font-normal ltr:text-left ltr:last:text-right rtl:text-right rtl:last:text-left px-3 md:px-6 py-4">
-                  <span className="font-bold text-xs md:text-sm" title={formatBalance(balance)}>
-                    {formatBalance(balance)}
-                  </span>
+                  {isMobile ? (
+                    <span className="font-bold text-xs balance" title={balance}>
+                      {formatBalanceForMobile(balance)}
+                    </span>
+                  ) : (
+                    <span className="font-bold text-xs md:text-sm">
+                      <BalanceDisplay value={balance} showSymbol={false} />
+                    </span>
+                  )}
                 </td>
               </tr>
             ))}

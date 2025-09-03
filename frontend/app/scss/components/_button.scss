@@ -95,7 +95,7 @@
 }
 
 .btn-outline-danger {
-  @apply bg-transparent text-danger-500 border border-danger-500 hover:border-danger-500  hover:bg-danger-500 hover:bg-opacity-5;
+  @apply bg-transparent text-danger-500 border border-danger-500 hover:border-danger-500  hover:bg-danger-500 hover:text-white;
   &.active {
     @apply bg-danger-500 text-white;
   }

@@ -5,6 +5,7 @@ import Icon from "@/components/ui/Icon";
 import Tooltip from "@/components/ui/Tooltip";
 import { formatCurrency } from "@/constants/tokenPrices";
 import useEarnings from "@/hooks/useEarnings";
+import { BalanceDisplay } from "@/utils/balanceUtils";
 
 const Earnings = ({ earningsData }) => {
   // Hook local para gerenciar paginação
@@ -163,7 +164,7 @@ const Earnings = ({ earningsData }) => {
                     
                     {/* Quantidade */}
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-slate-900 dark:text-white">
-                      {parseFloat(earning.amount).toFixed(6)}
+                      <BalanceDisplay value={earning.amount} showSymbol={false} />
                     </td>
                     
                     {/* Valor em BRL com tooltip */}

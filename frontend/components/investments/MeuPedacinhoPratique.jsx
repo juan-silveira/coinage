@@ -14,23 +14,20 @@ import stakeContractsService from '@/services/stakeContractsService';
 import { useAuth } from '@/hooks/useAuth';
 import { useAlertContext } from '@/contexts/AlertContext';
 import api from '@/services/api';
-import useCachedBalances from '@/hooks/useCachedBalances';
 import Card from '@/components/ui/Card';
+import { BalanceDisplay, weiToDecimal } from '@/utils/balanceUtils';
 
 // Import modals
 import ClaimRewardsModal from './modals/ClaimRewardsModal';
 import CompoundRewardsModal from './modals/CompoundRewardsModal';
+import StakeModal from './modals/StakeModal';
+import UnstakeModal from './modals/UnstakeModal';
 
 const MeuPedacinhoPratique = () => {
   const { user } = useAuth();
   const { showError } = useAlertContext();
   const router = useRouter();
   
-  // Hook para obter saldos
-  const {
-    getBalance,
-    loading: balancesLoading,
-  } = useCachedBalances();
   
   const [expandedCards, setExpandedCards] = useState({});
   const [loading, setLoading] = useState(true);
@@ -44,12 +41,25 @@ const MeuPedacinhoPratique = () => {
   // Modal states
   const [claimModalOpen, setClaimModalOpen] = useState(false);
   const [compoundModalOpen, setCompoundModalOpen] = useState(false);
+  const [stakeModalOpen, setStakeModalOpen] = useState(false);
+  const [unstakeModalOpen, setUnstakeModalOpen] = useState(false);
   const [selectedContract, setSelectedContract] = useState(null);
+  
+  // Estado para saldo PCN carregado diretamente da blockchain (como no StakeModal)
+  const [pcnBalance, setPcnBalance] = useState('0');
+  const [loadingPcnBalance, setLoadingPcnBalance] = useState(false);
 
   // Load contracts que contenham "Pedacinho Pratique" no nome
   useEffect(() => {
     loadPratiqueContracts();
   }, [user]);
+  
+  // Carregar saldo PCN após os contratos serem carregados
+  useEffect(() => {
+    if (pratiqueContracts.length > 0) {
+      loadPcnBalanceFromBlockchain();
+    }
+  }, [pratiqueContracts]);
   
   // Load rewards and stake data for each contract
   useEffect(() => {
@@ -300,11 +310,13 @@ const MeuPedacinhoPratique = () => {
   };
   
   const handleStakeClick = (contract) => {
-    router.push(`/stake/investir?contract=${contract.address}&network=${contract.network}`);
+    setSelectedContract(contract);
+    setStakeModalOpen(true);
   };
   
   const handleUnstakeClick = (contract) => {
-    router.push(`/stake/retirar?contract=${contract.address}&network=${contract.network}`);
+    setSelectedContract(contract);
+    setUnstakeModalOpen(true);
   };
   
   const handleBuyClick = () => {
@@ -334,16 +346,55 @@ const MeuPedacinhoPratique = () => {
   // Expor a função para ser chamada externamente
   window.refreshMeuPedacinhoPratique = refreshContractsData;
   
-  const formatRewards = (rewards) => {
-    const rewardsNum = parseFloat(rewards || '0');
-    if (rewardsNum === 0) return '0,000000';
+  // Função para carregar saldo PCN diretamente da blockchain (igual ao StakeModal)
+  const loadPcnBalanceFromBlockchain = async () => {
+    const userAddress = user?.walletAddress || user?.blockchainAddress || user?.publicKey;
+    if (!userAddress) {
+      setPcnBalance('0');
+      return;
+    }
     
-    const parts = rewardsNum.toString().split('.');
-    const integerPart = parts[0];
-    const decimalPart = parts[1] || '000000';
-    const formattedIntegerPart = Number(integerPart).toLocaleString('pt-BR');
-    return `${formattedIntegerPart},${decimalPart.padEnd(6, '0').slice(0, 6)}`;
+    try {
+      setLoadingPcnBalance(true);
+      
+      // Endereço do token PCN - assumindo que é o mesmo dos contratos
+      // Vou usar um dos contratos Pratique para pegar o tokenAddress
+      if (pratiqueContracts.length === 0) {
+        setPcnBalance('0');
+        return;
+      }
+      
+      const contract = pratiqueContracts[0]; // Usar o primeiro contrato como referência
+      const tokenAddress = contract.tokenAddress || contract.stakeToken;
+      
+      if (!tokenAddress || tokenAddress === '0x0000000000000000000000000000000000000000') {
+        setPcnBalance('0');
+        return;
+      }
+
+      const response = await api.post('/api/contracts/read', {
+        contractAddress: tokenAddress,
+        functionName: 'balanceOf',
+        params: [userAddress],
+        network: contract.network || 'testnet'
+      });
+
+      if (response.data.success && response.data.data?.result) {
+        const balanceInWei = response.data.data.result;
+        // Converter de wei para decimal sem perda de precisão
+        const balanceInEther = weiToDecimal(balanceInWei, 18);
+        setPcnBalance(balanceInEther);
+      } else {
+        setPcnBalance('0');
+      }
+    } catch (error) {
+      console.error('Error loading PCN balance:', error);
+      setPcnBalance('0');
+    } finally {
+      setLoadingPcnBalance(false);
+    }
   };
+  
   
   const getRiskBadge = (riskLevel) => {
     const riskConfig = {
@@ -421,20 +472,11 @@ const MeuPedacinhoPratique = () => {
                 Saldo PCN
               </div>
               <div className="balance font-bold">
-                {balancesLoading ? (
+                {loadingPcnBalance ? (
                   <div className="h-4 w-20 bg-gradient-to-r from-slate-200 to-slate-300 dark:from-slate-600 dark:to-slate-500 rounded animate-pulse"></div>
                 ) : (
                   <>
-                    {(() => {
-                      const pcnBalance = getBalance('PCN');
-                      const parts = pcnBalance.split('.');
-                      const integerPart = parts[0];
-                      const decimalPart = parts[1] || '';
-                      const formattedIntegerPart = Number(integerPart).toLocaleString('pt-BR');
-                      return decimalPart
-                        ? `${formattedIntegerPart},${decimalPart}`
-                        : formattedIntegerPart;
-                    })()}
+                    <BalanceDisplay value={pcnBalance} showSymbol={false} />
                   </>
                 )}
               </div>
@@ -494,17 +536,9 @@ const MeuPedacinhoPratique = () => {
                     ) : (
                       <>
                         <div className="flex items-baseline justify-center">
-                          {(() => {
-                            const rewards = contractRewards[contract.address] || '0';
-                            const parts = formatRewards(rewards).split(',');
-                            return (
-                              <>
-                                <span className="text-2xl font-bold text-gray-900 dark:text-white">{parts[0]}</span>
-                                <span className="text-lg">,</span>
-                                <span className="text-sm text-gray-600 dark:text-gray-400">{parts[1]}</span>
-                              </>
-                            );
-                          })()}
+                          <span className="text-2xl font-bold text-gray-900 dark:text-white">
+                            <BalanceDisplay value={contractRewards[contract.address] || '0'} showSymbol={false} />
+                          </span>
                         </div>
                         <div className="text-xs text-gray-600 dark:text-gray-400 uppercase mt-1">
                           {tokenInfo[contract.address]?.symbol || 'PCN'} à receber
@@ -592,16 +626,9 @@ const MeuPedacinhoPratique = () => {
                         <div className="h-4 w-16 bg-gray-300 dark:bg-gray-600 rounded animate-pulse"></div>
                       ) : (
                         <div className="flex items-baseline">
-                          {(() => {
-                            const parts = formatRewards(stakeData.userStake).split(',');
-                            return (
-                              <>
-                                <span className="text-lg font-bold">{parts[0]}</span>
-                                <span className="text-sm">,</span>
-                                <span className="text-xs text-gray-600 dark:text-gray-400">{parts[1]}</span>
-                              </>
-                            );
-                          })()}
+                          <span className="text-lg font-bold">
+                            <BalanceDisplay value={stakeData.userStake || '0'} showSymbol={false} />
+                          </span>
                         </div>
                       )}
                     </span>
@@ -631,16 +658,9 @@ const MeuPedacinhoPratique = () => {
                             <div className="h-4 w-20 bg-gray-300 dark:bg-gray-600 rounded animate-pulse"></div>
                           ) : (
                             <div className="flex items-baseline">
-                              {(() => {
-                                const parts = formatRewards(stakeData.totalStaked).split(',');
-                                return (
-                                  <>
-                                    <span className="text-lg font-bold">{parts[0]}</span>
-                                    <span className="text-sm">,</span>
-                                    <span className="text-xs text-gray-600 dark:text-gray-400">{parts[1]}</span>
-                                  </>
-                                );
-                              })()}
+                              <span className="text-lg font-bold">
+                                <BalanceDisplay value={stakeData.totalStaked || '0'} showSymbol={false} />
+                              </span>
                             </div>
                           )}
                         </span>
@@ -701,6 +721,7 @@ const MeuPedacinhoPratique = () => {
             contract={selectedContract}
             userAddress={user?.walletAddress || user?.blockchainAddress || user?.publicKey}
             rewardsAmount={contractRewards[selectedContract.address] || '0'}
+            tokenSymbol={tokenInfo[selectedContract.address]?.symbol || 'TOKEN'}
             onSuccess={handleModalSuccess}
           />
           
@@ -710,6 +731,26 @@ const MeuPedacinhoPratique = () => {
             contract={selectedContract}
             userAddress={user?.walletAddress || user?.blockchainAddress || user?.publicKey}
             rewardsAmount={contractRewards[selectedContract.address] || '0'}
+            tokenSymbol={tokenInfo[selectedContract.address]?.symbol || 'TOKEN'}
+            onSuccess={handleModalSuccess}
+          />
+          
+          <StakeModal
+            isOpen={stakeModalOpen}
+            onClose={() => setStakeModalOpen(false)}
+            contract={selectedContract}
+            userAddress={user?.walletAddress || user?.blockchainAddress || user?.publicKey}
+            tokenSymbol={tokenInfo[selectedContract.address]?.symbol || 'TOKEN'}
+            onSuccess={handleModalSuccess}
+          />
+          
+          <UnstakeModal
+            isOpen={unstakeModalOpen}
+            onClose={() => setUnstakeModalOpen(false)}
+            contract={selectedContract}
+            userAddress={user?.walletAddress || user?.blockchainAddress || user?.publicKey}
+            userStake={contractStakeData[selectedContract.address]?.userStake || '0'}
+            tokenSymbol={tokenInfo[selectedContract.address]?.symbol || 'TOKEN'}
             onSuccess={handleModalSuccess}
           />
           
