@@ -94,7 +94,8 @@ router.get('/', async (req, res) => {
       description: contract.metadata?.description || null,
       adminAddress: contract.metadata?.adminAddress || null,
       isActive: contract.isActive,
-      createdAt: contract.createdAt.toISOString()
+      createdAt: contract.createdAt.toISOString(),
+      metadata: contract.metadata // Incluir o metadata completo
     }));
 
     res.json({
@@ -119,13 +120,21 @@ router.get('/', async (req, res) => {
 router.post('/', async (req, res) => {
   try {
     const prisma = getPrisma();
-    const { address, tokenAddress, network, name, description, adminAddress } = req.body;
+    const { address, tokenAddress, network, name, description, adminAddress, risk } = req.body;
 
     // Validações básicas
     if (!address || !tokenAddress || !network || !name) {
       return res.status(400).json({
         success: false,
         message: 'Campos obrigatórios: address, tokenAddress, network, name'
+      });
+    }
+
+    // Validar risco (0-4)
+    if (risk !== undefined && risk !== null && (risk < 0 || risk > 4 || !Number.isInteger(risk))) {
+      return res.status(400).json({
+        success: false,
+        message: 'Risco deve ser um número inteiro entre 0 e 4 (0=Muito Baixo, 1=Baixo, 2=Médio, 3=Alto, 4=Muito Alto)'
       });
     }
 
@@ -218,6 +227,9 @@ router.post('/', async (req, res) => {
           description,
           adminAddress,
           contractType: 'stake',
+          risk: risk || 1, // Default: Baixo
+          lastDistribution: null,
+          nextDistribution: null,
           registeredBy: 'system',
           registrationSource: 'admin_panel'
         },
@@ -407,6 +419,117 @@ router.delete('/:id', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Erro ao remover contrato',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
+  }
+});
+
+/**
+ * PATCH /api/stake-contracts/:address/distribution
+ * Atualiza dados de distribuição após chamada de distributeReward
+ */
+router.patch('/:address/distribution', async (req, res) => {
+  try {
+    const prisma = getPrisma();
+    const { address } = req.params;
+    const { percentage, network } = req.body;
+    
+
+    if (!percentage || percentage < 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Percentage é obrigatório e deve ser maior que 0'
+      });
+    }
+
+    // Buscar cycleDurationInDays do contrato
+    let cycleDurationInDays = 90; // Default fallback
+    
+    try {
+      // Buscar informações do contrato no banco para obter a network
+      const contract = await prisma.smartContract.findUnique({
+        where: { address },
+        select: { network: true }
+      });
+      
+      const contractNetwork = network || contract?.network || 'testnet';
+      
+      // Fazer chamada para buscar cycleDurationInDays do contrato
+      const axios = require('axios');
+      const cycleResponse = await axios.post(`${process.env.API_BASE_URL || 'http://localhost:8800'}/api/contracts/read`, {
+        contractAddress: address,
+        functionName: 'cycleDurationInDays',
+        params: [],
+        network: contractNetwork
+      });
+      
+      if (cycleResponse.data.success && cycleResponse.data.data?.result) {
+        cycleDurationInDays = parseInt(cycleResponse.data.data.result);
+      }
+    } catch (cycleError) {
+      // Use default 90 days on error
+    }
+
+    // Calcular próxima distribuição usando cycleDurationInDays
+    const nextDistribution = new Date();
+    nextDistribution.setDate(nextDistribution.getDate() + cycleDurationInDays);
+
+    // Verificar se o contrato existe primeiro
+    const existingContract = await prisma.smartContract.findUnique({
+      where: { address },
+      select: { id: true, metadata: true }
+    });
+    
+    if (!existingContract) {
+      return res.status(404).json({
+        success: false,
+        message: 'Contrato não encontrado'
+      });
+    }
+
+    // Converter percentage para formato de exibição (540 -> 5.40%)
+    const displayPercentage = (percentage / 100).toFixed(2);
+    
+    const newMetadata = {
+      ...existingContract.metadata,
+      lastDistribution: `${displayPercentage}%`,
+      nextDistribution: nextDistribution.toISOString(),
+      lastDistributionDate: new Date().toISOString(),
+      cycleDurationInDays: cycleDurationInDays
+    };
+
+    const updatedContract = await prisma.smartContract.update({
+      where: { address },
+      data: {
+        metadata: newMetadata,
+        updatedAt: new Date()
+      }
+    });
+
+    res.json({
+      success: true,
+      data: {
+        address,
+        lastDistribution: `${displayPercentage}%`,
+        nextDistribution: nextDistribution.toISOString(),
+        cycleDurationInDays: cycleDurationInDays,
+        message: 'Dados de distribuição atualizados com sucesso'
+      }
+    });
+
+  } catch (error) {
+    console.error('Error updating distribution data:', error);
+    
+    if (error.code === 'P2025') {
+      return res.status(404).json({
+        success: false,
+        message: 'Contrato não encontrado'
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: 'Erro ao atualizar dados de distribuição',
       error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
     });
   }

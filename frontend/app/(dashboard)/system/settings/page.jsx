@@ -59,7 +59,8 @@ const SystemSettingsPage = () => {
     network: 'testnet',
     name: '',
     description: '',
-    adminAddress: ''
+    adminAddress: '',
+    risk: 1 // Padrão: Baixo (0=Muito Baixo, 1=Baixo, 2=Médio, 3=Alto, 4=Muito Alto)
   });
 
   // Role management states
@@ -1088,7 +1089,18 @@ const SystemSettingsPage = () => {
                             onChange={(e) => setStakeForm(prev => ({ ...prev, adminAddress: e.target.value }))}
                             placeholder="0x..."
                           />
-                          <div></div>
+                          <Select
+                            label="Nível de Risco *"
+                            options={[
+                              { value: '0', label: 'Muito Baixo' },
+                              { value: '1', label: 'Baixo' },
+                              { value: '2', label: 'Médio' },
+                              { value: '3', label: 'Alto' },
+                              { value: '4', label: 'Muito Alto' }
+                            ]}
+                            value={stakeForm.risk.toString()}
+                            onChange={(e) => setStakeForm(prev => ({ ...prev, risk: parseInt(e.target.value) }))}
+                          />
                         </div>
 
                         <Textinput

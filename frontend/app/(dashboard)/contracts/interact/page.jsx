@@ -368,7 +368,11 @@ export default function ContractInteractPage() {
         // Handle different input types
         if (input.type.includes('uint') || input.type.includes('int')) {
           if (input.type.includes('256')) {
-            // Convert BigInt to string to avoid serialization issues
+            // Para distributeReward, usar o valor literal (percentual)
+            if (func.name === 'distributeReward') {
+              return value || '0';
+            }
+            // Para outras funções, converter para wei
             return ethers.parseUnits(value || '0', 18).toString();
           }
           return value || '0';
@@ -380,6 +384,11 @@ export default function ContractInteractPage() {
           return value || ethers.ZeroAddress;
         }
         if (input.type === 'bytes32') {
+          // Se o valor já está no formato hex correto (0x...), usar diretamente
+          if (value && value.startsWith('0x') && value.length === 66) {
+            return value;
+          }
+          // Caso contrário, tratar como string e converter para keccak256
           return ethers.id(value || '');
         }
         if (Array.isArray(value)) {
@@ -404,6 +413,29 @@ export default function ContractInteractPage() {
       });
 
       if (response.data.success) {
+        // Se foi distributeReward, atualizar metadata do contrato
+        if (func.name === 'distributeReward' && params[0]) {
+          try {
+            // Encode the address properly for URL
+            const encodedAddress = encodeURIComponent(selectedContract.address);
+            
+            await api.patch(`/api/stake-contracts/${encodedAddress}/distribution`, {
+              percentage: parseInt(params[0]), // Primeiro parâmetro é o percentage
+              network: selectedContract.network // Passar a network para buscar cycleDurationInDays
+            });
+            
+            
+            // Refresh MeuPedacinhoPratique component if available
+            if (window.refreshMeuPedacinhoPratique) {
+              setTimeout(() => {
+                window.refreshMeuPedacinhoPratique();
+              }, 1000); // Delay para garantir que o backend processou
+            }
+          } catch (updateError) {
+            console.error('Failed to update distribution data:', updateError.response?.data || updateError);
+          }
+        }
+        
         setFunctionResults(prev => ({
           ...prev,
           [functionKey]: {
@@ -520,7 +552,9 @@ export default function ContractInteractPage() {
                     <input
                       type="text"
                       placeholder={
-                        input.type.includes('uint256') && input.name?.toLowerCase().includes('amount')
+                        func.name === 'distributeReward' && input.type.includes('uint256')
+                          ? `Enter percentage (e.g., 540 for 5.40%, 1048 for 10.48%)`
+                          : input.type.includes('uint256') && input.name?.toLowerCase().includes('amount')
                           ? `Enter amount (1 = 1 token, auto-converts to wei)`
                           : `Enter ${input.type}`
                       }
@@ -529,7 +563,12 @@ export default function ContractInteractPage() {
                       className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-sm text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                       disabled={isExecuting}
                     />
-                    {input.type.includes('uint256') && input.name?.toLowerCase().includes('amount') && (
+                    {func.name === 'distributeReward' && input.type.includes('uint256') && (
+                      <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                        💡 Percentual: Digite o valor multiplicado por 100 (5,40% = 540, 10,48% = 1048). O valor será enviado exatamente como digitado.
+                      </p>
+                    )}
+                    {func.name !== 'distributeReward' && input.type.includes('uint256') && input.name?.toLowerCase().includes('amount') && (
                       <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
                         💡 Tip: Enter whole numbers (e.g., "1" for 1 token). The system automatically converts to wei format.
                       </p>
@@ -788,6 +827,7 @@ export default function ContractInteractPage() {
           </button>
         </div>
       )}
+
 
       {/* Contract Functions */}
       {selectedContract && selectedContract.abi && (

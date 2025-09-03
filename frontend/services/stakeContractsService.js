@@ -26,12 +26,10 @@ class StakeContractsService {
     }
     
     try {
-      const response = await api.get('/api/contracts/all');
+      // Usar a rota específica de stake contracts que inclui metadata completo
+      const response = await api.get('/api/stake-contracts');
       if (response.data.success) {
-        // Filtrar apenas contratos de stake
-        const stakeContracts = response.data.data.filter(
-          contract => contract.contractType === 'stake'
-        );
+        const stakeContracts = response.data.data;
         
         // Armazenar no cache
         this.cache.set(cacheKey, stakeContracts);
