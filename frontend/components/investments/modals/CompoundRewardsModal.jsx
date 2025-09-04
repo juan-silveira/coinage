@@ -22,16 +22,8 @@ const CompoundRewardsModal = ({ isOpen, onClose, contract, userAddress, rewardsA
         network: contract.network
       });
       
-      // Usar o endereço do admin do contrato para pagar o gás
-      // O adminAddress vem diretamente no contract
-      const adminAddress = contract.adminAddress || '0x5528C065931f523CA9F3a6e49a911896fb1D2e6f';
-      
-      const response = await api.post('/api/contracts/write', {
-        contractAddress: contract.address,
-        functionName: 'compound',
-        params: [userAddress],
-        network: contract.network,
-        gasPayer: adminAddress // Admin paga o gás usando o endereço real
+      const response = await api.post(`/api/stakes/${contract.address}/compound`, {
+        userAddress: userAddress
       });
 
       if (response.data.success) {

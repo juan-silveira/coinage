@@ -24,23 +24,9 @@ const ClaimRewardsModal = ({ isOpen, onClose, contract, userAddress, rewardsAmou
         fullContract: contract
       });
       
-      // Usar o endereço do admin do contrato para pagar o gás
-      // O adminAddress vem diretamente no contract
-      const adminAddress = contract.adminAddress || '0x5528C065931f523CA9F3a6e49a911896fb1D2e6f';
-      
-      console.log('Admin address sendo usado:', adminAddress);
-      
-      const requestData = {
-        contractAddress: contract.address,
-        functionName: 'claimReward',
-        params: [userAddress],
-        network: contract.network,
-        gasPayer: adminAddress // Admin paga o gás usando o endereço real
-      };
-      
-      console.log('Request data completa:', requestData);
-      
-      const response = await api.post('/api/contracts/write', requestData);
+      const response = await api.post(`/api/stakes/${contract.address}/claim-rewards`, {
+        userAddress: userAddress
+      });
 
       if (response.data.success) {
         showSuccess('Rewards recebidos com sucesso!');

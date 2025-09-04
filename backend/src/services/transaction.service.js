@@ -597,8 +597,73 @@ class TransactionService {
         return obj;
       };
 
+      // Enriquecer transações de stake com informações do token real
+      const enrichedTransactions = await Promise.all(transactions.map(async (tx) => {
+        let enrichedTx = { ...tx };
+        
+        // Se for uma transação de stake/unstake/stake_reward, buscar o token real do contrato
+        if ((tx.transactionType === 'stake' || tx.transactionType === 'unstake' || 
+             tx.transactionType === 'stake_reward') && tx.contractAddress) {
+          
+          try {
+            console.log(`🔍 [TransactionService] Enriquecendo transação de stake: ${tx.id}`);
+            
+            // Buscar o contrato de stake
+            const stakeContract = await this.prisma.smartContract.findUnique({
+              where: { address: tx.contractAddress },
+              select: { metadata: true }
+            });
+            
+            if (stakeContract && stakeContract.metadata) {
+              // Extrair o tokenAddress dos metadados do contrato de stake
+              const metadata = typeof stakeContract.metadata === 'string' 
+                ? JSON.parse(stakeContract.metadata) 
+                : stakeContract.metadata;
+              
+              const tokenAddress = metadata.tokenAddress || metadata.stakeToken;
+              
+              if (tokenAddress) {
+                console.log(`📍 [TransactionService] Token address encontrado: ${tokenAddress}`);
+                
+                // Buscar o contrato do token
+                const tokenContract = await this.prisma.smartContract.findUnique({
+                  where: { address: tokenAddress },
+                  select: { name: true, metadata: true }
+                });
+                
+                if (tokenContract) {
+                  const tokenMetadata = typeof tokenContract.metadata === 'string'
+                    ? JSON.parse(tokenContract.metadata)
+                    : tokenContract.metadata;
+                  
+                  // Sobrescrever currency e adicionar informações do token aos metadados
+                  const tokenSymbol = tokenMetadata.symbol || tokenMetadata.tokenSymbol || tx.currency;
+                  const tokenName = tokenContract.name || tokenMetadata.name || tokenSymbol;
+                  
+                  enrichedTx.currency = tokenSymbol;
+                  enrichedTx.metadata = {
+                    ...enrichedTx.metadata,
+                    tokenSymbol: tokenSymbol,
+                    tokenName: tokenName,
+                    tokenAddress: tokenAddress,
+                    enrichedFromContract: true
+                  };
+                  
+                  console.log(`✅ [TransactionService] Token enriquecido: ${tokenSymbol} - ${tokenName}`);
+                }
+              }
+            }
+          } catch (error) {
+            console.warn(`⚠️ [TransactionService] Erro ao enriquecer transação ${tx.id}:`, error.message);
+            // Continuar com os dados originais se houver erro
+          }
+        }
+        
+        return enrichedTx;
+      }));
+      
       // Convert all transactions with comprehensive BigInt handling
-      const formattedTransactions = transactions.map(tx => {
+      const formattedTransactions = enrichedTransactions.map(tx => {
         const converted = convertBigIntToString(tx);
         return {
           ...converted,

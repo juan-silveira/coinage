@@ -88,8 +88,49 @@ const useTransactions = (initialParams = {}) => {
     // Mapear tipos de transação do backend para o frontend
     let type = 'transfer';
     let subType = 'debit';
-    let tokenSymbol = metadata.tokenSymbol || tx.currency || 'AZE-t';
-    let tokenName = metadata.tokenName || (tx.currency === 'cBRL' ? 'Coinage Real Brasil' : 'Azore');
+    
+    // Mapeamento de currency para nome correto
+    const getCurrencyName = (currency) => {
+      const currencyMap = {
+        'cBRL': 'Coinage Real Brasil',
+        'PCN': 'PrecoCoin',
+        'STAKE': 'Stake Token',
+        'AZE': 'Azore',
+        'AZE-t': 'Azore Testnet',
+        'USDT': 'Tether',
+        'USDC': 'USD Coin',
+        'BTC': 'Bitcoin',
+        'ETH': 'Ethereum'
+      };
+      return currencyMap[currency] || currency; // Se não encontrar, usa o próprio símbolo
+    };
+    
+    // Determinar tokenSymbol e tokenName baseado no tipo de transação
+    let tokenSymbol = tx.currency || 'AZE-t';
+    let tokenName = getCurrencyName(tx.currency);
+    
+    // Para stake e exchange, verificar se há informações do token nos metadados
+    if (tx.transactionType === 'stake' || tx.transactionType === 'unstake' || 
+        tx.transactionType === 'stake_reward' || tx.transactionType === 'exchange') {
+      
+      // Priorizar informações do token dos metadados se disponível
+      if (metadata.tokenInfo) {
+        tokenSymbol = metadata.tokenInfo.symbol || tx.currency;
+        tokenName = getCurrencyName(tokenSymbol);
+      } else if (metadata.tokenSymbol) {
+        tokenSymbol = metadata.tokenSymbol;
+        tokenName = metadata.tokenName || getCurrencyName(tokenSymbol);
+      }
+    }
+    
+    // Sobrescrever com valores explícitos dos metadados se existirem
+    if (metadata.tokenSymbol) {
+      tokenSymbol = metadata.tokenSymbol;
+    }
+    if (metadata.tokenName) {
+      tokenName = metadata.tokenName;
+    }
+    
     let amount = 0;
 
     // Helper function to parse decimal values from different formats
@@ -97,14 +138,25 @@ const useTransactions = (initialParams = {}) => {
       if (!value) return 0;
       
       // Se for um número simples
-      if (typeof value === 'number') return value;
+      if (typeof value === 'number') {
+        return isNaN(value) ? 0 : value;
+      }
       
       // Se for string, tentar converter
-      if (typeof value === 'string') return parseFloat(value);
+      if (typeof value === 'string') {
+        const parsed = parseFloat(value);
+        return isNaN(parsed) ? 0 : parsed;
+      }
       
       // Se for objeto Decimal.js do Prisma: {s: 1, e: 1, d: [97]} = 97
       if (typeof value === 'object' && value.d && Array.isArray(value.d)) {
         const { s = 1, e = 0, d } = value;
+        
+        // Verificação de segurança para array válido
+        if (!Array.isArray(d) || d.length === 0) {
+          console.warn('Array d inválido ou vazio:', value);
+          return 0;
+        }
         
         // Casos específicos baseados nos dados reais:
         if (d.length === 1) {
@@ -125,9 +177,41 @@ const useTransactions = (initialParams = {}) => {
           return (integerPart + decimalValue) * s;
         }
         
+        if (d.length === 3) {
+          // Caso com 3 elementos: {s: 1, e: x, d: [a, b, c]} 
+          // Normalmente para números decimais mais complexos
+          // Tentar reconstruir usando o expoente 'e'
+          try {
+            const totalDigits = d.join('');
+            const numericValue = parseFloat(totalDigits);
+            const adjustedValue = numericValue * Math.pow(10, e - totalDigits.length + 1);
+            return adjustedValue * s;
+          } catch (error) {
+            // Se falhar, tentar uma abordagem mais simples
+            const firstElement = d[0] || 0;
+            return firstElement * s;
+          }
+        }
+        
+        // Para arrays maiores que 3 elementos
+        if (d.length > 3) {
+          try {
+            // Tentar usar apenas os primeiros elementos significativos
+            const significantPart = d.slice(0, 2);
+            const totalDigits = significantPart.join('');
+            const numericValue = parseFloat(totalDigits);
+            const adjustedValue = numericValue * Math.pow(10, e - totalDigits.length + 1);
+            return adjustedValue * s;
+          } catch (error) {
+            // Se falhar, usar apenas o primeiro elemento
+            const firstElement = d[0] || 0;
+            return firstElement * s;
+          }
+        }
+        
         // Fallback: tentar reconstruir manualmente
-        console.warn('Formato Decimal.js não reconhecido:', value);
-        return 0;
+        console.warn('Formato Decimal.js não reconhecido (após todas as tentativas):', value, 'd.length:', d.length);
+        return d[0] || 0; // Usar pelo menos o primeiro elemento se existir
       }
       
       // Fallback para outros objetos
@@ -221,13 +305,7 @@ const useTransactions = (initialParams = {}) => {
       subType = amount >= 0 ? 'credit' : 'debit';
     }
 
-    // Fallback apenas se não tiver informações nos metadados ou currency
-    if (!tokenSymbol || tokenSymbol === 'AZE-t') {
-      if (tx.currency && tx.currency !== 'AZE-t') {
-        tokenSymbol = tx.currency;
-        tokenName = tx.currency === 'cBRL' ? 'Coinage Real Brasil' : tx.currency;
-      }
-    }
+    // Não precisamos mais deste fallback pois já tratamos acima
 
     return {
       id: tx.id,

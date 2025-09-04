@@ -133,26 +133,10 @@ const StakeModal = ({ isOpen, onClose, contract, userAddress, tokenSymbol, onSuc
     try {
       setLoading(true);
       
-      console.log('Staking with params:', {
-        contractAddress: contract.address,
-        userAddress: userAddress,
-        displayAmount: amount,
-        numericValue: numericValue,
-        network: contract.network
-      });
-      
-      // Usar o endereço do admin do contrato para pagar o gás
-      const adminAddress = contract.adminAddress || '0x5528C065931f523CA9F3a6e49a911896fb1D2e6f';
-      
-      // Converter o valor numeral para wei (assumindo 18 decimais)
-      const amountInWei = (numericValue * Math.pow(10, 18)).toString();
-      
-      const response = await api.post('/api/contracts/write', {
-        contractAddress: contract.address,
-        functionName: 'stake',
-        params: [userAddress, amountInWei, 0], // userAddress, amount, _customTimestamp (sempre 0)
-        network: contract.network,
-        gasPayer: adminAddress
+      const response = await api.post(`/api/stakes/${contract.address}/invest`, {
+        user: userAddress,  // Backend espera 'user', não 'userAddress'
+        amount: numericValue.toString(),  // Backend espera em ETH, não Wei
+        customTimestamp: 0
       });
 
       if (response.data.success) {

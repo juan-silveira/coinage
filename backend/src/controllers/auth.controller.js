@@ -10,6 +10,7 @@ const redisService = require('../services/redis.service');
 const userCacheService = require('../services/userCache.service');
 const userService = require('../services/user.service');
 const userActionsService = require('../services/userActions.service');
+const userCompanyService = require('../services/userCompany.service');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const { validatePassword } = require('../utils/passwordValidation');
@@ -67,8 +68,17 @@ const login = async (req, res) => {
 
     // Verificar se usuário está bloqueado por tentativas excessivas
     if (existingUser && existingUser.isBlockedLoginAttempts) {
+      // Tentar obter empresa atual para registro
+      let currentCompany = null;
+      try {
+        currentCompany = await userCompanyService.getCurrentCompany(existingUser.id);
+      } catch (error) {
+        // Ignorar erro silenciosamente para não afetar o fluxo
+      }
+      const reqWithCompany = { ...req, company: currentCompany };
+      
       // Registrar tentativa de login em conta bloqueada
-      await userActionsService.logAuth(existingUser.id, 'login_failed', req, {
+      await userActionsService.logAuth(existingUser.id, 'login_failed', reqWithCompany, {
         status: 'failed',
         errorMessage: 'Account blocked due to excessive failed attempts',
         errorCode: 'ACCOUNT_BLOCKED'
@@ -120,8 +130,17 @@ const login = async (req, res) => {
           });
         }
 
+        // Tentar obter empresa atual para registro
+        let currentCompany = null;
+        try {
+          currentCompany = await userCompanyService.getCurrentCompany(existingUser.id);
+        } catch (error) {
+          // Ignorar erro silenciosamente
+        }
+        const reqWithCompany = { ...req, company: currentCompany };
+        
         // Registrar tentativa de login falhada
-        await userActionsService.logAuth(existingUser.id, 'login_failed', req, {
+        await userActionsService.logAuth(existingUser.id, 'login_failed', reqWithCompany, {
           status: 'failed',
           details: { attempts: newFailedAttempts },
           errorMessage: 'Invalid credentials'
@@ -144,8 +163,17 @@ const login = async (req, res) => {
     }
 
     if (!user.isActive) {
+      // Tentar obter empresa atual para registro
+      let currentCompany = null;
+      try {
+        currentCompany = await userCompanyService.getCurrentCompany(user.id);
+      } catch (error) {
+        // Ignorar erro silenciosamente
+      }
+      const reqWithCompany = { ...req, company: currentCompany };
+      
       // Registrar tentativa de login em conta inativa
-      await userActionsService.logAuth(user.id, 'login_failed', req, {
+      await userActionsService.logAuth(user.id, 'login_failed', reqWithCompany, {
         status: 'failed',
         errorMessage: 'Inactive user account',
         errorCode: 'ACCOUNT_INACTIVE'
@@ -176,11 +204,66 @@ const login = async (req, res) => {
       }
     }
 
+    // Obter empresa atual do usuário para registrar no login
+    let currentCompany = null;
+    try {
+      currentCompany = await userCompanyService.getCurrentCompany(user.id);
+      
+      // Se não há empresa atual (primeiro login ou sem lastAccessAt), usar a primeira empresa ativa
+      if (!currentCompany) {
+        const userWithCompanies = await getPrisma().user.findUnique({
+          where: { id: user.id },
+          include: {
+            userCompanies: {
+              where: {
+                status: 'active',
+                company: { isActive: true }
+              },
+              include: {
+                company: true
+              },
+              orderBy: { linkedAt: 'asc' } // Primeira empresa vinculada
+            }
+          }
+        });
+        
+        if (userWithCompanies?.userCompanies?.length > 0) {
+          const firstCompany = userWithCompanies.userCompanies[0];
+          currentCompany = {
+            id: firstCompany.company.id,
+            name: firstCompany.company.name,
+            alias: firstCompany.company.alias,
+            isActive: firstCompany.company.isActive
+          };
+          
+          // Atualizar lastAccessAt para esta empresa
+          await getPrisma().userCompany.update({
+            where: {
+              userId_companyId: {
+                userId: user.id,
+                companyId: currentCompany.id
+              }
+            },
+            data: { lastAccessAt: new Date() }
+          });
+          
+          console.log(`📅 Login: Definindo empresa padrão para ${user.name}: ${currentCompany.name}`);
+        }
+      }
+    } catch (error) {
+      console.warn('⚠️ Não foi possível obter/definir empresa atual no login:', error.message);
+    }
+    
+    // Simular req.company para o logging
+    const reqWithCompany = { ...req, company: currentCompany };
+    
     // Registrar login bem-sucedido
-    await userActionsService.logAuth(user.id, 'login', req, {
+    await userActionsService.logAuth(user.id, 'login', reqWithCompany, {
       details: {
         isFirstAccess: user.isFirstAccess,
-        userPlan: user.userPlan
+        userPlan: user.userPlan,
+        companyName: currentCompany?.name,
+        companyAlias: currentCompany?.alias
       }
     });
 

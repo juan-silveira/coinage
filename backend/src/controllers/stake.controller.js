@@ -87,7 +87,8 @@ class StakeController {
         address, 
         'stake', 
         [user, amount, customTimestamp], 
-        null // Não precisamos mais do adminAddress
+        null, // Não precisamos mais do adminAddress
+        req.user // Passar informações do usuário JWT
       );
       
       res.status(200).json(result);
@@ -132,7 +133,8 @@ class StakeController {
         address, 
         'unstake', 
         [user, amount], 
-        null // Não precisamos mais do adminAddress
+        null, // Não precisamos mais do adminAddress
+        req.user // Passar informações do usuário JWT
       );
       
       res.status(200).json(result);
@@ -170,7 +172,8 @@ class StakeController {
         address, 
         'claimReward', 
         [user], 
-        null
+        null, // adminAddress
+        req.user // Passar informações do usuário JWT
       );
       
       res.status(200).json(result);
@@ -208,7 +211,8 @@ class StakeController {
         address, 
         'compound', 
         [user], 
-        null
+        null, // adminAddress
+        req.user // Passar informações do usuário JWT
       );
       
       res.status(200).json(result);

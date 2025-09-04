@@ -749,8 +749,8 @@ app.use('/api/email-confirmation', loginRateLimiter, emailConfirmationRoutes);
 // Rotas de usuários (com autenticação JWT e refresh de cache)
 app.use('/api/users', authenticateJWT, apiRateLimiter, addUserInfo, logAuthenticatedRequest, CacheRefreshMiddleware.refreshAfterWrite, userRoutes);
 
-// Rotas de contratos (com autenticação e sistema de fila)
-app.use('/api/contracts', authenticateApiKey, transactionRateLimiter, addUserInfo, logAuthenticatedRequest, QueueMiddleware.enqueueExternalOperations, CacheRefreshMiddleware.refreshAfterQueueOperation, contractRoutes);
+// Rotas de contratos (com autenticação e sistema de fila) - COMENTADO PARA DEBUG
+// app.use('/api/contracts', authenticateApiKey, transactionRateLimiter, addUserInfo, logAuthenticatedRequest, QueueMiddleware.enqueueExternalOperations, CacheRefreshMiddleware.refreshAfterQueueOperation, contractRoutes);
 
 // Endpoint de teste para verificar JWT
 app.get('/api/admin/test-jwt', authenticateJWT, (req, res) => {
@@ -786,7 +786,7 @@ const authenticateHybrid = (req, res, next) => {
 app.use('/api/tokens', authenticateHybrid, transactionRateLimiter, addUserInfo, logAuthenticatedRequest, QueueMiddleware.enqueueExternalOperations, CacheRefreshMiddleware.refreshAfterQueueOperation, tokenRoutes);
 
 // Rotas de stakes (com autenticação e sistema de fila)
-app.use('/api/stakes', authenticateApiKey, transactionRateLimiter, addUserInfo, logAuthenticatedRequest, QueueMiddleware.enqueueExternalOperations, CacheRefreshMiddleware.refreshAfterQueueOperation, stakeRoutes);
+app.use('/api/stakes', authenticateJWT, transactionRateLimiter, addUserInfo, logAuthenticatedRequest, QueueMiddleware.enqueueExternalOperations, CacheRefreshMiddleware.refreshAfterQueueOperation, stakeRoutes);
 
 // TESTE TEMPORÁRIO: Endpoint de debug direto no app
 app.get('/api/transactions-debug', async (req, res) => {

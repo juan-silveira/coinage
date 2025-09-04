@@ -1,4 +1,14 @@
-const prisma = require('../config/prisma');
+const prismaConfig = require('../config/prisma');
+
+// Helper function to get prisma instance
+const getPrisma = () => {
+  try {
+    return prismaConfig.getPrisma();
+  } catch (error) {
+    console.error('Prisma not initialized:', error.message);
+    throw new Error('Database connection not available');
+  }
+};
 
 class UserActionsService {
   /**
@@ -27,7 +37,7 @@ class UserActionsService {
         duration = null
       } = actionData;
 
-      const userAction = await prisma.userAction.create({
+      const userAction = await getPrisma().userAction.create({
         data: {
           userId,
           companyId,
@@ -62,7 +72,7 @@ class UserActionsService {
   async logAuth(userId, action, req, additionalData = {}) {
     return this.logAction({
       userId,
-      companyId: req.company?.id,
+      companyId: additionalData.companyId || req.company?.id,
       action,
       category: 'authentication',
       status: additionalData.status || 'success',

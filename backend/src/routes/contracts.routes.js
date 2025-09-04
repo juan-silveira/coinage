@@ -337,6 +337,10 @@ router.post('/read', async (req, res) => {
  * Execute a write function on a smart contract (requires gas)
  */
 router.post('/write', async (req, res) => {
+  console.log('🚀🚀🚀 [CONTRACTS WRITE] REQUISIÇÃO RECEBIDA 🚀🚀🚀');
+  console.log('🚀 [DEBUG] Body da requisição:', JSON.stringify(req.body, null, 2));
+  console.log('🚀 [DEBUG] Headers da requisição:', JSON.stringify(req.headers, null, 2));
+  
   try {
     const { 
       contractAddress, 
@@ -346,6 +350,14 @@ router.post('/write', async (req, res) => {
       network = 'testnet',
       gasLimit = 300000
     } = req.body;
+    
+    console.log('🔍 [DEBUG] Parâmetros extraídos:');
+    console.log('  - contractAddress:', contractAddress);
+    console.log('  - functionName:', functionName);
+    console.log('  - params:', params);
+    console.log('  - gasPayer:', gasPayer);
+    console.log('  - network:', network);
+    console.log('  - gasLimit:', gasLimit);
 
     if (!contractAddress) {
       return res.status(400).json({
@@ -389,7 +401,13 @@ router.post('/write', async (req, res) => {
     const fallbackAddress = '0x5528C065931f523CA9F3a6e49a911896fb1D2e6f';
     const actualGasPayer = gasPayer || adminAddress || fallbackAddress;
     
-    console.log(`Write function ${functionName} - using gasPayer: ${actualGasPayer} (provided: ${gasPayer}, admin: ${adminAddress || 'not set'})`);
+    console.log('💼 [DEBUG] Gas payer determination:');
+    console.log('  - contract.metadata?.adminAddress:', adminAddress);
+    console.log('  - provided gasPayer:', gasPayer);
+    console.log('  - fallbackAddress:', fallbackAddress);
+    console.log('  - actualGasPayer (final):', actualGasPayer);
+    
+    console.log(`🔑 [DEBUG] Tentando buscar usuário com publicKey: ${actualGasPayer}`);
 
     // Get user/admin by public key to get private key
     const user = await prisma.user.findFirst({
@@ -398,7 +416,15 @@ router.post('/write', async (req, res) => {
       }
     });
 
+    console.log('👤 [DEBUG] Resultado da busca do usuário:', user ? {
+      id: user.id,
+      email: user.email,
+      publicKey: user.publicKey,
+      hasPrivateKey: !!user.privateKey
+    } : 'USUÁRIO NÃO ENCONTRADO');
+
     if (!user) {
+      console.log('❌ [ERROR] Gas payer não encontrado no banco:', actualGasPayer);
       return res.status(404).json({
         success: false,
         message: `Gas payer not found: ${actualGasPayer}. Make sure this address is registered in the system.`
@@ -406,6 +432,11 @@ router.post('/write', async (req, res) => {
     }
 
     if (!user.privateKey) {
+      console.log('❌ [ERROR] Private key não disponível para:', actualGasPayer);
+      console.log('🔍 [DEBUG] Verificando variáveis de ambiente:');
+      console.log('  - ADMIN_WALLET_PUBLIC_KEY:', process.env.ADMIN_WALLET_PUBLIC_KEY);
+      console.log('  - ADMIN_WALLET_PRIVATE_KEY exists:', !!process.env.ADMIN_WALLET_PRIVATE_KEY);
+      
       return res.status(400).json({
         success: false,
         message: `Private key not available for gas payer: ${actualGasPayer}`

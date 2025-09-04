@@ -359,6 +359,7 @@ export default function ContractInteractPage() {
 
   const executeWriteFunction = async (func) => {
     const functionKey = func.key || func.name;
+    
     try {
       setExecutingFunction(functionKey);
       
@@ -373,7 +374,8 @@ export default function ContractInteractPage() {
               return value || '0';
             }
             // Para outras funções, converter para wei
-            return ethers.parseUnits(value || '0', 18).toString();
+            const weiValue = ethers.parseUnits(value || '0', 18).toString();
+            return weiValue;
           }
           return value || '0';
         }
@@ -397,21 +399,40 @@ export default function ContractInteractPage() {
         return value;
       });
 
+
       // Get admin address from contract metadata
       const adminAddress = selectedContract.adminAddress || selectedContract.metadata?.adminAddress;
       
       if (!adminAddress) {
+        console.log('❌ [FRONTEND ERROR] Admin address not found!');
         throw new Error('Admin address not found for this contract');
       }
 
-      const response = await api.post('/api/contracts/write', {
+      const requestBody = {
         contractAddress: selectedContract.address,
         functionName: func.name,
         params,
         gasPayer: adminAddress,
         network: selectedContract.network
-      });
+      };
+      
+      // Para distributeReward, usar a rota específica de stakes que funciona
+      let apiUrl;
+      let requestBodyFinal;
+      
+      if (func.name === 'distributeReward') {
+        apiUrl = `/api/stakes/${selectedContract.address}/distribute-rewards`;
+        requestBodyFinal = {
+          percentageInBasisPoints: parseInt(params[0]) // Apenas o parâmetro necessário, igual ao depositRewards
+        };
 
+      } else {
+        apiUrl = '/api/contracts/write';
+        requestBodyFinal = requestBody;
+      }
+      
+      const response = await api.post(apiUrl, requestBodyFinal);
+      
       if (response.data.success) {
         // Se foi distributeReward, atualizar metadata do contrato
         if (func.name === 'distributeReward' && params[0]) {

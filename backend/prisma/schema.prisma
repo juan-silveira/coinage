@@ -110,7 +110,7 @@ model Transaction {
   userId                  String?            @map("user_id") @db.Uuid
   transactionType         TransactionType    @map("transaction_type")
   status                  TransactionStatus  @default(pending)
-  amount                  Decimal?           @db.Decimal(15, 2)
+  amount                  Decimal?           @db.Decimal(20, 8)
   currency                String?            @db.VarChar(5)
   network                 Network?
   contractAddress         String?            @map("contract_address") @db.VarChar(42)
@@ -137,8 +137,8 @@ model Transaction {
   blockchain_block_number BigInt?
   blockchain_confirmed_at DateTime?          @db.Timestamptz(6)
   blockchain_failed_at    DateTime?          @db.Timestamptz(6)
-  fee                     Decimal?           @default(0) @db.Decimal(15, 2)
-  net_amount              Decimal?           @db.Decimal(15, 2)
+  fee                     Decimal?           @default(0) @db.Decimal(15, 8)
+  net_amount              Decimal?           @db.Decimal(20, 8)
   operation_type          String?            @db.VarChar(50)
   company                 Company            @relation(fields: [companyId], references: [id])
   user                    User?              @relation(fields: [userId], references: [id])

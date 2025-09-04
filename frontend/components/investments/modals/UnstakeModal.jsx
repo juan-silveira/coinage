@@ -57,17 +57,12 @@ const UnstakeModal = ({ isOpen, onClose, contract, userAddress, userStake, token
       });
       
       // Usar o endereço do admin do contrato para pagar o gás
-      const adminAddress = contract.adminAddress || '0x5528C065931f523CA9F3a6e49a911896fb1D2e6f';
-      
       // Converter o valor numeral para wei (assumindo 18 decimais)
       const amountInWei = (numericValue * Math.pow(10, 18)).toString();
       
-      const response = await api.post('/api/contracts/write', {
-        contractAddress: contract.address,
-        functionName: 'unstake',
-        params: [userAddress, amountInWei], // userAddress, amount
-        network: contract.network,
-        gasPayer: adminAddress
+      const response = await api.post(`/api/stakes/${contract.address}/withdraw`, {
+        userAddress: userAddress,
+        amount: amountInWei
       });
 
       if (response.data.success) {

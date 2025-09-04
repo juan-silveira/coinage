@@ -1,22 +1,27 @@
 const { ethers } = require('ethers');
 const blockchainService = require('./blockchain.service');
 const transactionService = require('./transaction.service');
+const earningsService = require('./earnings.service');
 const prismaConfig = require('../config/prisma');
+
+/**
+ * Função helper para obter Prisma
+ */
+const getPrisma = () => prismaConfig.getPrisma();
 
 class StakeService {
   constructor() {
-    this.Stake = null;
-    this.sequelize = null;
+    this.initialized = false;
   }
 
   async initialize() {
     try {
-      this.sequelize = await databaseConfig.initialize();
-      const StakeModel = require('../models/Stake');
-      const UserModel = require('../models/User');
-      this.Stake = StakeModel(this.sequelize);
-      this.User = UserModel(this.sequelize);
-      console.log('✅ Serviço de stakes inicializado com sucesso');
+      // Garantir que o Prisma está inicializado
+      if (!this.initialized) {
+        await prismaConfig.initialize();
+        this.initialized = true;
+        console.log('✅ Serviço de stakes inicializado com sucesso');
+      }
     } catch (error) {
       console.error('❌ Erro ao inicializar serviço de stakes:', error.message);
       throw error;
@@ -28,6 +33,9 @@ class StakeService {
    */
   async registerStake(stakeData) {
     try {
+      await this.initialize();
+      const prisma = getPrisma();
+
       const {
         name,
         address,
@@ -44,7 +52,10 @@ class StakeService {
       }
 
       // Verificar se o stake já existe
-      const existingStake = await this.Stake.findByAddress(address);
+      const existingStake = await prisma.smartContract.findUnique({
+        where: { address: address }
+      });
+      
       if (existingStake) {
         throw new Error('Stake já está registrado');
       }
@@ -87,20 +98,23 @@ class StakeService {
         }
       }
 
-      // Criar stake no banco
-      const stake = await this.Stake.create({
-        name: stakeInfo.name || name,
-        address: address,
-        abi: finalABI,
-        network,
-        contractType,
-        adminAddress: adminAddress ? adminAddress : null,
-        metadata: {
-          ...metadata,
-          ...stakeInfo,
-          explorer: network === 'mainnet' ? 'https://azorescan.com' : 'https://floripa.azorescan.com'
-        },
-        isActive: true
+      // Criar stake no banco usando Prisma
+      const stake = await prisma.smartContract.create({
+        data: {
+          companyId: '2195b754-83d9-44d1-b5cd-f912ca70636c', // ID da empresa padrão
+          name: name || `Stake ${address.slice(0, 8)}...`,
+          address: address,
+          abi: finalABI,
+          network: network,
+          metadata: {
+            ...metadata,
+            ...stakeInfo,
+            contractType: contractType,
+            adminAddress: adminAddress || null,
+            explorer: network === 'mainnet' ? 'https://azorescan.com' : 'https://floripa.azorescan.com'
+          },
+          isActive: true
+        }
       });
 
       return {
@@ -118,7 +132,13 @@ class StakeService {
    */
   async getStakeInfo(address) {
     try {
-      const stake = await this.Stake.findByAddress(address);
+      await this.initialize();
+      const prisma = getPrisma();
+
+      const stake = await prisma.smartContract.findUnique({
+        where: { address: address }
+      });
+      
       if (!stake) {
         throw new Error('Stake não encontrado');
       }
@@ -162,16 +182,22 @@ class StakeService {
   /**
    * Executa uma operação de escrita no contrato de stake
    */
-  async writeStakeContract(stakeAddress, functionName, params = [], walletAddress, options = {}) {
+  async writeStakeContract(stakeAddress, functionName, params = [], walletAddress, jwtUser = null, options = {}) {
     try {
+      await this.initialize();
+      const prisma = getPrisma();
+
       // Obter stake do banco
-      const stake = await this.Stake.findByAddress(stakeAddress);
+      const stake = await prisma.smartContract.findUnique({
+        where: { address: stakeAddress }
+      });
+      
       if (!stake) {
         throw new Error('Stake não encontrado');
       }
 
       // Obter função do ABI
-      const abiFunction = stake.getFunction(functionName);
+      const abiFunction = this.getABIFunction(stake.abi, functionName);
       if (!abiFunction) {
         throw new Error(`Função '${functionName}' não encontrada no ABI`);
       }
@@ -198,9 +224,9 @@ class StakeService {
       });
 
       // Usar a chave privada do admin do .env
-      const adminPrivateKey = process.env.ADMIN_PRIVATE_KEY;
+      const adminPrivateKey = process.env.ADMIN_WALLET_PRIVATE_KEY || process.env.ADMIN_PRIVATE_KEY;
       if (!adminPrivateKey) {
-        throw new Error('ADMIN_PRIVATE_KEY não encontrada no .env');
+        throw new Error('ADMIN_WALLET_PRIVATE_KEY não encontrada no .env');
       }
 
       // Obter provider e signer
@@ -230,11 +256,62 @@ class StakeService {
         ...options
       };
 
+      console.log('🔥 [BLOCKCHAIN DEBUG] Iniciando transação blockchain...');
+      console.log('🔥 [BLOCKCHAIN DEBUG] Contract:', stake.address);
+      console.log('🔥 [BLOCKCHAIN DEBUG] Function:', functionName);
+      console.log('🔥 [BLOCKCHAIN DEBUG] Converted Params:', convertedParams);
+      console.log('🔥 [BLOCKCHAIN DEBUG] Network:', stake.network);
+      console.log('🔥 [BLOCKCHAIN DEBUG] Signer Address:', signer.address);
+      console.log('🔥 [BLOCKCHAIN DEBUG] Gas Limit:', txOptions.gasLimit);
+
       // Executar função com parâmetros convertidos
+      console.log('🔥 [BLOCKCHAIN DEBUG] Chamando função no contrato...');
       const tx = await contractInstanceForStakeWrite[functionName](...convertedParams);
+      
+      console.log('🔥 [BLOCKCHAIN DEBUG] Transação enviada! Hash:', tx.hash);
+      console.log('🔥 [BLOCKCHAIN DEBUG] Aguardando confirmação...');
       
       // Aguardar confirmação
       const receipt = await tx.wait();
+      
+      console.log('🔥 [BLOCKCHAIN DEBUG] Transação confirmada!');
+      console.log('🔥 [BLOCKCHAIN DEBUG] Block Number:', receipt.blockNumber);
+      console.log('🔥 [BLOCKCHAIN DEBUG] Gas Used:', receipt.gasUsed.toString());
+
+      // Montar txData para logging e registro
+      const txDataForLog = {
+        functionName,
+        params: convertedParams,
+        originalParams: params,
+        transactionHash: tx.hash,
+        gasUsed: receipt.gasUsed.toString(),
+        contractAddress: stakeAddress,
+        network: stake.network,
+        signer: signer.address,
+        receipt,
+        stakeContract: stake
+      };
+
+      console.log('📦 [TXDATA DEBUG] Dados completos do txData:');
+      console.log('📦 [TXDATA DEBUG] - functionName:', txDataForLog.functionName);
+      console.log('📦 [TXDATA DEBUG] - originalParams:', JSON.stringify(txDataForLog.originalParams));
+      console.log('📦 [TXDATA DEBUG] - convertedParams:', txDataForLog.params.map(p => p.toString()));
+      console.log('📦 [TXDATA DEBUG] - contractAddress:', txDataForLog.contractAddress);
+      console.log('📦 [TXDATA DEBUG] - transactionHash:', txDataForLog.transactionHash);
+      console.log('📦 [TXDATA DEBUG] - gasUsed:', txDataForLog.gasUsed);
+      console.log('📦 [TXDATA DEBUG] - network:', txDataForLog.network);
+      console.log('📦 [TXDATA DEBUG] - signer:', txDataForLog.signer);
+
+      // Registrar transação no banco de dados
+      console.log('🔍 [DEBUG] functionName recebido:', functionName);
+      console.log('🔍 [DEBUG] params[0] recebido:', params[0]);
+      console.log('🔍 [DEBUG] Registrando transação para função:', functionName);
+      
+      // Para distributeReward, usar null como userAddress pois params[0] é o percentage, não um endereço
+      const userAddress = (functionName === 'distributeReward') ? null : params[0];
+      console.log('🔍 [DEBUG] userAddress determinado:', userAddress);
+      
+      await this.recordStakeTransaction(txDataForLog, userAddress, jwtUser);
 
       return {
         success: true,
@@ -262,18 +339,234 @@ class StakeService {
   }
 
   /**
+   * Registra uma transação de stake no banco de dados
+   */
+  async recordStakeTransaction(txData, userAddress = null, jwtUser = null) {
+    try {
+      const prisma = getPrisma();
+      
+      // Mapear função para tipo de operação
+      const operationTypeMap = {
+        'stake': 'stake',
+        'unstake': 'unstake', 
+        'withdraw': 'unstake',
+        'claimReward': 'claim_rewards',
+        'compound': 'compound'
+      };
+
+      const transactionTypeMap = {
+        'stake': 'stake',
+        'unstake': 'unstake',
+        'withdraw': 'unstake', 
+        'claimReward': 'stake_reward',
+        'compound': 'stake'
+      };
+
+      const operationType = operationTypeMap[txData.functionName] || 'stake';
+      const transactionType = transactionTypeMap[txData.functionName] || 'stake';
+
+      // Buscar usuário: priorizar JWT user, fallback para blockchain address
+      let userRecord = null;
+      if (jwtUser && jwtUser.id) {
+        // Usar informações do JWT diretamente
+        userRecord = await prisma.user.findUnique({
+          where: { id: jwtUser.id },
+          include: {
+            userCompanies: {
+              include: {
+                company: true
+              }
+            }
+          }
+        });
+      } else if (userAddress) {
+        // Fallback: buscar pelo endereço blockchain
+        userRecord = await prisma.user.findFirst({
+          where: {
+            OR: [
+              { blockchainAddress: userAddress },
+              { publicKey: userAddress }
+            ]
+          },
+          include: {
+            userCompanies: {
+              include: {
+                company: true
+              }
+            }
+          }
+        });
+      }
+
+      // Obter informações do token de stake
+      let currency = 'UNKNOWN'; // Padrão quando não conseguir buscar
+      let tokenAddress = null;
+      
+      try {
+        // Buscar o endereço do token stakeado do contrato
+        const provider = blockchainService.config.getProvider(txData.network);
+        const contractInstance = new ethers.Contract(
+          txData.contractAddress,
+          txData.stakeContract.abi,
+          provider
+        );
+
+        // Tentar buscar o token address (método comum em contratos de stake)
+        try {
+          tokenAddress = await contractInstance.stakeToken();
+          console.log(`📍 Token address encontrado: ${tokenAddress}`);
+          
+          // Agora buscar o symbol do token
+          const tokenContract = new ethers.Contract(
+            tokenAddress,
+            ['function symbol() view returns (string)'],
+            provider
+          );
+          
+          const tokenSymbol = await tokenContract.symbol();
+          currency = tokenSymbol;
+          console.log(`💰 Token symbol: ${tokenSymbol}`);
+          
+        } catch (tokenError) {
+          console.warn('Não foi possível buscar informações do token:', tokenError.message);
+          // Se não conseguir buscar, usar o endereço como fallback
+          currency = tokenAddress ? `TOKEN_${tokenAddress.slice(-6)}` : 'STAKE';
+        }
+        
+      } catch (error) {
+        console.warn('Erro ao obter informações do token de stake:', error.message);
+        currency = 'STAKE'; // Fallback final
+      }
+
+      // Criar transação (copiando formato do deposit.service.js)
+      const transaction = await prisma.transaction.create({
+        data: {
+          companyId: jwtUser?.companyId || userRecord?.userCompanies?.[0]?.company?.id || '2195b754-83d9-44d1-b5cd-f912ca70636c',
+          userId: jwtUser?.id || userRecord?.id || '5e8fd1b6-9969-44a8-bcb5-0dd832b1d973',
+          transactionType: transactionType,
+          
+          // Status principal
+          status: 'confirmed',
+          
+          // Valores - usar o primeiro parâmetro para amount (igual para depositRewards e distributeReward)
+          amount: txData.originalParams[0] ? parseFloat(txData.originalParams[0].toString()) : 0,
+          net_amount: txData.originalParams[0] ? parseFloat(txData.originalParams[0].toString()) : 0,
+          currency: currency,
+          
+          // Blockchain fields 
+          network: txData.network,
+          contractAddress: txData.contractAddress,
+          fromAddress: userAddress || txData.signer, // Endereço do usuário que fez a transação
+          toAddress: txData.contractAddress,
+          functionName: txData.functionName,
+          
+          // Hashes e blocos
+          txHash: txData.transactionHash,
+          blockNumber: txData.receipt?.blockNumber ? BigInt(txData.receipt.blockNumber) : null,
+          gasUsed: txData.gasUsed ? BigInt(txData.gasUsed) : null,
+          
+          // Timestamps
+          confirmedAt: new Date(),
+          
+          // Metadata
+          metadata: {
+            params: txData.originalParams,
+            convertedParams: txData.params.map(p => p.toString()),
+            receipt: txData.receipt,
+            operationType: operationType,
+            userAddress: userAddress,
+            jwtUserId: jwtUser?.id,
+            jwtUserEmail: jwtUser?.email,
+            stakeContractInfo: {
+              name: txData.stakeContract?.name,
+              address: txData.stakeContract?.address,
+              metadata: txData.stakeContract?.metadata
+            },
+            tokenInfo: {
+              address: tokenAddress,
+              symbol: currency,
+              discoveredAt: new Date().toISOString()
+            }
+          }
+        }
+      });
+
+      // Registrar earnings para claimReward e compound
+      if (txData.functionName === 'claimReward' || txData.functionName === 'compound') {
+        try {
+          console.log(`💰 Registrando earnings para ${txData.functionName}...`);
+          
+          // Obter o valor da recompensa dos parâmetros ou da transação
+          let rewardAmount = 0;
+          
+          // Para claimReward e compound, geralmente o valor está nos eventos do receipt
+          // Por enquanto, vamos usar o valor dos parâmetros se disponível
+          if (txData.originalParams && txData.originalParams.length > 1) {
+            rewardAmount = parseFloat(txData.originalParams[1]?.toString() || '0');
+          } else if (txData.receipt && txData.receipt.logs && txData.receipt.logs.length > 0) {
+            // Tentar extrair o valor dos logs do contrato (eventos)
+            // Isso varia dependendo do contrato, mas geralmente há um evento RewardClaimed ou similar
+            try {
+              // Por enquanto usar um valor padrão se não conseguir extrair
+              rewardAmount = 0;
+            } catch (e) {
+              console.warn('⚠️ Não foi possível extrair valor de recompensa dos logs');
+            }
+          }
+          
+          // Criar registro de earning
+          const earningData = {
+            userId: userRecord?.id || null,
+            tokenSymbol: currency || 'REWARD',
+            tokenName: `${currency || 'REWARD'} Rewards`,
+            amount: rewardAmount || 0,
+            quote: 0, // Poderia calcular o valor em USD/BRL aqui
+            network: txData.network,
+            transactionHash: txData.transactionHash,
+            distributionDate: new Date(),
+          };
+          
+          const earningResult = await earningsService.createEarning(earningData);
+          
+          if (earningResult.success) {
+            console.log(`✅ Earning registrado: ${earningResult.data.id}`);
+          } else {
+            console.warn(`⚠️ Erro ao registrar earning: ${earningResult.message}`);
+          }
+          
+        } catch (earningsError) {
+          console.error('❌ Erro ao registrar earnings:', earningsError);
+          // Não lançar erro para não interromper o fluxo principal
+        }
+      }
+
+      console.log('✅ Transação de stake registrada no banco:', transaction.id);
+      return transaction;
+    } catch (error) {
+      console.error('❌ Erro ao registrar transação de stake:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Executa uma operação de leitura no contrato de stake
    */
   async readStakeContract(stakeAddress, functionName, params = [], options = {}) {
     try {
+      await this.initialize();
+      const prisma = getPrisma();
+
       // Obter stake do banco
-      const stake = await this.Stake.findByAddress(stakeAddress);
+      const stake = await prisma.smartContract.findUnique({
+        where: { address: stakeAddress }
+      });
+      
       if (!stake) {
         throw new Error('Stake não encontrado');
       }
 
       // Obter função do ABI
-      const abiFunction = stake.getFunction(functionName);
+      const abiFunction = this.getABIFunction(stake.abi, functionName);
       if (!abiFunction) {
         throw new Error(`Função '${functionName}' não encontrada no ABI`);
       }
@@ -289,9 +582,9 @@ class StakeService {
       // Se a função requer permissões especiais, usar signer admin
       let contractInstanceForStakeRead;
       if (options.useAdminSigner || functionName === 'getAvailableRewardBalance') {
-        const adminPrivateKey = process.env.ADMIN_PRIVATE_KEY;
+        const adminPrivateKey = process.env.ADMIN_WALLET_PRIVATE_KEY || process.env.ADMIN_PRIVATE_KEY;
         if (!adminPrivateKey) {
-          throw new Error('ADMIN_PRIVATE_KEY não encontrada no .env');
+          throw new Error('ADMIN_WALLET_PRIVATE_KEY não encontrada no .env');
         }
         const signer = new ethers.Wallet(adminPrivateKey, provider);
         contractInstanceForStakeRead = new ethers.Contract(stake.address, stake.abi, signer);
@@ -320,12 +613,30 @@ class StakeService {
   }
 
   /**
+   * Obtém uma função do ABI
+   */
+  getABIFunction(abi, functionName) {
+    if (!abi || !Array.isArray(abi)) return null;
+    
+    return abi.find(item => 
+      item.type === 'function' && 
+      item.name === functionName
+    );
+  }
+
+  /**
    * Verifica se um usuário tem a role DEFAULT_ADMIN_ROLE em um stake
    */
   async verifyStakeAdmin(stakeAddress, adminAddress) {
     try {
+      await this.initialize();
+      const prisma = getPrisma();
+
       // Obter stake do banco
-      const stake = await this.Stake.findByAddress(stakeAddress);
+      const stake = await prisma.smartContract.findUnique({
+        where: { address: stakeAddress }
+      });
+      
       if (!stake) {
         throw new Error('Stake não encontrado');
       }
@@ -341,7 +652,8 @@ class StakeService {
       );
 
       // Verificar se o contrato tem a função hasRole
-      if (!contractInstanceForStakeAdminVerify.hasRole) {
+      const hasRoleFunction = this.getABIFunction(stake.abi, 'hasRole');
+      if (!hasRoleFunction) {
         throw new Error('Contrato não possui sistema de roles');
       }
 
@@ -360,7 +672,13 @@ class StakeService {
    */
   async getStakeByAddress(address) {
     try {
-      const stake = await this.Stake.findByAddress(address);
+      await this.initialize();
+      const prisma = getPrisma();
+
+      const stake = await prisma.smartContract.findUnique({
+        where: { address: address }
+      });
+      
       if (!stake) {
         return {
           success: false,
@@ -383,30 +701,39 @@ class StakeService {
    */
   async listStakes(options = {}) {
     try {
+      await this.initialize();
+      const prisma = getPrisma();
+
       const { page = 1, limit = 10, network, contractType } = options;
-      const offset = (page - 1) * limit;
+      const skip = (page - 1) * limit;
 
-      const whereClause = { isActive: true };
+      const whereClause = { 
+        isActive: true
+      };
+      
       if (network) whereClause.network = network;
-      if (contractType) whereClause.contractType = contractType;
+      // Filtro por contractType será feito via metadata se necessário
 
-      const { count, rows } = await this.Stake.findAndCountAll({
-        where: whereClause,
-        limit: parseInt(limit),
-        offset: parseInt(offset),
-        order: [['createdAt', 'DESC']]
-      });
+      const [stakes, total] = await Promise.all([
+        prisma.smartContract.findMany({
+          where: whereClause,
+          take: parseInt(limit),
+          skip: parseInt(skip),
+          orderBy: { createdAt: 'desc' }
+        }),
+        prisma.smartContract.count({ where: whereClause })
+      ]);
 
       return {
         success: true,
         message: 'Stakes listados com sucesso',
         data: {
-          stakes: rows,
+          stakes: stakes,
           pagination: {
             page: parseInt(page),
             limit: parseInt(limit),
-            total: count,
-            pages: Math.ceil(count / limit)
+            total: total,
+            pages: Math.ceil(total / limit)
           }
         }
       };
@@ -420,6 +747,8 @@ class StakeService {
    */
   async testService() {
     try {
+      await this.initialize();
+      
       // Teste de validação de ABI
       const testABI = [
         {
@@ -442,14 +771,21 @@ class StakeService {
         }
       ];
 
-      this.Stake.validateABI(testABI);
+      // Validar se conseguimos encontrar as funções no ABI
+      const stakeTokenFunction = this.getABIFunction(testABI, 'stakeToken');
+      const stakeFunction = this.getABIFunction(testABI, 'stake');
+
+      if (!stakeTokenFunction || !stakeFunction) {
+        throw new Error('Erro na validação do ABI');
+      }
 
       return {
         success: true,
         message: 'Teste do serviço de stakes realizado com sucesso',
         data: {
           abiValidation: true,
-          serviceInitialized: true
+          serviceInitialized: this.initialized,
+          prismaConnected: true
         }
       };
     } catch (error) {
@@ -462,4 +798,4 @@ class StakeService {
   }
 }
 
-module.exports = new StakeService(); 
+module.exports = new StakeService();
