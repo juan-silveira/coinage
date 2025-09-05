@@ -23,7 +23,7 @@ const CompoundRewardsModal = ({ isOpen, onClose, contract, userAddress, rewardsA
       });
       
       const response = await api.post(`/api/stakes/${contract.address}/compound`, {
-        userAddress: userAddress
+        user: userAddress
       });
 
       if (response.data.success) {

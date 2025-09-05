@@ -1,4 +1,5 @@
 const tokenService = require('../services/token.service');
+const { ethers } = require('ethers');
 
 /**
  * Controller para gerenciamento de tokens ERC20

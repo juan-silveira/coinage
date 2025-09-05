@@ -2,6 +2,7 @@ generator client {
   provider      = "prisma-client-js"
   output        = "../src/generated/prisma"
   binaryTargets = ["native", "linux-musl-openssl-3.0.x", "debian-openssl-3.0.x"]
+  jsonProtocol  = "js"
 }
 
 datasource db {
@@ -778,6 +779,7 @@ enum UserActionType {
   stake_created
   stake_withdrawn
   reward_claimed
+  distributeReward
   api_key_created
   api_key_deleted
   suspicious_activity

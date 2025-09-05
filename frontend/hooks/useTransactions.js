@@ -28,7 +28,11 @@ const useTransactions = (initialParams = {}) => {
   ]);
 
   const fetchTransactions = useCallback(async (params = {}) => {
+    console.log('🔥 [useTransactions] fetchTransactions CHAMADO!');
+    console.log('🔥 [useTransactions] user:', user);
+    
     if (!user?.id) {
+      console.log('❌ [useTransactions] Usuário não encontrado, cancelando busca');
       setLoading(false);
       return;
     }
@@ -44,7 +48,23 @@ const useTransactions = (initialParams = {}) => {
         ...params
       };
 
+      console.log('🔥 [useTransactions] Fazendo requisição com params:', mergedParams);
       const response = await transactionService.getTransactions(mergedParams);
+      console.log('🔥 [useTransactions] Resposta recebida:', response);
+      
+      // LOGS DE DEBUG - VERIFICAR O QUE CHEGA DO BACKEND
+      // console.log('🔥🔥🔥 [useTransactions] RESPOSTA COMPLETA DO BACKEND:', response);
+      
+      // if (response.success && response.data?.transactions?.length > 0) {
+      //   const firstTx = response.data.transactions[0];
+      //   console.log('📋 ==================== PRIMEIRA TRANSAÇÃO ====================');
+      //   console.log('📋 Transaction Type:', firstTx.transactionType);
+      //   console.log('📋 Amount:', firstTx.amount);
+      //   console.log('📋 Amount tipo:', typeof firstTx.amount);
+      //   console.log('📋 Net Amount:', firstTx.net_amount);
+      //   console.log('📋 Net Amount tipo:', typeof firstTx.net_amount);
+      //   console.log('📋 ===========================================================');
+      // }
 
       if (response.success) {
         setTransactions(response.data.transactions || []);
@@ -58,8 +78,12 @@ const useTransactions = (initialParams = {}) => {
         setError(response.message || 'Erro ao carregar transações');
       }
     } catch (err) {
-      console.error('Erro ao buscar transações:', err);
-      setError('Erro ao carregar transações');
+      console.error('🚨 [useTransactions] ERRO COMPLETO:', err);
+      console.error('🚨 [useTransactions] err.message:', err.message);
+      console.error('🚨 [useTransactions] err.response:', err.response);
+      console.error('🚨 [useTransactions] err.status:', err.status);
+      console.error('🚨 [useTransactions] err.request:', err.request);
+      setError('Erro ao buscar transações');
       setTransactions([]);
     } finally {
       setLoading(false);
@@ -135,98 +159,110 @@ const useTransactions = (initialParams = {}) => {
 
     // Helper function to parse decimal values from different formats
     const parseDecimalValue = (value) => {
-      if (!value) return 0;
+      // console.log('🔍 parseDecimalValue recebeu:', value, typeof value);
+      
+      if (!value && value !== 0) return 0;
       
       // Se for um número simples
       if (typeof value === 'number') {
+        // console.log('✅ É número:', value);
         return isNaN(value) ? 0 : value;
       }
       
       // Se for string, tentar converter
       if (typeof value === 'string') {
         const parsed = parseFloat(value);
+        // console.log('✅ É string, convertido para:', parsed);
         return isNaN(parsed) ? 0 : parsed;
       }
       
-      // Se for objeto Decimal.js do Prisma: {s: 1, e: 1, d: [97]} = 97
-      if (typeof value === 'object' && value.d && Array.isArray(value.d)) {
-        const { s = 1, e = 0, d } = value;
+      // Se for objeto Decimal do Prisma
+      if (typeof value === 'object' && value !== null) {
+        // console.log('🔍 É objeto, analisando...', value);
         
-        // Verificação de segurança para array válido
-        if (!Array.isArray(d) || d.length === 0) {
-          console.warn('Array d inválido ou vazio:', value);
-          return 0;
-        }
-        
-        // Casos específicos baseados nos dados reais:
-        if (d.length === 1) {
-          // Caso simples: {s: 1, e: 1, d: [97]} = 97
-          return d[0] * s;
-        }
-        
-        if (d.length === 2) {
-          // Caso com decimais: {s: 1, e: 1, d: [44, 500000]} = 44.5
-          // O segundo elemento representa a parte decimal
-          const integerPart = d[0];
-          const decimalPart = d[1];
-          
-          // Converter decimal part para string e determinar casas decimais
-          const decimalStr = decimalPart.toString();
-          const decimalValue = decimalPart / Math.pow(10, decimalStr.length);
-          
-          return (integerPart + decimalValue) * s;
-        }
-        
-        if (d.length === 3) {
-          // Caso com 3 elementos: {s: 1, e: x, d: [a, b, c]} 
-          // Normalmente para números decimais mais complexos
-          // Tentar reconstruir usando o expoente 'e'
+        // PRIMEIRA TENTATIVA: toString()
+        if (value.toString && typeof value.toString === 'function') {
           try {
-            const totalDigits = d.join('');
-            const numericValue = parseFloat(totalDigits);
-            const adjustedValue = numericValue * Math.pow(10, e - totalDigits.length + 1);
-            return adjustedValue * s;
+            const str = value.toString();
+            // console.log('✅ toString() retornou:', str);
+            const parsed = parseFloat(str);
+            if (!isNaN(parsed)) {
+              // console.log('✅ Conversão toString() bem-sucedida:', parsed);
+              return parsed;
+            }
           } catch (error) {
-            // Se falhar, tentar uma abordagem mais simples
-            const firstElement = d[0] || 0;
-            return firstElement * s;
+            console.warn('❌ Erro toString:', error);
           }
         }
         
-        // Para arrays maiores que 3 elementos
-        if (d.length > 3) {
+        // SEGUNDA TENTATIVA: Estrutura Decimal.js {s, e, d}
+        if (value.d && Array.isArray(value.d)) {
+          const { s = 1, e = 0, d } = value;
+          // console.log('🔍 Estrutura Decimal detectada:', { s, e, d });  
+          
+          if (d.length === 1) {
+            // CORREÇÃO: Fórmula correta do Decimal.js: d[0] * s * 10^e
+            // {s: 1, e: 1, d: [10]} → 10 * 1 * 10^1 = 100... NÃO!
+            // Na verdade: {s: 1, e: 1, d: [10]} → 10.0 (o expoente é relativo)
+            // Fórmula real: d[0] * s * Math.pow(10, e - (d[0].toString().length - 1))
+            const digits = d[0].toString();
+            const numDigits = digits.length;
+            const result = (d[0] * s) * Math.pow(10, e - numDigits + 1);
+            
+            // console.log('✅ Conversão d.length=1:', { d0: d[0], s, e, numDigits, formula: `${d[0]} * ${s} * 10^(${e} - ${numDigits} + 1)`, result });
+            return result;
+          }
+          
+          if (d.length === 2) {
+            // Para casos como {s: 1, e: 0, d: [100, 50000000]} onde queremos 100.50
+            // Vamos tentar reconstruir: juntamos os dígitos e aplicamos a escala correta
+            const allDigits = d.join('');
+            const totalDigits = allDigits.length;
+            const numValue = parseInt(allDigits);
+            
+            // Aplicar o expoente para posicionar a vírgula decimal
+            const result = (numValue * s) * Math.pow(10, e - totalDigits + 1);
+            
+            // console.log('✅ Conversão d.length=2:', { d, allDigits, totalDigits, numValue, s, e, result });
+            return result;
+          }
+          
+          // Para arrays maiores
           try {
-            // Tentar usar apenas os primeiros elementos significativos
-            const significantPart = d.slice(0, 2);
-            const totalDigits = significantPart.join('');
-            const numericValue = parseFloat(totalDigits);
-            const adjustedValue = numericValue * Math.pow(10, e - totalDigits.length + 1);
-            return adjustedValue * s;
+            const allDigits = d.join('');
+            const totalDigits = allDigits.length;
+            const numericValue = parseInt(allDigits);
+            const result = (numericValue * s) * Math.pow(10, e - totalDigits + 1);
+            // console.log('✅ Conversão complexa:', result);
+            return result;
           } catch (error) {
-            // Se falhar, usar apenas o primeiro elemento
-            const firstElement = d[0] || 0;
-            return firstElement * s;
+            console.warn('❌ Erro conversão complexa:', error);
           }
         }
         
-        // Fallback: tentar reconstruir manualmente
-        console.warn('Formato Decimal.js não reconhecido (após todas as tentativas):', value, 'd.length:', d.length);
-        return d[0] || 0; // Usar pelo menos o primeiro elemento se existir
-      }
-      
-      // Fallback para outros objetos
-      if (typeof value === 'object' && value.toString) {
-        try {
-          const str = value.toString();
-          const parsed = parseFloat(str);
-          if (!isNaN(parsed)) return parsed;
-        } catch (error) {
-          console.warn('Erro ao converter toString:', value, error);
+        // TERCEIRA TENTATIVA: Tentar propriedades diretas
+        if (value.toNumber && typeof value.toNumber === 'function') {
+          try {
+            const result = value.toNumber();
+            // console.log('✅ toNumber() bem-sucedido:', result);
+            return result;
+          } catch (error) {
+            console.warn('❌ Erro toNumber:', error);
+          }
         }
       }
       
+      // console.log('❌ Nenhuma conversão funcionou, retornando 0');
       return 0;
     };
+
+    // 🧪 TESTE DE CONVERSÃO - Se ainda há objetos, testar conversão
+    // if (typeof tx.amount === 'object' && tx.amount !== null) {
+    //   console.log('🧪 TESTE parseDecimalValue no AMOUNT:', parseDecimalValue(tx.amount));
+    // }
+    // if (typeof tx.net_amount === 'object' && tx.net_amount !== null) {
+    //   console.log('🧪 TESTE parseDecimalValue no NET_AMOUNT:', parseDecimalValue(tx.net_amount));
+    // }
 
     // PRIORIZAR transactionType do banco, depois metadados
     if (tx.transactionType === 'deposit') {

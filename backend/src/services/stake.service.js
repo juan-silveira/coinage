@@ -3,6 +3,20 @@ const blockchainService = require('./blockchain.service');
 const transactionService = require('./transaction.service');
 const earningsService = require('./earnings.service');
 const prismaConfig = require('../config/prisma');
+const { getTokenPrice, getTokenName } = require('../constants/tokenPrices');
+
+// Função helper para buscar contract type por nome
+const getContractTypeByName = async (name) => {
+  try {
+    const contractType = await global.prisma.contractType.findUnique({
+      where: { name }
+    });
+    return contractType;
+  } catch (error) {
+    console.warn(`Não foi possível encontrar contract type ${name}:`, error.message);
+    return null;
+  }
+};
 
 /**
  * Função helper para obter Prisma
@@ -41,7 +55,7 @@ class StakeService {
         address,
         abi = [],
         network = 'testnet',
-        contractType = 'STAKE',
+        contractType = 'stake',
         adminAddress,
         metadata = {}
       } = stakeData;
@@ -98,10 +112,27 @@ class StakeService {
         }
       }
 
+      // Buscar primeira empresa disponível
+      console.log('🔍 Buscando empresa disponível...');
+      const firstCompany = await global.prisma.company.findFirst();
+      if (!firstCompany) {
+        throw new Error('Nenhuma empresa encontrada no sistema');
+      }
+      console.log('✅ Company encontrada:', firstCompany.id, firstCompany.name);
+
+      // Buscar contract type dinamicamente
+      console.log('🔍 Buscando contract type para:', contractType);
+      const contractTypeRecord = await getContractTypeByName(contractType);
+      if (!contractTypeRecord) {
+        throw new Error(`Contract type '${contractType}' não encontrado no banco de dados`);
+      }
+      console.log('✅ Contract type encontrado:', contractTypeRecord.id, contractTypeRecord.name);
+
       // Criar stake no banco usando Prisma
       const stake = await prisma.smartContract.create({
         data: {
-          companyId: '2195b754-83d9-44d1-b5cd-f912ca70636c', // ID da empresa padrão
+          companyId: firstCompany.id,
+          contractTypeId: contractTypeRecord.id, // Usar ID dinâmico
           name: name || `Stake ${address.slice(0, 8)}...`,
           address: address,
           abi: finalABI,
@@ -207,6 +238,29 @@ class StakeService {
         throw new Error(`Função '${functionName}' não é uma função de escrita`);
       }
 
+      // Para claimReward e compound, obter valor pendente antes da transação
+      let pendingRewardAmount = 0;
+      if (functionName === 'claimReward' || functionName === 'compound') {
+        try {
+          console.log('🔍 [REWARD] Consultando valor de recompensa pendente...');
+          const userAddress = params[0]; // Primeiro parâmetro é o endereço do usuário
+          
+          if (userAddress) {
+            const pendingRewardResult = await this.readStakeContract(stakeAddress, 'getPendingReward', [userAddress]);
+            if (pendingRewardResult.success && pendingRewardResult.data.result) {
+              // Usar string para preservar precisão decimal até salvar no banco
+              const rewardInWei = pendingRewardResult.data.result;
+              const rewardFormatted = ethers.formatEther(rewardInWei);
+              pendingRewardAmount = rewardFormatted; // Manter como string
+              console.log(`💰 [REWARD] Valor pendente encontrado: ${pendingRewardAmount} tokens (wei: ${rewardInWei})`);
+            }
+          }
+        } catch (rewardError) {
+          console.warn('⚠️ [REWARD] Não foi possível obter valor pendente:', rewardError.message);
+          // Continuar com valor 0 se não conseguir obter
+        }
+      }
+
       // Converter valores de ETH para wei se necessário
       const convertedParams = params.map((param, index) => {
         // Verificar se é um parâmetro de quantidade (amount, value, etc.)
@@ -289,7 +343,8 @@ class StakeService {
         network: stake.network,
         signer: signer.address,
         receipt,
-        stakeContract: stake
+        stakeContract: stake,
+        pendingRewardAmount: pendingRewardAmount // Incluir o valor de recompensa consultado
       };
 
       console.log('📦 [TXDATA DEBUG] Dados completos do txData:');
@@ -361,6 +416,11 @@ class StakeService {
         'claimReward': 'stake_reward',
         'compound': 'stake'
       };
+
+      // distributeReward não é transação financeira, deve ir para user_actions
+      if (txData.functionName === 'distributeReward') {
+        return await this._handleDistributeRewardAction(txData, jwtUser, userAddress, prisma);
+      }
 
       const operationType = operationTypeMap[txData.functionName] || 'stake';
       const transactionType = transactionTypeMap[txData.functionName] || 'stake';
@@ -448,9 +508,9 @@ class StakeService {
           // Status principal
           status: 'confirmed',
           
-          // Valores - usar o primeiro parâmetro para amount (igual para depositRewards e distributeReward)
-          amount: txData.originalParams[0] ? parseFloat(txData.originalParams[0].toString()) : 0,
-          net_amount: txData.originalParams[0] ? parseFloat(txData.originalParams[0].toString()) : 0,
+          // Valores - lógica específica por função
+          amount: this._calculateTransactionAmount(txData),
+          net_amount: this._calculateTransactionAmount(txData),
           currency: currency,
           
           // Blockchain fields 
@@ -496,31 +556,70 @@ class StakeService {
         try {
           console.log(`💰 Registrando earnings para ${txData.functionName}...`);
           
-          // Obter o valor da recompensa dos parâmetros ou da transação
+          // Obter o valor da recompensa - usar o valor consultado antes da transação
           let rewardAmount = 0;
           
-          // Para claimReward e compound, geralmente o valor está nos eventos do receipt
-          // Por enquanto, vamos usar o valor dos parâmetros se disponível
-          if (txData.originalParams && txData.originalParams.length > 1) {
-            rewardAmount = parseFloat(txData.originalParams[1]?.toString() || '0');
-          } else if (txData.receipt && txData.receipt.logs && txData.receipt.logs.length > 0) {
-            // Tentar extrair o valor dos logs do contrato (eventos)
-            // Isso varia dependendo do contrato, mas geralmente há um evento RewardClaimed ou similar
+          // Prioridade 1: Usar o valor consultado antes da transação
+          if (txData.pendingRewardAmount && parseFloat(txData.pendingRewardAmount) > 0) {
+            rewardAmount = txData.pendingRewardAmount; // Preservar como string
+            console.log(`💰 [EARNINGS] Usando valor consultado: ${rewardAmount} tokens`);
+          } 
+          // Prioridade 2: Tentar extrair dos logs se não temos valor consultado
+          else if (txData.receipt && txData.receipt.logs && txData.receipt.logs.length > 0) {
             try {
-              // Por enquanto usar um valor padrão se não conseguir extrair
-              rewardAmount = 0;
+              console.log('🔍 [EARNINGS] Tentando extrair valor de recompensa dos logs...');
+              
+              // Buscar por eventos que contenham valores de transfer ou reward
+              for (const log of txData.receipt.logs) {
+                if (log.data && log.data !== '0x') {
+                  try {
+                    // Parse simples - pegar o último tópico que geralmente é o valor
+                    const topics = log.topics || [];
+                    const data = log.data;
+                    
+                    // Se há data, tentar converter para número
+                    if (data && data.length > 10) { // Ignorar dados muito pequenos
+                      const hexValue = data;
+                      const bigIntValue = BigInt(hexValue);
+                      const ethValue = ethers.formatEther(bigIntValue.toString()); // Preservar precisão
+                      
+                      if (parseFloat(ethValue) > 0 && parseFloat(ethValue) < 1000000) { // Valor razoável
+                        rewardAmount = ethValue; // Manter como string
+                        console.log(`💰 [EARNINGS] Valor encontrado nos logs: ${ethValue} tokens`);
+                        break;
+                      }
+                    }
+                  } catch (logError) {
+                    // Continuar tentando outros logs
+                  }
+                }
+              }
+              
             } catch (e) {
-              console.warn('⚠️ Não foi possível extrair valor de recompensa dos logs');
+              console.warn('⚠️ [EARNINGS] Não foi possível extrair valor de recompensa dos logs:', e.message);
             }
           }
+          
+          // Prioridade 3: Se não conseguir obter o valor, não registrar earning
+          if (!rewardAmount || parseFloat(rewardAmount) === 0) {
+            console.log('⚠️ [EARNINGS] Valor de recompensa não determinado, não registrando earning');
+            // Não registra earning com valor 0 - melhor não registrar
+          } else {
+          
+          // Obter preço e nome da moeda
+          const tokenSymbol = currency || 'REWARD';
+          const tokenPrice = getTokenPrice(tokenSymbol);
+          const tokenName = getTokenName(tokenSymbol);
+          
+          console.log(`💰 [EARNINGS] Token: ${tokenSymbol} (${tokenName}), Price: R$ ${tokenPrice}, Amount: ${rewardAmount}`);
           
           // Criar registro de earning
           const earningData = {
             userId: userRecord?.id || null,
-            tokenSymbol: currency || 'REWARD',
-            tokenName: `${currency || 'REWARD'} Rewards`,
-            amount: rewardAmount || 0,
-            quote: 0, // Poderia calcular o valor em USD/BRL aqui
+            tokenSymbol: tokenSymbol,
+            tokenName: tokenName, // Nome completo da moeda
+            amount: rewardAmount, // Passar como string/Decimal para preservar precisão
+            quote: tokenPrice, // Preço unitário da moeda em BRL
             network: txData.network,
             transactionHash: txData.transactionHash,
             distributionDate: new Date(),
@@ -533,6 +632,7 @@ class StakeService {
           } else {
             console.warn(`⚠️ Erro ao registrar earning: ${earningResult.message}`);
           }
+          } // Fechar o else da verificação de rewardAmount > 0
           
         } catch (earningsError) {
           console.error('❌ Erro ao registrar earnings:', earningsError);
@@ -794,6 +894,136 @@ class StakeService {
         message: 'Falha no teste do serviço de stakes',
         error: error.message
       };
+    }
+  }
+
+  /**
+   * Calcula o amount correto para a transação baseado na função
+   */
+  _calculateTransactionAmount(txData) {
+    try {
+      // Para claimReward e compound, usar o valor consultado antes da transação
+      if (txData.functionName === 'claimReward' || txData.functionName === 'compound') {
+        // Prioridade 1: Usar o valor consultado antes da transação (preservar como string)
+        if (txData.pendingRewardAmount && parseFloat(txData.pendingRewardAmount) > 0) {
+          console.log(`💰 Amount usando valor consultado: ${txData.pendingRewardAmount} tokens`);
+          return txData.pendingRewardAmount; // Retornar como string para preservar precisão
+        }
+
+        // Prioridade 2: Extrair dos logs da transação
+        if (txData.receipt && txData.receipt.logs && txData.receipt.logs.length > 0) {
+          // Buscar por eventos que contenham valores de transfer ou reward
+          for (const log of txData.receipt.logs) {
+            if (log.data && log.data !== '0x') {
+              try {
+                // Se há data, tentar converter para número
+                if (log.data && log.data.length > 10) { // Ignorar dados muito pequenos
+                  const hexValue = log.data;
+                  const bigIntValue = BigInt(hexValue);
+                  const ethValue = ethers.formatEther(bigIntValue.toString()); // Use ethers.formatEther para preservar precisão
+                  
+                  if (parseFloat(ethValue) > 0 && parseFloat(ethValue) < 1000000) { // Valor razoável
+                    console.log(`💰 Amount calculado dos logs: ${ethValue} tokens`);
+                    return ethValue; // Retornar como string
+                  }
+                }
+              } catch (logError) {
+                // Continuar tentando outros logs
+              }
+            }
+          }
+        }
+        
+        // Prioridade 3: Fallback valor zero (preferível ao valor fixo)
+        console.log('⚠️ Não foi possível determinar amount para claimReward/compound, usando 0');
+        return 0;
+      }
+      
+      // Para outras funções (stake, unstake, depositRewards), usar o primeiro parâmetro
+      return txData.originalParams[0] ? parseFloat(txData.originalParams[0].toString()) : 0;
+      
+    } catch (error) {
+      console.error('❌ Erro ao calcular amount da transação:', error);
+      return 0;
+    }
+  }
+
+  /**
+   * Registra distributeReward como user_action (não transação financeira)
+   */
+  async _handleDistributeRewardAction(txData, jwtUser, userAddress, prisma) {
+    try {
+      console.log('📊 Registrando distributeReward em user_actions...');
+      
+      // Importar o userActionsService
+      const userActionsService = require('./userActions.service');
+      
+      // Criar registro em user_actions
+      const userActionData = {
+        action: 'distributeReward',
+        category: 'contractInteraction',
+        status: 'success',
+        details: {
+          contractAddress: txData.contractAddress,
+          functionName: txData.functionName,
+          percentageInBasisPoints: txData.originalParams[0]?.toString(),
+          network: txData.network,
+          blockNumber: txData.receipt?.blockNumber,
+          gasUsed: txData.gasUsed
+        },
+        metadata: {
+          transactionHash: txData.transactionHash,
+          contractInfo: {
+            name: txData.stakeContract?.name,
+            address: txData.stakeContract?.address,
+            metadata: txData.stakeContract?.metadata
+          },
+          executedBy: {
+            jwtUserId: jwtUser?.id,
+            jwtUserEmail: jwtUser?.email,
+            signerAddress: txData.signer
+          },
+          distributionData: {
+            percentage: `${(parseInt(txData.originalParams[0] || 0) / 100).toFixed(2)}%`,
+            basisPoints: txData.originalParams[0]?.toString(),
+            executedAt: new Date().toISOString()
+          }
+        }
+      };
+      
+      // Usar a mesma estrutura do login - usar logAuth mas mudar categoria
+      console.log('🔍 [DEBUG] Tentando salvar distributeReward usando logAuth pattern');
+      
+      // Criar um objeto simulando uma request
+      const fakeReq = {
+        company: { id: jwtUser?.companyId || '2195b754-83d9-44d1-b5cd-f912ca70636c' },
+        headers: { 'user-agent': 'Sistema Interno' },
+        ip: '127.0.0.1'
+      };
+      
+      await userActionsService.logAuth(
+        jwtUser?.id || '5e8fd1b6-9969-44a8-bcb5-0dd832b1d973',
+        'distributeReward',
+        fakeReq,
+        {
+          status: 'success',
+          companyId: jwtUser?.companyId || '2195b754-83d9-44d1-b5cd-f912ca70636c',
+          details: userActionData.details,
+          metadata: userActionData.metadata
+        }
+      );
+      
+      console.log('✅ distributeReward registrado em user_actions');
+      
+      return {
+        success: true,
+        message: 'distributeReward registrado em user_actions',
+        transactionHash: txData.transactionHash
+      };
+      
+    } catch (error) {
+      console.error('❌ Erro ao registrar distributeReward em user_actions:', error);
+      throw error;
     }
   }
 }

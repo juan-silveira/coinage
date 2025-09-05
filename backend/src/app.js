@@ -993,6 +993,10 @@ app.use('/api/backup', backupRoutes);
 const pixKeysRoutes = require('./routes/pixKeys.routes');
 app.use('/api/pix-keys', pixKeysRoutes);
 
+// Switch company routes (com autenticação JWT)
+const switchCompanyRoutes = require('./routes/switch-company.routes');
+app.use('/api/switch-company', authenticateJWT, switchCompanyRoutes);
+
 // Banks routes (públicas)
 const banksRoutes = require('./routes/banks.routes');
 app.use('/api/banks', banksRoutes);

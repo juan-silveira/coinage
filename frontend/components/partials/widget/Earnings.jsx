@@ -3,7 +3,7 @@ import React, { useState } from "react";
 import Card from "@/components/ui/Card";
 import Icon from "@/components/ui/Icon";
 import Tooltip from "@/components/ui/Tooltip";
-import { formatCurrency } from "@/constants/tokenPrices";
+import { formatCurrency, formatCurrencyPrecise } from "@/constants/tokenPrices";
 import useEarnings from "@/hooks/useEarnings";
 import { BalanceDisplay } from "@/utils/balanceUtils";
 
@@ -30,8 +30,18 @@ const Earnings = ({ earningsData }) => {
     return `/assets/images/currencies/${symbol}.png`;
   };
 
-  // Calcular total de ganhos acumulados
-  const totalEarnings = stats.totalValueInCbrl || 0;
+  // Função para calcular valor em BRL usando quote do banco de dados
+  const calculateEarningValueBRL = (earning) => {
+    // Usar quote do banco de dados em vez de tokenPrices
+    const price = parseFloat(earning.quote) || 0;
+    const amount = parseFloat(earning.amount) || 0;
+    return amount * price;
+  };
+
+  // Calcular total de ganhos acumulados usando dados do banco
+  const totalEarnings = earnings.reduce((total, earning) => {
+    return total + calculateEarningValueBRL(earning);
+  }, 0);
 
   // Paginação
   const totalPages = pagination.totalPages;
@@ -70,7 +80,7 @@ const Earnings = ({ earningsData }) => {
             <div className="h-6 w-20 bg-gradient-to-r from-slate-200 to-slate-300 dark:from-slate-600 dark:to-slate-500 rounded animate-pulse"></div>
           ) : (
             <span className="balance font-semibold text-lg">
-              {formatCurrency(totalEarnings)}
+              {formatCurrencyPrecise(totalEarnings)}
             </span>
           )}
         </div>
@@ -169,9 +179,9 @@ const Earnings = ({ earningsData }) => {
                     
                     {/* Valor em BRL com tooltip */}
                     <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-slate-900 dark:text-white balance">
-                      <Tooltip content={`1 ${earning.tokenSymbol} ≈ ${parseFloat(earning.quote).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 6 })} cBRL`}>
+                      <Tooltip content={`1 ${earning.tokenSymbol} ≈ ${formatCurrency(parseFloat(earning.quote) || 0)}`}>
                         <span className="cursor-pointer">
-                          {formatCurrency(earning.amount * earning.quote)}
+                          {formatCurrencyPrecise(calculateEarningValueBRL(earning))}
                         </span>
                       </Tooltip>
                     </td>

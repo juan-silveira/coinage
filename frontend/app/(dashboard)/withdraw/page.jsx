@@ -58,11 +58,43 @@ const WithdrawPage = () => {
   } = useCurrencyMask();
   
   // Estados para cálculo
-  const [feeAmount, setFeeAmount] = useState(3.00); // Taxa fixa de R$ 3,00
+  const [feeAmount, setFeeAmount] = useState(0); // Taxa será carregada do banco
   const [netAmount, setNetAmount] = useState(0);
+  const [feeLoading, setFeeLoading] = useState(false);
+  const [feeLoaded, setFeeLoaded] = useState(false); // Flag para saber se já carregou
   
   // Estados da transação
   const [withdrawalData, setWithdrawalData] = useState(null);
+
+  // Carregar taxa inicial do banco de dados
+  useEffect(() => {
+    const loadInitialFee = async () => {
+      if (!user?.id) return;
+      
+      try {
+        console.log('🔍 [WithdrawPage] Carregando taxa inicial para usuário:', user.id);
+        const response = await api.post('/api/withdrawals/calculate-fee', {
+          amount: 100 // Valor de referência para obter a taxa
+        });
+        
+        if (response.data.success) {
+          console.log('✅ [WithdrawPage] Taxa inicial carregada:', response.data.data.fee);
+          setFeeAmount(response.data.data.fee);
+          setFeeLoaded(true);
+        } else {
+          console.error('❌ [WithdrawPage] Erro ao carregar taxa inicial:', response.data.message);
+          setFeeAmount(1.0); // Fallback mínimo
+          setFeeLoaded(true);
+        }
+      } catch (error) {
+        console.error('❌ [WithdrawPage] Erro na chamada inicial:', error);
+        setFeeAmount(1.0); // Fallback mínimo
+        setFeeLoaded(true);
+      }
+    };
+
+    loadInitialFee();
+  }, [user?.id]);
 
   // Verificar chave PIX ao carregar e forçar reload de balances (apenas uma vez)
   useEffect(() => {
@@ -116,16 +148,84 @@ const WithdrawPage = () => {
     }
   }, [balances, user?.id, getBalance, reloadBalances]);
 
-  // Calcular valor líquido quando o valor mudar
+  // Buscar taxa real do backend quando o valor mudar (com debounce)
   useEffect(() => {
     const amount = getNumericValue();
+    console.log('🔍 [useEffect] Valor mudou:', amount, 'withdrawAmount:', withdrawAmount);
+    
     if (amount > 0) {
+      console.log('🔍 [useEffect] Valor > 0, iniciando busca da taxa');
+      setFeeLoading(true);
+      // Debounce para evitar muitas chamadas
+      const timeoutId = setTimeout(() => {
+        console.log('🔍 [useEffect] Timeout executado, chamando fetchWithdrawFee');
+        fetchWithdrawFee(amount);
+      }, 500); // Esperar 500ms após parar de digitar
+      
+      return () => {
+        console.log('🔍 [useEffect] Cleanup - cancelando timeout');
+        clearTimeout(timeoutId);
+      };
+    } else {
+      console.log('🔍 [useEffect] Valor <= 0, resetando net amount');
+      setNetAmount(0);
+      setFeeLoading(false);
+    }
+  }, [withdrawAmount]);
+
+  // Calcular valor líquido quando a taxa mudar
+  useEffect(() => {
+    const amount = getNumericValue();
+    if (amount > 0 && feeAmount >= 0) {
       const net = Math.max(0, amount - feeAmount);
       setNetAmount(net);
     } else {
       setNetAmount(0);
     }
-  }, [withdrawAmount, feeAmount]);
+  }, [feeAmount, withdrawAmount]);
+
+  // Função para buscar taxa do backend
+  const fetchWithdrawFee = async (amount) => {
+    try {
+      console.log('🔍 [fetchWithdrawFee] Buscando taxa para valor:', amount);
+      console.log('🔍 [fetchWithdrawFee] User ID:', user?.id);
+      console.log('🔍 [fetchWithdrawFee] User authenticated:', !!user);
+      
+      const response = await api.post('/api/withdrawals/calculate-fee', {
+        amount: amount
+      });
+      
+      console.log('🔍 [fetchWithdrawFee] Resposta do backend:', response.data);
+      
+      if (response.data.success) {
+        console.log('✅ [fetchWithdrawFee] Taxa obtida:', response.data.data.fee);
+        setFeeAmount(response.data.data.fee);
+      } else {
+        console.error('❌ [fetchWithdrawFee] Erro ao calcular taxa:', response.data.message);
+        // Manter a taxa carregada inicialmente, não sobrescrever
+      }
+    } catch (error) {
+      console.error('❌ [fetchWithdrawFee] Erro na chamada API:', {
+        message: error.message,
+        status: error.response?.status,
+        data: error.response?.data,
+        config: {
+          url: error.config?.url,
+          method: error.config?.method,
+          headers: error.config?.headers
+        }
+      });
+      // Manter a taxa carregada inicialmente, não sobrescrever
+    } finally {
+      setFeeLoading(false);
+    }
+  };
+
+  // Função de teste para chamar diretamente no console
+  window.testFeeAPI = async () => {
+    console.log('🧪 [TESTE] Testando API de taxa...');
+    await fetchWithdrawFee(100);
+  };
 
   const checkUserPixKey = () => {
     // A verificação agora é feita pelo hook usePixKeys
@@ -366,7 +466,11 @@ const WithdrawPage = () => {
                 </div>
                 <div className="flex justify-between text-sm mt-2">
                   <span className="text-gray-500">Mínimo: R$ 10,00</span>
-                  <span className="text-gray-500">Taxa: R$ 3,00</span>
+                  <span className="text-gray-500">
+                    Taxa: {feeLoading ? 'Calculando...' : 
+                           !feeLoaded && feeAmount === 0 ? 'Carregando...' : 
+                           formatDisplayValue(feeAmount)}
+                  </span>
                 </div>
               </div>
 

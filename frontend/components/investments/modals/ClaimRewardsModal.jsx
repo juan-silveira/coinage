@@ -25,7 +25,7 @@ const ClaimRewardsModal = ({ isOpen, onClose, contract, userAddress, rewardsAmou
       });
       
       const response = await api.post(`/api/stakes/${contract.address}/claim-rewards`, {
-        userAddress: userAddress
+        user: userAddress
       });
 
       if (response.data.success) {

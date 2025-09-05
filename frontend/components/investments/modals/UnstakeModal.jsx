@@ -61,7 +61,7 @@ const UnstakeModal = ({ isOpen, onClose, contract, userAddress, userStake, token
       const amountInWei = (numericValue * Math.pow(10, 18)).toString();
       
       const response = await api.post(`/api/stakes/${contract.address}/withdraw`, {
-        userAddress: userAddress,
+        user: userAddress,
         amount: amountInWei
       });
 

@@ -333,6 +333,9 @@ class WithdrawController {
     try {
       const { amount } = req.body;
       
+      // Obter userId do JWT token (definido pelo middleware de autenticação)
+      const userId = req.user?.id;
+      
       if (!amount || amount <= 0) {
         return res.status(400).json({
           success: false,
@@ -340,7 +343,16 @@ class WithdrawController {
         });
       }
 
-      const fee = await this.withdrawService.calculateFee(amount);
+      if (!userId) {
+        return res.status(400).json({
+          success: false,
+          message: 'Usuário não autenticado'
+        });
+      }
+
+      console.log('🔍 [calculateWithdrawalFee] Calculando taxa para:', { amount, userId });
+      const fee = await this.withdrawService.calculateFee(amount, userId);
+      console.log('🔍 [calculateWithdrawalFee] Taxa calculada:', fee);
       
       res.json({
         success: true,

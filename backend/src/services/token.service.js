@@ -529,7 +529,7 @@ class TokenService {
         address,
         network,
         adminAddress: adminAddress ? adminAddress.toLowerCase() : null,
-        contractType: 'ERC20', // Assumindo que todos os tokens registrados são ERC20
+        contractType: 'token', // Usar 'token' que existe no banco
         metadata: {
           website,
           description,

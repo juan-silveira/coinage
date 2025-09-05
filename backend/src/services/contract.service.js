@@ -3,10 +3,17 @@ const blockchainService = require('./blockchain.service');
 const transactionService = require('./transaction.service');
 const prismaConfig = require('../config/prisma');
 
-// Contract type IDs
-const CONTRACT_TYPE_IDS = {
-  TOKEN: '43667189-7fb5-45e6-a6a8-7541df3bcf1a',
-  STAKE: 'b357140e-acc3-42ba-9828-fa6f9a109be1'
+// Função helper para buscar contract type por nome
+const getContractTypeByName = async (name) => {
+  try {
+    const contractType = await global.prisma.contractType.findUnique({
+      where: { name }
+    });
+    return contractType;
+  } catch (error) {
+    console.warn(`Não foi possível encontrar contract type ${name}:`, error.message);
+    return null;
+  }
 };
 
 // Função para obter o serviço de webhook
@@ -1083,7 +1090,7 @@ class ContractService {
       let tokenInfo = {};
       let finalABI = abi;
       
-      if (contractType === 'ERC20') {
+      if (contractType === 'token' || contractType === 'ERC20') {
         // Usar ABI ERC-20 completo se não tivermos ABI específico
         if (!abi || abi.length === 0) {
           try {
@@ -1137,12 +1144,20 @@ class ContractService {
       }
       console.log('✅ Company encontrado:', firstCompany.id, firstCompany.name);
 
+      // Buscar contract type dinamicamente
+      console.log('🔍 Buscando contract type para:', contractType);
+      const contractTypeRecord = await getContractTypeByName(contractType);
+      if (!contractTypeRecord) {
+        throw new Error(`Contract type '${contractType}' não encontrado no banco de dados`);
+      }
+      console.log('✅ Contract type encontrado:', contractTypeRecord.id, contractTypeRecord.name);
+
       // Preparar dados do contrato
       const contractToCreate = {
         name: tokenInfo.name || name || 'Token ERC-20', // Garantir que sempre tenha um nome
         address: require('../utils/address').toChecksumAddress(address),
         companyId: firstCompany.id,
-        contractTypeId: CONTRACT_TYPE_IDS.TOKEN, // Hardcoded token contract type ID
+        contractTypeId: contractTypeRecord.id, // Usar ID dinâmico
         abi: finalABI,
         network,
         metadata: {

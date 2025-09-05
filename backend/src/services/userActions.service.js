@@ -77,7 +77,7 @@ class UserActionsService {
       category: 'authentication',
       status: additionalData.status || 'success',
       ipAddress: this.getIpAddress(req),
-      userAgent: req.headers['user-agent'],
+      userAgent: req?.headers?.['user-agent'] || 'Unknown',
       deviceInfo: this.getDeviceInfo(req),
       location: await this.getLocation(req),
       ...additionalData
@@ -103,7 +103,7 @@ class UserActionsService {
       relatedId: transactionData.transactionId,
       relatedType: 'transaction',
       ipAddress: this.getIpAddress(req),
-      userAgent: req.headers['user-agent'],
+      userAgent: req?.headers?.['user-agent'] || 'Unknown',
       ...transactionData
     });
   }
@@ -128,7 +128,7 @@ class UserActionsService {
       relatedId: blockchainData.transactionId,
       relatedType: 'blockchain_transaction',
       ipAddress: this.getIpAddress(req),
-      userAgent: req.headers['user-agent'],
+      userAgent: req?.headers?.['user-agent'] || 'Unknown',
       metadata: blockchainData.metadata
     });
   }
@@ -145,7 +145,7 @@ class UserActionsService {
       status: securityData.status || 'success',
       details: securityData.details,
       ipAddress: this.getIpAddress(req),
-      userAgent: req.headers['user-agent'],
+      userAgent: req?.headers?.['user-agent'] || 'Unknown',
       deviceInfo: this.getDeviceInfo(req),
       location: await this.getLocation(req),
       errorMessage: securityData.errorMessage,
@@ -172,7 +172,7 @@ class UserActionsService {
       relatedId: targetUserId,
       relatedType: 'user',
       ipAddress: this.getIpAddress(req),
-      userAgent: req.headers['user-agent']
+      userAgent: req?.headers?.['user-agent'] || 'Unknown'
     });
   }
 
@@ -347,14 +347,15 @@ class UserActionsService {
    * Helpers
    */
   getIpAddress(req) {
-    return req.headers['x-forwarded-for']?.split(',')[0].trim() || 
+    return req.headers?.['x-forwarded-for']?.split(',')[0].trim() || 
            req.connection?.remoteAddress || 
            req.socket?.remoteAddress || 
-           req.ip;
+           req.ip ||
+           '127.0.0.1';
   }
 
   getDeviceInfo(req) {
-    const userAgent = req.headers['user-agent'] || '';
+    const userAgent = req.headers?.['user-agent'] || '';
     
     return {
       isMobile: /mobile/i.test(userAgent),

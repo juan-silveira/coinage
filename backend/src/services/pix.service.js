@@ -395,7 +395,7 @@ class PixService {
   calculatePixFee(amount, operation = 'withdrawal') {
     // Mock: sem taxa para depósitos, taxa fixa para saques
     if (operation === 'deposit') return 0;
-    if (operation === 'withdrawal') return 2.50; // R$ 2,50 taxa fixa mock
+    if (operation === 'withdrawal') return 1.0; // Usar taxa padrão do banco
     return 0;
   }
 

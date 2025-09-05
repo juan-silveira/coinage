@@ -31,10 +31,17 @@ const loadStakeABI = () => {
   }
 };
 
-// Contract type IDs
-const CONTRACT_TYPE_IDS = {
-  TOKEN: '43667189-7fb5-45e6-a6a8-7541df3bcf1a',
-  STAKE: 'b357140e-acc3-42ba-9828-fa6f9a109be1'
+// Função helper para buscar contract type por nome
+const getContractTypeByName = async (name) => {
+  try {
+    const contractType = await global.prisma.contractType.findUnique({
+      where: { name }
+    });
+    return contractType;
+  } catch (error) {
+    console.warn(`Não foi possível encontrar contract type ${name}:`, error.message);
+    return null;
+  }
 };
 
 /**
@@ -203,6 +210,17 @@ router.post('/', async (req, res) => {
       });
     }
 
+    // Buscar contract type dinamicamente
+    console.log('🔍 Buscando contract type stake...');
+    const contractTypeRecord = await getContractTypeByName('stake');
+    if (!contractTypeRecord) {
+      return res.status(500).json({
+        success: false,
+        message: 'Contract type stake não encontrado no banco de dados'
+      });
+    }
+    console.log('✅ Contract type encontrado:', contractTypeRecord.id, contractTypeRecord.name);
+
     // Load stake ABI
     const stakeABI = loadStakeABI();
     if (!stakeABI) {
@@ -219,7 +237,7 @@ router.post('/', async (req, res) => {
         address,
         network: network.toLowerCase(),
         companyId: companyId,
-        contractTypeId: CONTRACT_TYPE_IDS.STAKE, // Hardcoded stake contract type ID
+        contractTypeId: contractTypeRecord.id, // Usar ID dinâmico
         abi: stakeABI, // Include the stake ABI
         isActive: true,
         metadata: {
@@ -293,11 +311,20 @@ router.patch('/:id/abi', async (req, res) => {
       });
     }
 
+    // Buscar contract type dinamicamente
+    const contractTypeRecord = await getContractTypeByName('stake');
+    if (!contractTypeRecord) {
+      return res.status(500).json({
+        success: false,
+        message: 'Contract type stake não encontrado no banco de dados'
+      });
+    }
+
     const updatedContract = await prisma.smartContract.update({
       where: { id },
       data: {
         abi: stakeABI,
-        contractTypeId: CONTRACT_TYPE_IDS.STAKE,
+        contractTypeId: contractTypeRecord.id,
         updatedAt: new Date()
       }
     });
