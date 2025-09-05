@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const userCompanyService = require('../services/userCompany.service');
+const prismaConfig = require('../config/prisma');
 
 /**
  * POST /api/switch-company
@@ -26,7 +27,8 @@ router.post('/', async (req, res) => {
     }
 
     // Buscar empresa por alias
-    const company = await global.prisma.company.findUnique({
+    const prisma = prismaConfig.getPrisma();
+    const company = await prisma.company.findUnique({
       where: { alias: companyAlias }
     });
 

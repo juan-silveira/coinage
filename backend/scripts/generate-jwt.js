@@ -5,7 +5,7 @@ const JWT_SECRET = '1dbe2489ad1e57530b103d71d7007ad34e17a3239a90c0cfa9007cbcab68
 
 // Dados do usuário (baseado nos logs - user ID from direct Prisma test)
 const userData = {
-  userId: '386eb564-5dc1-404f-8e1b-ce0b88c3adb0',
+  id: '386eb564-5dc1-404f-8e1b-ce0b88c3adb0', // Mudado de userId para id
   userPlan: 'PREMIUM',
   email: 'ivan.alberton@navi.inf.br',
   iat: Math.floor(Date.now() / 1000) - 3600 // 1 hora atrás para garantir validade
