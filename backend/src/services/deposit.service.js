@@ -239,23 +239,72 @@ class DepositService {
           throw new Error('Usuário não possui endereço blockchain configurado');
         }
 
-        // ENVIAR PARA FILA APENAS UMA VEZ
-        await this.connectToRabbitMQ();
-        const mintData = {
-          transactionId: transactionId,
-          userId: transaction.userId,
-          recipientAddress: recipientAddress, // Endereço para receber os tokens
-          amount: transaction.net_amount, // Usar valor líquido
-          network: 'testnet'
-        };
+        // EXECUTAR MINT DIRETAMENTE AO INVÉS DE USAR FILA
+        console.log(`🔄 Executando mint blockchain para: ${transactionId}`);
+        
+        try {
+          const mintResult = await mintService.mintCBRL(
+            recipientAddress,
+            transaction.net_amount.toString(),
+            process.env.BLOCKCHAIN_NETWORK || 'testnet',
+            transactionId
+          );
 
-        await this.rabbitMQChannel.sendToQueue('blockchain.mint', Buffer.from(JSON.stringify(mintData)), {
-          persistent: true
-        });
+          if (mintResult.success) {
+            // Atualizar transação com dados reais da blockchain
+            const finalTransaction = await this.prisma.transaction.update({
+              where: { id: transactionId },
+              data: {
+                blockchain_status: 'confirmed',
+                blockchain_confirmed_at: new Date(),
+                status: 'confirmed', // Status geral também confirmed
+                confirmedAt: new Date(),
+                txHash: mintResult.transactionHash,
+                blockNumber: parseInt(mintResult.blockNumber) || null,
+                gasUsed: parseInt(mintResult.gasUsed) || null,
+                metadata: {
+                  ...updatedTransaction.metadata,
+                  blockchain: {
+                    transactionHash: mintResult.transactionHash,
+                    blockNumber: mintResult.blockNumber,
+                    gasUsed: mintResult.gasUsed,
+                    recipient: mintResult.recipient,
+                    amountMinted: mintResult.amountMinted,
+                    explorerUrl: mintResult.explorerUrl,
+                    confirmedAt: new Date().toISOString()
+                  }
+                }
+              }
+            });
 
-        console.log(`✅ PIX confirmado para transação ${transactionId}, enviado para mint (PRIMEIRA VEZ)`);
+            console.log(`✅ Depósito confirmado na blockchain: ${mintResult.transactionHash}`);
+            return finalTransaction;
+          } else {
+            throw new Error(`Mint failed: ${mintResult.error}`);
+          }
+        } catch (blockchainError) {
+          console.error('❌ Erro na blockchain:', blockchainError);
+          
+          // Atualizar status para failed
+          await this.prisma.transaction.update({
+            where: { id: transactionId },
+            data: {
+              blockchain_status: 'failed',
+              status: 'failed',
+              metadata: {
+                ...updatedTransaction.metadata,
+                blockchain: {
+                  error: blockchainError.message,
+                  failedAt: new Date().toISOString()
+                }
+              }
+            }
+          });
+          
+          throw blockchainError;
+        }
       } else {
-        console.log(`🛡️ PIX confirmado para ${transactionId}, mas blockchain JÁ INICIADO - NÃO enviado para fila novamente`);
+        console.log(`🛡️ PIX confirmado para ${transactionId}, mas blockchain JÁ INICIADO`);
       }
 
       return updatedTransaction;

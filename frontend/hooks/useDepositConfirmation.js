@@ -40,7 +40,7 @@ const useDepositConfirmation = (transactionId, options = {}) => {
       const data = response.ok ? await response.json() : { success: false };
       
       if (data.success) {
-        const tx = data.transaction;
+        const tx = data.data; // Corrigir: data.data ao invés de data.transaction
         const newStatus = tx.status;
         
         setTransaction(tx);
