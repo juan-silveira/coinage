@@ -939,8 +939,20 @@ class StakeService {
         return 0;
       }
       
-      // Para outras funções (stake, unstake, depositRewards), usar o primeiro parâmetro
-      return txData.originalParams[0] ? parseFloat(txData.originalParams[0].toString()) : 0;
+      // Para outras funções (stake, unstake, depositRewards), usar o parâmetro correto
+      if (txData.functionName === 'stake') {
+        // Para stake: params são [userAddress, amount, customTimestamp] - amount está no índice 1
+        return txData.originalParams[1] ? parseFloat(txData.originalParams[1].toString()) : 0;
+      } else if (txData.functionName === 'unstake') {
+        // Para unstake: params são [userAddress, amount] - amount está no índice 1  
+        return txData.originalParams[1] ? parseFloat(txData.originalParams[1].toString()) : 0;
+      } else if (txData.functionName === 'depositRewards') {
+        // Para depositRewards: params são [amount] - amount está no índice 0
+        return txData.originalParams[0] ? parseFloat(txData.originalParams[0].toString()) : 0;
+      } else {
+        // Para outras funções, usar o primeiro parâmetro como fallback
+        return txData.originalParams[0] ? parseFloat(txData.originalParams[0].toString()) : 0;
+      }
       
     } catch (error) {
       console.error('❌ Erro ao calcular amount da transação:', error);

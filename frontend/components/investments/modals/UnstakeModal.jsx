@@ -56,13 +56,9 @@ const UnstakeModal = ({ isOpen, onClose, contract, userAddress, userStake, token
         network: contract.network
       });
       
-      // Usar o endereço do admin do contrato para pagar o gás
-      // Converter o valor numeral para wei (assumindo 18 decimais)
-      const amountInWei = (numericValue * Math.pow(10, 18)).toString();
-      
       const response = await api.post(`/api/stakes/${contract.address}/withdraw`, {
-        user: userAddress,
-        amount: amountInWei
+        user: userAddress,  // Backend espera 'user', não 'userAddress'
+        amount: numericValue.toString(),  // Backend espera em ETH, não Wei (igual ao StakeModal)
       });
 
       if (response.data.success) {

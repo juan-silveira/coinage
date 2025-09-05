@@ -28,11 +28,11 @@ const useTransactions = (initialParams = {}) => {
   ]);
 
   const fetchTransactions = useCallback(async (params = {}) => {
-    console.log('🔥 [useTransactions] fetchTransactions CHAMADO!');
-    console.log('🔥 [useTransactions] user:', user);
+    // console.log('🔥 [useTransactions] fetchTransactions CHAMADO!');
+    // console.log('🔥 [useTransactions] user:', user);
     
     if (!user?.id) {
-      console.log('❌ [useTransactions] Usuário não encontrado, cancelando busca');
+      // console.log('❌ [useTransactions] Usuário não encontrado, cancelando busca');
       setLoading(false);
       return;
     }
@@ -48,9 +48,9 @@ const useTransactions = (initialParams = {}) => {
         ...params
       };
 
-      console.log('🔥 [useTransactions] Fazendo requisição com params:', mergedParams);
+      // console.log('🔥 [useTransactions] Fazendo requisição com params:', mergedParams);
       const response = await transactionService.getTransactions(mergedParams);
-      console.log('🔥 [useTransactions] Resposta recebida:', response);
+      // console.log('🔥 [useTransactions] Resposta recebida:', response);
       
       // LOGS DE DEBUG - VERIFICAR O QUE CHEGA DO BACKEND
       // console.log('🔥🔥🔥 [useTransactions] RESPOSTA COMPLETA DO BACKEND:', response);
