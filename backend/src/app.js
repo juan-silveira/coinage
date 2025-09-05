@@ -20,6 +20,8 @@ const testSimpleRoutes = require('./routes/test-simple.routes');
 const contractRoutes = require('./routes/contract.routes');
 const tokenRoutes = require('./routes/token.routes');
 const stakeRoutes = require('./routes/stake.routes');
+const stakeContractRoutes = require('./routes/stakeContracts.routes');
+const contractsInteractRoutes = require('./routes/contracts.routes');
 const companyRoutes = require('./routes/company.routes');
 const logRoutes = require('./routes/log.routes');
 const userRoutes = require('./routes/user.routes');
@@ -728,6 +730,12 @@ app.post('/api/deposit/mint', async (req, res) => {
 // Rotas de empresas (com autenticação JWT e rate limiting)
 app.use('/api/companies', authenticateJWT, apiRateLimiter, addUserInfo, logAuthenticatedRequest, companyRoutes);
 
+// Rotas de contratos de stake (com autenticação JWT)
+app.use('/api/stake-contracts', authenticateJWT, apiRateLimiter, addUserInfo, logAuthenticatedRequest, stakeContractRoutes);
+
+// Rotas de interação com contratos (com autenticação JWT)
+app.use('/api/contracts', authenticateJWT, apiRateLimiter, addUserInfo, logAuthenticatedRequest, contractsInteractRoutes);
+
 // Rotas de autenticação (públicas)
 app.use('/api/auth', loginRateLimiter, authRoutes);
 
@@ -741,8 +749,8 @@ app.use('/api/email-confirmation', loginRateLimiter, emailConfirmationRoutes);
 // Rotas de usuários (com autenticação JWT e refresh de cache)
 app.use('/api/users', authenticateJWT, apiRateLimiter, addUserInfo, logAuthenticatedRequest, CacheRefreshMiddleware.refreshAfterWrite, userRoutes);
 
-// Rotas de contratos (com autenticação e sistema de fila)
-app.use('/api/contracts', authenticateApiKey, transactionRateLimiter, addUserInfo, logAuthenticatedRequest, QueueMiddleware.enqueueExternalOperations, CacheRefreshMiddleware.refreshAfterQueueOperation, contractRoutes);
+// Rotas de contratos (com autenticação e sistema de fila) - COMENTADO PARA DEBUG
+// app.use('/api/contracts', authenticateApiKey, transactionRateLimiter, addUserInfo, logAuthenticatedRequest, QueueMiddleware.enqueueExternalOperations, CacheRefreshMiddleware.refreshAfterQueueOperation, contractRoutes);
 
 // Endpoint de teste para verificar JWT
 app.get('/api/admin/test-jwt', authenticateJWT, (req, res) => {
@@ -778,7 +786,7 @@ const authenticateHybrid = (req, res, next) => {
 app.use('/api/tokens', authenticateHybrid, transactionRateLimiter, addUserInfo, logAuthenticatedRequest, QueueMiddleware.enqueueExternalOperations, CacheRefreshMiddleware.refreshAfterQueueOperation, tokenRoutes);
 
 // Rotas de stakes (com autenticação e sistema de fila)
-app.use('/api/stakes', authenticateApiKey, transactionRateLimiter, addUserInfo, logAuthenticatedRequest, QueueMiddleware.enqueueExternalOperations, CacheRefreshMiddleware.refreshAfterQueueOperation, stakeRoutes);
+app.use('/api/stakes', authenticateJWT, transactionRateLimiter, addUserInfo, logAuthenticatedRequest, QueueMiddleware.enqueueExternalOperations, CacheRefreshMiddleware.refreshAfterQueueOperation, stakeRoutes);
 
 // TESTE TEMPORÁRIO: Endpoint de debug direto no app
 app.get('/api/transactions-debug', async (req, res) => {
@@ -984,6 +992,10 @@ app.use('/api/backup', backupRoutes);
 // PIX Keys routes (com autenticação JWT)
 const pixKeysRoutes = require('./routes/pixKeys.routes');
 app.use('/api/pix-keys', pixKeysRoutes);
+
+// Switch company routes (com autenticação JWT)
+const switchCompanyRoutes = require('./routes/switch-company.routes');
+app.use('/api/switch-company', authenticateJWT, switchCompanyRoutes);
 
 // Banks routes (públicas)
 const banksRoutes = require('./routes/banks.routes');

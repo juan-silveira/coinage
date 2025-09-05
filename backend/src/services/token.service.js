@@ -27,6 +27,44 @@ class TokenService {
     this.getPrisma = () => prismaConfig.getPrisma();
   }
 
+  /**
+   * Get admin address from contract metadata
+   * @param {string} contractAddress - Contract address
+   * @returns {Promise<string|null>} Admin address or null
+   */
+  async getContractAdmin(contractAddress) {
+    try {
+      const prisma = this.getPrisma();
+      
+      const contract = await prisma.smartContract.findUnique({
+        where: { address: contractAddress },
+        select: { metadata: true }
+      });
+      
+      return contract?.metadata?.adminAddress || null;
+    } catch (error) {
+      console.log(`Could not find admin for contract ${contractAddress}:`, error.message);
+      return null;
+    }
+  }
+
+  /**
+   * Determine the gas payer address using priority: gasPayer > admin > fallback
+   * @param {string} contractAddress - Contract address
+   * @param {string} providedGasPayer - Provided gas payer (optional)
+   * @returns {Promise<string>} Final gas payer address
+   */
+  async determineGasPayer(contractAddress, providedGasPayer) {
+    const adminAddress = await this.getContractAdmin(contractAddress);
+    const fallbackAddress = '0x5528C065931f523CA9F3a6e49a911896fb1D2e6f';
+    
+    const finalGasPayer = providedGasPayer || adminAddress || fallbackAddress;
+    
+    console.log(`Token function - using gasPayer: ${finalGasPayer} (provided: ${providedGasPayer || 'none'}, admin: ${adminAddress || 'not set'})`);
+    
+    return finalGasPayer;
+  }
+
   async initialize() {
     try {
       await prismaConfig.initialize();
@@ -131,9 +169,12 @@ class TokenService {
    */
   async mintToken(contractAddress, toAddress, amount, gasPayer, network = 'testnet', options = {}) {
     try {
+      // Determine gas payer using admin logic
+      const finalGasPayer = await this.determineGasPayer(contractAddress, gasPayer);
+      
       // Validar parâmetros
-      if (!contractAddress || !toAddress || !amount || !gasPayer) {
-        throw new Error('Parâmetros obrigatórios: contractAddress, toAddress, amount, gasPayer');
+      if (!contractAddress || !toAddress || !amount || !finalGasPayer) {
+        throw new Error('Parâmetros obrigatórios: contractAddress, toAddress, amount, e gasPayer válido');
       }
 
       // Converter amount para Wei se necessário
@@ -146,12 +187,12 @@ class TokenService {
         amountWei = ethers.BigNumber.from(amount);
       }
 
-      // Verificar se gasPayer tem MINTER_ROLE
-      const hasMinterRoleResult = await contractService.hasRole(contractAddress, 'MINTER_ROLE', gasPayer);
+      // Verificar se finalGasPayer tem MINTER_ROLE
+      const hasMinterRoleResult = await contractService.hasRole(contractAddress, 'MINTER_ROLE', finalGasPayer);
       
       if (!hasMinterRoleResult.success) {
         // Conceder MINTER_ROLE
-        await contractService.grantRole(contractAddress, 'MINTER_ROLE', gasPayer);
+        await contractService.grantRole(contractAddress, 'MINTER_ROLE', finalGasPayer);
       }
 
       // Executar mint
@@ -168,11 +209,11 @@ class TokenService {
           companyId: options.companyId,
           userId: options.userId,
           contractAddress: require('../utils/address').toChecksumAddress(contractAddress),
-          fromAddress: require('../utils/address').toChecksumAddress(gasPayer),
+          fromAddress: require('../utils/address').toChecksumAddress(finalGasPayer),
           toAddress: require('../utils/address').toChecksumAddress(toAddress),
           amount: amountWei.toString(),
           amountWei: amountWei.toString(),
-          gasPayer: require('../utils/address').toChecksumAddress(gasPayer),
+          gasPayer: require('../utils/address').toChecksumAddress(finalGasPayer),
           network,
           txHash: result.transactionHash,
           gasUsed: result.data.gasUsed,
@@ -236,12 +277,16 @@ class TokenService {
       if (!ethers.isAddress(fromAddress)) {
         throw new Error('Endereço de origem inválido');
       }
-      if (!ethers.isAddress(gasPayer)) {
+
+      // Determine gas payer using admin logic
+      const finalGasPayer = await this.determineGasPayer(contractAddress, gasPayer);
+      
+      if (!ethers.isAddress(finalGasPayer)) {
         throw new Error('Endereço do pagador de gás inválido');
       }
 
-      // gasPayer é o endereço do company que paga a transação
-      const companyWalletAddress = gasPayer;
+      // Use the determined gas payer
+      const companyWalletAddress = finalGasPayer;
 
       // Validar quantidade
       if (!amount || parseFloat(amount) <= 0) {
@@ -360,12 +405,16 @@ class TokenService {
       if (!ethers.isAddress(toAddress)) {
         throw new Error('Endereço de destino inválido');
       }
-      if (!ethers.isAddress(gasPayer)) {
+
+      // Determine gas payer using admin logic
+      const finalGasPayer = await this.determineGasPayer(contractAddress, gasPayer);
+      
+      if (!ethers.isAddress(finalGasPayer)) {
         throw new Error('Endereço do pagador de gás inválido');
       }
 
-      // gasPayer é o endereço do company que paga a transação
-      const companyWalletAddress = gasPayer;
+      // Use the determined gas payer
+      const companyWalletAddress = finalGasPayer;
 
       // Validar quantidade
       if (!amount || parseFloat(amount) <= 0) {
@@ -463,24 +512,24 @@ class TokenService {
    */
   async registerToken(tokenData) {
     try {
-      const { address, network = 'testnet', adminPublicKey, website, description } = tokenData;
+      const { address, network = 'testnet', adminAddress, website, description } = tokenData;
 
       // Validar endereço
       if (!ethers.isAddress(address)) {
         throw new Error('Endereço do contrato inválido');
       }
 
-      // Validar adminPublicKey se fornecido
-      if (adminPublicKey && !ethers.isAddress(adminPublicKey)) {
-        throw new Error('adminPublicKey inválido se fornecido');
+      // Validar adminAddress se fornecido
+      if (adminAddress && !ethers.isAddress(adminAddress)) {
+        throw new Error('adminAddress inválido se fornecido');
       }
 
       // Usar o serviço de contratos para registrar
       const contractData = {
         address,
         network,
-        adminPublicKey: adminPublicKey ? adminPublicKey.toLowerCase() : null,
-        contractType: 'ERC20', // Assumindo que todos os tokens registrados são ERC20
+        adminAddress: adminAddress ? adminAddress.toLowerCase() : null,
+        contractType: 'token', // Usar 'token' que existe no banco
         metadata: {
           website,
           description,
@@ -499,7 +548,7 @@ class TokenService {
             isUpdate: false, // Será atualizado pelo contractService
             address: require('../utils/address').toChecksumAddress(address),
             network,
-            adminPublicKey: adminPublicKey ? adminPublicKey.toLowerCase() : null
+            adminAddress: adminAddress ? adminAddress.toLowerCase() : null
           }
         }
       };

@@ -5,6 +5,7 @@ import Card from "@/components/ui/Card";
 import useCacheData from "@/hooks/useCacheData";
 import useTransactions from "@/hooks/useTransactions";
 import useConfig from "@/hooks/useConfig";
+import { BalanceDisplay } from "@/utils/balanceUtils";
 
 const LastTransactions = () => {
   const [currentPage, setCurrentPage] = useState(1);
@@ -247,14 +248,14 @@ const LastTransactions = () => {
                       {(() => {
                         const amount = Number(transaction.amount) || 0;
                         const absAmount = Math.abs(amount);
-                        if (isNaN(absAmount)) return '0.00';
+                        if (isNaN(absAmount)) return '0';
                         
-                        // Para saques, mostrar o sinal negativo
-                        if (transaction.type === 'withdraw' || transaction.subType === 'debit') {
-                          return '-' + absAmount.toFixed(2);
-                        }
-                        // Para depósitos, mostrar o sinal positivo
-                        return '+' + absAmount.toFixed(2);
+                        const prefix = (transaction.type === 'withdraw' || transaction.subType === 'debit') ? '-' : '+';
+                        return (
+                          <span>
+                            {prefix}<BalanceDisplay value={absAmount.toString()} showSymbol={false} />
+                          </span>
+                        );
                       })()}
                     </span>
                   </td>

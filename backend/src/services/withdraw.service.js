@@ -17,7 +17,6 @@ class WithdrawService {
     this.rabbitMQChannel = null;
     this.minWithdrawal = parseFloat(process.env.MIN_WITHDRAWAL_AMOUNT || '10');
     this.maxWithdrawal = parseFloat(process.env.MAX_WITHDRAWAL_AMOUNT || '50000');
-    this.withdrawalFee = parseFloat(process.env.WITHDRAWAL_FEE || '2.50');
   }
 
   async init() {
@@ -117,7 +116,7 @@ class WithdrawService {
     } catch (error) {
       console.error('❌ Erro ao calcular taxa com UserTaxesService, usando taxa padrão:', error);
       // Fallback para taxa fixa se houver erro
-      return this.withdrawalFee;
+      return 1.0; // Taxa padrão fixa de R$ 1,00
     }
   }
 
@@ -232,9 +231,7 @@ class WithdrawService {
             cBrlBalance: cBrlBalance,
             totalBurnAmount: amount, // Amount burned from blockchain (not including fee)
             pixPaymentAmount: netAmount, // Amount user will receive via PIX  
-            pixKeyId: userPixKey ? userPixKey.id : null,
-            bankCode: userPixKey ? userPixKey.bankCode : null,
-            bankName: userPixKey ? userPixKey.bankName : null
+            pixKeyId: userPixKey ? userPixKey.id : null
           }
         }
       });

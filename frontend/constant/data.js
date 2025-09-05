@@ -191,6 +191,13 @@ export const menuItems = [
     link: "/system/settings",
     requiredPermissions: ["canViewSystemSettings"],
   },
+  {
+    title: "Contract Interaction",
+    isHide: true,
+    icon: "heroicons-outline:code-bracket",
+    link: "/contracts/interact",
+    requiredPermissions: ["canViewSystemSettings"],
+  },
 
   // {
   //   title: "Projects",

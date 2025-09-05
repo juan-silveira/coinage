@@ -1,6 +1,7 @@
 const whitelabelService = require('../services/whitelabel.service');
 const userCompanyService = require('../services/userCompany.service');
 const jwtService = require('../services/jwt.service');
+const userActionsService = require('../services/userActions.service');
 
 /**
  * Inicia processo de login whitelabel
@@ -81,7 +82,9 @@ const authenticateUser = async (req, res) => {
 
     // Se companyId é um alias, converter para UUID real
     let actualCompanyId = companyId;
+    let companyInfo = null;
     console.log('🔍 Debug companyId recebido:', companyId);
+    
     if (companyId && !companyId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i)) {
       console.log('🔍 CompanyId é um alias, convertendo para UUID...');
       // É um alias, precisa buscar o ID real usando o método de branding
@@ -89,6 +92,13 @@ const authenticateUser = async (req, res) => {
         const companyBranding = await whitelabelService.getCompanyBrandingByAlias(companyId);
         actualCompanyId = companyBranding.company_id;
         console.log('🔍 UUID da empresa encontrado:', actualCompanyId);
+        
+        // Buscar informações completas da empresa para o log
+        const prisma = require('../config/prisma').getPrisma();
+        companyInfo = await prisma.company.findUnique({
+          where: { id: actualCompanyId },
+          select: { id: true, name: true, alias: true }
+        });
       } catch (error) {
         console.error('❌ Erro ao buscar empresa por alias:', error.message);
         return res.status(404).json({
@@ -96,11 +106,59 @@ const authenticateUser = async (req, res) => {
           message: 'Empresa não encontrada'
         });
       }
+    } else {
+      // É um UUID, buscar informações da empresa
+      try {
+        const prisma = require('../config/prisma').getPrisma();
+        companyInfo = await prisma.company.findUnique({
+          where: { id: companyId },
+          select: { id: true, name: true, alias: true }
+        });
+        if (!companyInfo) {
+          return res.status(404).json({
+            success: false,
+            message: 'Empresa não encontrada'
+          });
+        }
+      } catch (error) {
+        console.error('❌ Erro ao buscar empresa por ID:', error.message);
+        return res.status(500).json({
+          success: false,
+          message: 'Erro interno do servidor'
+        });
+      }
     }
 
     const result = await whitelabelService.authenticateWhitelabelUser(email, password, actualCompanyId);
 
     if (!result.success) {
+      // Log failed login attempt with company_id
+      try {
+        if (result.message === 'Senha incorreta') {
+          // Only log if we found the user but password is wrong
+          const userQuery = await require('../config/prisma').getPrisma().user.findUnique({
+            where: { email: email.toLowerCase() }
+          });
+          if (userQuery) {
+            await userActionsService.logAuth(userQuery.id, 'login_failed', req, {
+              status: 'failed',
+              companyId: actualCompanyId,
+              errorMessage: 'Senha incorreta',
+              errorCode: 'INVALID_PASSWORD',
+              details: {
+                companyName: companyInfo?.name,
+                companyAlias: companyInfo?.alias || companyId,
+                loginType: 'whitelabel',
+                originalRequestParam: companyId
+              }
+            });
+            console.log(`❌ Login whitelabel com falha registrado: userId=${userQuery.id}, companyId=${actualCompanyId}, company=${companyInfo?.name}`);
+          }
+        }
+      } catch (logError) {
+        console.warn('⚠️ Erro ao registrar tentativa de login com falha:', logError.message);
+      }
+      
       return res.status(401).json(result);
     }
 
@@ -110,6 +168,24 @@ const authenticateUser = async (req, res) => {
       await userCompanyService.updateLastActivity(result.data.user.id, actualCompanyId);
     } catch (accessError) {
       console.warn('⚠️ Erro ao atualizar último acesso:', accessError.message);
+    }
+
+    // Log successful whitelabel login with company_id
+    try {
+      await userActionsService.logAuth(result.data.user.id, 'login', req, {
+        status: 'success',
+        companyId: actualCompanyId,
+        details: {
+          companyName: companyInfo?.name || result.data.company.name,
+          companyAlias: companyInfo?.alias || companyId,
+          userRole: result.data.userCompany.role,
+          loginType: 'whitelabel',
+          originalRequestParam: companyId
+        }
+      });
+      console.log(`✅ Login whitelabel registrado: userId=${result.data.user.id}, companyId=${actualCompanyId}, company=${companyInfo?.name || result.data.company.name}`);
+    } catch (logError) {
+      console.warn('⚠️ Erro ao registrar login no user_actions:', logError.message);
     }
 
     // Gerar tokens JWT

@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
 const prismaConfig = require('../config/prisma');
 const redisService = require('../services/redis.service');
+const userCompanyService = require('../services/userCompany.service');
 
 // Função helper para obter Prisma
 const getPrisma = () => prismaConfig.getPrisma();
@@ -11,6 +12,7 @@ const getPrisma = () => prismaConfig.getPrisma();
 const authenticateToken = async (req, res, next) => {
   try {
     console.log('🔑 JWT Middleware - Iniciando autenticação...');
+    console.log('🔍 JWT Middleware VERSION CHECK - Código atualizado com debugging!');
     const authHeader = req.headers['authorization'];
     
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -71,11 +73,39 @@ const authenticateToken = async (req, res, next) => {
       });
     }
 
-    // Adicionar dados da empresa se existir
+    // Adicionar dados da empresa usando getCurrentCompany para obter dados atualizados
+    console.log(`🔍 JWT Middleware DEBUG - user.userCompanies:`, user.userCompanies ? user.userCompanies.length : 'null');
     if (user.userCompanies && user.userCompanies.length > 0) {
-      req.company = user.userCompanies[0].company;
-      // Definir companyId para uso no controller
-      user.companyId = user.userCompanies[0].company.id;
+      try {
+        // Obter a empresa atual dinamicamente (com base em lastAccessAt mais recente)
+        console.log(`🔍 JWT Middleware - Buscando empresa atual para usuário: ${user.id}`);
+        const currentCompany = await userCompanyService.getCurrentCompany(user.id);
+        console.log(`🔍 JWT Middleware - Empresa atual encontrada:`, currentCompany);
+        
+        if (currentCompany) {
+          req.company = currentCompany;
+          user.companyId = currentCompany.id;
+          
+          console.log(`🏢 JWT Middleware - Usuário ${user.name} usando empresa: ${currentCompany.name} (${currentCompany.id})`);
+        } else {
+          // Fallback para a primeira empresa ativa se getCurrentCompany não retornar nada
+          const selectedCompany = user.userCompanies.find(uc => uc.status === 'active' && uc.company.isActive);
+          if (selectedCompany) {
+            req.company = selectedCompany.company;
+            user.companyId = selectedCompany.company.id;
+            console.log(`🏢 JWT Middleware - Usuário ${user.name} usando empresa (fallback): ${selectedCompany.company.name} (${selectedCompany.company.id})`);
+          }
+        }
+      } catch (error) {
+        console.error('❌ JWT Middleware - Erro ao obter empresa atual:', error);
+        // Fallback para a primeira empresa ativa em caso de erro
+        const selectedCompany = user.userCompanies.find(uc => uc.status === 'active' && uc.company.isActive);
+        if (selectedCompany) {
+          req.company = selectedCompany.company;
+          user.companyId = selectedCompany.company.id;
+          console.log(`🏢 JWT Middleware - Usuário ${user.name} usando empresa (erro fallback): ${selectedCompany.company.name} (${selectedCompany.company.id})`);
+        }
+      }
     }
     
     // Verificar se é admin do sistema baseado nas roles das empresas
@@ -162,9 +192,17 @@ const optionalJWT = async (req, res, next) => {
     if (user && user.isActive) {
       // Adicionar dados da empresa se existir
       if (user.userCompanies && user.userCompanies.length > 0) {
-        req.company = user.userCompanies[0].company;
-        // Definir companyId para uso no controller
-        user.companyId = user.userCompanies[0].company.id;
+        // Priorizar empresa "Coinage" se existir, senão usar a primeira
+        let selectedCompany = user.userCompanies.find(uc => 
+          uc.company.alias === 'coinage' || uc.company.name === 'Coinage'
+        );
+        
+        if (!selectedCompany) {
+          selectedCompany = user.userCompanies[0];
+        }
+        
+        req.company = selectedCompany.company;
+        user.companyId = selectedCompany.company.id;
       }
       
       // Verificar se é admin do sistema baseado nas roles das empresas

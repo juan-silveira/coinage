@@ -574,6 +574,59 @@ class UserCompanyService {
       throw error;
     }
   }
+
+  /**
+   * Atualiza o último acesso de uma empresa específica
+   * @param {string} userId - ID do usuário
+   * @param {string} companyId - ID da empresa
+   */
+  async updateLastAccess(userId, companyId) {
+    try {
+      if (!this.prisma) await this.init();
+
+      await this.prisma.userCompany.update({
+        where: {
+          userId_companyId: {
+            userId,
+            companyId
+          }
+        },
+        data: {
+          lastAccessAt: new Date()
+        }
+      });
+
+      console.log(`✅ LastAccessAt atualizado para empresa ${companyId}`);
+    } catch (error) {
+      console.error('❌ Erro ao atualizar último acesso:', error);
+      // Não fazer throw para não quebrar o fluxo principal
+    }
+  }
+
+  /**
+   * Define empresa atual do usuário (atualiza lastAccessAt)
+   * @param {string} userId - ID do usuário
+   * @param {string} companyId - ID da empresa
+   */
+  async setCurrentCompany(userId, companyId) {
+    try {
+      if (!this.prisma) await this.init();
+
+      // Verificar se o usuário está vinculado à empresa
+      const userCompany = await this.getUserCompanyLink(userId, companyId);
+      if (!userCompany || userCompany.status !== 'active') {
+        throw new Error('Usuário não está vinculado a esta empresa ou vinculação não está ativa');
+      }
+
+      // Atualizar lastAccessAt
+      await this.updateLastAccess(userId, companyId);
+
+      return await this.getCurrentCompany(userId);
+    } catch (error) {
+      console.error('❌ Erro ao definir empresa atual:', error);
+      throw error;
+    }
+  }
 }
 
 module.exports = new UserCompanyService();

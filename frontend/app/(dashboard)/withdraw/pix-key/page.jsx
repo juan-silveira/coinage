@@ -17,22 +17,7 @@ const PixKeyPage = () => {
   const [pixKeyType, setPixKeyType] = useState('cpf');
   const [pixKeyValue, setPixKeyValue] = useState('');
   const [loading, setLoading] = useState(false);
-  const [validating, setValidating] = useState(false);
-  const [isValid, setIsValid] = useState(null);
   
-  // Estados para dados bancários (preenchidos automaticamente após validação)
-  const [bankData, setBankData] = useState({
-    bankCode: '',
-    bankName: '',
-    bankLogo: '',
-    agency: '',
-    agencyDigit: '',
-    accountNumber: '',
-    accountDigit: '',
-    accountType: 'corrente',
-    holderName: '',
-    holderDocument: ''
-  });
   const [existingPixKeys, setExistingPixKeys] = useState([]);
 
   // Carregar dados iniciais
@@ -53,12 +38,6 @@ const PixKeyPage = () => {
         setExistingPixKeys([]);
       }
 
-      // Inicializar dados bancários com dados do usuário
-      setBankData(prev => ({
-        ...prev,
-        holderName: user?.name || '',
-        holderDocument: user?.cpf || ''
-      }));
 
     } catch (error) {
       console.error('Erro ao carregar dados iniciais:', error);
@@ -70,10 +49,8 @@ const PixKeyPage = () => {
     if (pixKeyType === 'cpf' && user?.cpf) {
       const formattedCPF = formatCPF(user.cpf);
       setPixKeyValue(formattedCPF);
-      setIsValid(null); // CPF precisa ser validado
     } else if (pixKeyType === 'cpf' && !user?.cpf) {
       setPixKeyValue('');
-      setIsValid(null); // CPF não disponível
     }
   }, [pixKeyType, user?.cpf]);
 
@@ -82,7 +59,6 @@ const PixKeyPage = () => {
     if (pixKeyType === 'cpf' && user?.cpf && !pixKeyValue) {
       const formattedCPF = formatCPF(user.cpf);
       setPixKeyValue(formattedCPF);
-      setIsValid(null); // Precisa validar
     }
   }, [user]);
 
@@ -141,29 +117,13 @@ const PixKeyPage = () => {
     }
     
     setPixKeyValue(formattedValue);
-    setIsValid(null);
   };
 
   // Reformatar valor quando mudar o tipo de chave PIX
   useEffect(() => {
-    // Limpar status de validação e dados bancários ao mudar tipo
-    setIsValid(null);
-    setBankData({
-      bankCode: '',
-      bankName: '',
-      bankLogo: '',
-      agency: '',
-      agencyDigit: '',
-      accountNumber: '',
-      accountDigit: '',
-      accountType: 'corrente',
-      holderName: user?.name || '',
-      holderDocument: user?.cpf || ''
-    });
-    
     // Tratar valores específicos por tipo
     if (pixKeyType === 'cpf' && user?.cpf) {
-      // Se mudou para CPF e tem CPF do usuário, usar ele mas não validar ainda
+      // Se mudou para CPF e tem CPF do usuário, usar ele
       const formattedCPF = formatCPF(user.cpf);
       setPixKeyValue(formattedCPF);
     } else if (pixKeyType === 'phone' && pixKeyValue && pixKeyValue.includes('.')) {
@@ -173,7 +133,7 @@ const PixKeyPage = () => {
       // Para email/random, sempre limpar
       setPixKeyValue('');
     }
-  }, [pixKeyType, user?.cpf, user?.name]);
+  }, [pixKeyType, user?.cpf]);
 
   const validateCPF = (cpf) => {
     cpf = cpf.replace(/\D/g, '');
@@ -201,200 +161,46 @@ const PixKeyPage = () => {
     return true;
   };
 
-  const validatePixKey = async () => {
-    // Para CPF, se não tem valor mas tem no user, usar o CPF do usuário
-    if (pixKeyType === 'cpf' && !pixKeyValue && user?.cpf) {
-      const formattedCPF = formatCPF(user.cpf);
-      setPixKeyValue(formattedCPF);
-      setIsValid(true);
-      return true;
-    }
+  // Validação básica de formato (sem consulta externa)
+  const isValidPixKey = () => {
+    if (!pixKeyValue) return false;
     
-    if (!pixKeyValue) {
-      showError('Digite uma chave PIX válida');
-      return false;
-    }
-
-    setValidating(true);
-    try {
-      if (pixKeyType === 'cpf') {
+    switch (pixKeyType) {
+      case 'cpf':
         const cleanCPF = pixKeyValue.replace(/\D/g, '');
+        return cleanCPF.length === 11 && validateCPF(pixKeyValue);
         
-        if (cleanCPF.length !== 11) {
-          setIsValid(false);
-          showError('CPF inválido', 'O CPF deve conter 11 dígitos');
-          return false;
-        }
-        
-        if (!validateCPF(pixKeyValue)) {
-          setIsValid(false);
-          showError('CPF inválido', 'Digite um CPF válido');
-          return false;
-        }
-        
-        showInfo('Validando CPF...', 'Consultando dados bancários via PIX');
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        
-        // Simular resposta da API externa com dados bancários
-        const pixData = {
-          bankCode: '341',
-          bankName: 'Itaú Unibanco S.A.',
-          bankLogo: '/assets/banks/itau.png',
-          agency: '0001',
-          agencyDigit: '2',
-          accountNumber: '12345',
-          accountDigit: '6',
-          accountType: 'corrente',
-          holderName: user?.name || 'Nome do Titular',
-          holderDocument: cleanCPF
-        };
-        
-        setBankData(prev => ({ ...prev, ...pixData }));
-        setIsValid(true);
-        showSuccess('CPF validado com sucesso', 'Dados bancários obtidos automaticamente');
-        return true;
-      }
-      
-      if (pixKeyType === 'phone') {
+      case 'phone':
         const phoneDigits = pixKeyValue.replace(/\D/g, '');
+        return (phoneDigits.length === 10 || phoneDigits.length === 11) && 
+               !/^(\d)\1+$/.test(phoneDigits);
         
-        if (phoneDigits.length < 10) {
-          setIsValid(false);
-          showError('Telefone inválido', 'O telefone deve ter pelo menos 10 dígitos');
-          return false;
-        }
-        
-        if (phoneDigits.length !== 10 && phoneDigits.length !== 11) {
-          setIsValid(false);
-          showError('Telefone inválido', 'O telefone deve ter 10 ou 11 dígitos');
-          return false;
-        }
-        
-        if (/^(\d)\1+$/.test(phoneDigits)) {
-          setIsValid(false);
-          showError('Telefone inválido', 'Digite um número de telefone válido');
-          return false;
-        }
-        
-        showInfo('Validando telefone...', 'Consultando dados bancários via PIX');
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        
-        // Simular resposta da API externa com dados bancários
-        const pixData = {
-          bankCode: '260',
-          bankName: 'Nu Pagamentos S.A.',
-          bankLogo: '/assets/banks/nubank.png',
-          agency: '0001',
-          agencyDigit: '',
-          accountNumber: '98765',
-          accountDigit: '4',
-          accountType: 'pagamentos',
-          holderName: user?.name || 'Nome do Titular',
-          holderDocument: user?.cpf?.replace(/\D/g, '') || '12345678901'
-        };
-        
-        setBankData(prev => ({ ...prev, ...pixData }));
-        setIsValid(true);
-        showSuccess('Telefone validado com sucesso', 'Dados bancários obtidos automaticamente');
-        return true;
-      }
-      
-      if (pixKeyType === 'email') {
+      case 'email':
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(pixKeyValue)) {
-          setIsValid(false);
-          showError('E-mail inválido', 'Digite um e-mail válido');
-          return false;
-        }
+        return emailRegex.test(pixKeyValue);
         
-        showInfo('Validando e-mail...', 'Consultando dados bancários via PIX');
-        await new Promise(resolve => setTimeout(resolve, 2000));
+      case 'random':
+        return pixKeyValue.length >= 10;
         
-        // Simular resposta da API externa com dados bancários
-        const pixData = {
-          bankCode: '077',
-          bankName: 'Banco Inter S.A.',
-          bankLogo: '/assets/banks/inter.png',
-          agency: '0001',
-          agencyDigit: '',
-          accountNumber: '54321',
-          accountDigit: '8',
-          accountType: 'corrente',
-          holderName: user?.name || 'Nome do Titular',
-          holderDocument: user?.cpf?.replace(/\D/g, '') || '12345678901'
-        };
-        
-        setBankData(prev => ({ ...prev, ...pixData }));
-        setIsValid(true);
-        showSuccess('E-mail validado com sucesso', 'Dados bancários obtidos automaticamente');
-        return true;
-      }
-      
-      if (pixKeyType === 'random') {
-        if (pixKeyValue.length < 10) {
-          setIsValid(false);
-          showError('Chave inválida', 'A chave aleatória deve ter pelo menos 10 caracteres');
-          return false;
-        }
-        
-        showInfo('Validando chave...', 'Consultando dados bancários via PIX');
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        
-        // Simular resposta da API externa com dados bancários
-        const pixData = {
-          bankCode: '237',
-          bankName: 'Banco Bradesco S.A.',
-          bankLogo: '/assets/banks/bradesco.png',
-          agency: '1234',
-          agencyDigit: '5',
-          accountNumber: '11111',
-          accountDigit: '0',
-          accountType: 'poupanca',
-          holderName: user?.name || 'Nome do Titular',
-          holderDocument: user?.cpf?.replace(/\D/g, '') || '12345678901'
-        };
-        
-        setBankData(prev => ({ ...prev, ...pixData }));
-        setIsValid(true);
-        showSuccess('Chave validada com sucesso', 'Dados bancários obtidos automaticamente');
-        return true;
-      }
-      
-      setIsValid(false);
-      showError('Tipo de chave não reconhecido');
-      return false;
-      
-    } catch (error) {
-      console.error('Erro ao validar chave PIX:', error);
-      setIsValid(false);
-      showError('Erro na validação', 'Não foi possível validar a chave PIX');
-      return false;
-    } finally {
-      setValidating(false);
+      default:
+        return false;
     }
   };
 
   const handleSavePixKey = async () => {
+    // Validação básica
+    if (!isValidPixKey()) {
+      showError('Chave PIX inválida', 'Verifique o formato da chave PIX');
+      return;
+    }
+
     setLoading(true);
-    
-    // Garantir que holderDocument seja uma string
-    const holderDoc = bankData.holderDocument || user?.cpf || '';
     
     const pixKeyData = {
       keyType: pixKeyType,
       keyValue: pixKeyType === 'email' || pixKeyType === 'random' 
         ? pixKeyValue 
         : pixKeyValue.replace(/\D/g, ''),
-      bankCode: bankData.bankCode || '',
-      bankName: bankData.bankName || '',
-      bankLogo: bankData.bankLogo || '',
-      agency: bankData.agency || '',
-      agencyDigit: bankData.agencyDigit || '',
-      accountNumber: bankData.accountNumber || '',
-      accountDigit: bankData.accountDigit || '',
-      accountType: bankData.accountType || 'corrente',
-      holderName: bankData.holderName || user?.name || '',
-      holderDocument: typeof holderDoc === 'string' ? holderDoc.replace(/\D/g, '') : '',
       isDefault: existingPixKeys.length === 0 // Primeira chave é padrão
     };
 
@@ -410,33 +216,12 @@ const PixKeyPage = () => {
       }
     } catch (error) {
       console.error('Erro ao salvar chave PIX:', error);
-      
-      // Fallback: salvar no localStorage quando API falhar
-      console.log('API indisponível, salvando localmente...');
-      
-      const localPixKey = {
-        ...pixKeyData,
-        id: Date.now().toString(),
-        createdAt: new Date().toISOString(),
-        isVerified: true,
-        isActive: true
-      };
-      
-      const localKeys = JSON.parse(localStorage.getItem('userPixKeys') || '[]');
-      localKeys.push(localPixKey);
-      localStorage.setItem('userPixKeys', JSON.stringify(localKeys));
-      
-      showSuccess('Chave PIX cadastrada', 'Chave PIX salva com sucesso (modo offline)');
-      router.push('/withdraw');
+      showError('Erro ao cadastrar chave PIX', 'Tente novamente mais tarde');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleNextStep = async () => {
-    // Só chegar aqui se isValid === true, então pode salvar diretamente
-    await handleSavePixKey();
-  };
 
   const getPlaceholder = () => {
     switch (pixKeyType) {
@@ -468,30 +253,6 @@ const PixKeyPage = () => {
     }
   };
 
-  // Verificar se a chave PIX está completa
-  const isPixKeyComplete = () => {
-    if (!pixKeyValue) return false;
-    
-    switch (pixKeyType) {
-      case 'cpf':
-        const cleanCPF = pixKeyValue.replace(/\D/g, '');
-        return cleanCPF.length === 11;
-        
-      case 'phone':
-        const cleanPhone = pixKeyValue.replace(/\D/g, '');
-        return cleanPhone.length === 10 || cleanPhone.length === 11;
-        
-      case 'email':
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        return emailRegex.test(pixKeyValue);
-        
-      case 'random':
-        return pixKeyValue.length >= 10;
-        
-      default:
-        return false;
-    }
-  };
 
   return (
     <div className="space-y-6">
@@ -563,85 +324,28 @@ const PixKeyPage = () => {
               }
             </p>
 
-            {/* Status de validação */}
-            {isValid === true && (
-              <div className="flex items-center mt-2 text-green-600 dark:text-green-400">
-                <Icon icon="heroicons:check-circle" className="w-4 h-4 mr-1" />
-                <span className="text-sm">Chave validada com sucesso</span>
-              </div>
-            )}
-            
-            {isValid === false && (
-              <div className="flex items-center mt-2 text-red-600 dark:text-red-400">
-                <Icon icon="heroicons:x-circle" className="w-4 h-4 mr-1" />
-                <span className="text-sm">Chave inválida</span>
-              </div>
-            )}
           </div>
 
-          {/* Dados bancários detectados */}
-          {isValid === true && bankData.bankName && (
-            <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
-              <div className="flex items-start space-x-3">
-                <div className="w-12 h-12 bg-white dark:bg-gray-800 rounded-lg flex items-center justify-center border">
-                  <Icon icon="heroicons:building-library" className="w-6 h-6 text-green-600" />
-                </div>
-                <div className="flex-1">
-                  <h4 className="font-medium text-green-800 dark:text-green-200 mb-1">
-                    Dados Bancários Detectados
-                  </h4>
-                  <div className="space-y-1 text-sm text-green-700 dark:text-green-300">
-                    <p><strong>Banco:</strong> {bankData.bankName}</p>
-                    <p><strong>Agência:</strong> {bankData.agency}{bankData.agencyDigit && `-${bankData.agencyDigit}`}</p>
-                    <p><strong>Conta:</strong> {bankData.accountNumber}-{bankData.accountDigit} ({bankData.accountType})</p>
-                    <p><strong>Titular:</strong> {bankData.holderName}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
 
-          {/* Botões de ação */}
-          <div className="flex space-x-3">
-            {/* Botão validar - para todos os tipos quando chave está completa mas não validada */}
-            {isPixKeyComplete() && isValid === null && (
-              <Button
-                onClick={validatePixKey}
-                disabled={validating || loading}
-                className="flex-1"
-                variant="outline"
-              >
-                {validating ? (
-                  <div className="flex items-center justify-center">
-                    <Icon icon="heroicons:arrow-path" className="h-5 w-5 animate-spin mr-2" />
-                    Validando...
-                  </div>
-                ) : (
-                  'Validar Chave'
-                )}
-              </Button>
-            )}
-
-            {/* Botão cadastrar - só aparece após validação */}
-            {isValid === true && (
-              <Button
-                onClick={handleNextStep}
-                disabled={loading}
-                className={isPixKeyComplete() && isValid === null ? "flex-1" : "w-full"}
-              >
-                {loading ? (
-                  <div className="flex items-center justify-center">
-                    <Icon icon="heroicons:arrow-path" className="h-5 w-5 animate-spin mr-2" />
-                    Cadastrando...
-                  </div>
-                ) : (
-                  <>
-                    Cadastrar Chave PIX
-                    <Icon icon="heroicons:check" className="h-5 w-5 ml-2" />
-                  </>
-                )}
-              </Button>
-            )}
+          {/* Botão de ação */}
+          <div className="flex justify-center">
+            <Button
+              onClick={handleSavePixKey}
+              disabled={loading || !isValidPixKey()}
+              className="w-full"
+            >
+              {loading ? (
+                <div className="flex items-center justify-center">
+                  <Icon icon="heroicons:arrow-path" className="h-5 w-5 animate-spin mr-2" />
+                  Cadastrando...
+                </div>
+              ) : (
+                <>
+                  Cadastrar Chave PIX
+                  <Icon icon="heroicons:check" className="h-5 w-5 ml-2" />
+                </>
+              )}
+            </Button>
           </div>
         </div>
       </Card>
@@ -651,11 +355,7 @@ const PixKeyPage = () => {
         <ul className="space-y-3 text-sm text-slate-700 dark:text-slate-300">
           <li className="flex items-start">
             <span className="mr-2">•</span>
-            <span>Sua chave PIX é validada automaticamente via consulta ao Banco Central</span>
-          </li>
-          <li className="flex items-start">
-            <span className="mr-2">•</span>
-            <span>Os dados bancários são obtidos automaticamente, sem necessidade de digitação</span>
+            <span>Digite sua chave PIX (CPF, e-mail, telefone ou chave aleatória)</span>
           </li>
           <li className="flex items-start">
             <span className="mr-2">•</span>
@@ -663,7 +363,11 @@ const PixKeyPage = () => {
           </li>
           <li className="flex items-start">
             <span className="mr-2">•</span>
-            <span>Você pode alterar ou adicionar mais chaves a qualquer momento no seu perfil</span>
+            <span>Após o cadastro, você poderá realizar saques via PIX</span>
+          </li>
+          <li className="flex items-start">
+            <span className="mr-2">•</span>
+            <span>Você pode adicionar mais chaves a qualquer momento</span>
           </li>
           <li className="flex items-start">
             <span className="mr-2">•</span>

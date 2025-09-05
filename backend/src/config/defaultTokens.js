@@ -52,7 +52,7 @@ const defaultTokens = [
     version: '1.0.0',
     isVerified: true,
     isActive: true,
-    adminPublicKey: null, // Token nativo não tem admin
+    adminAddress: null, // Token nativo não tem admin
     metadata: {
       decimals: 18,
       totalSupply: null, // Supply ilimitado para token nativo
@@ -74,7 +74,7 @@ const defaultTokens = [
     version: '1.0.0',
     isVerified: true,
     isActive: true,
-    adminPublicKey: null, // Token nativo não tem admin
+    adminAddress: null, // Token nativo não tem admin
     metadata: {
       decimals: 18,
       totalSupply: null, // Supply ilimitado para token nativo
@@ -96,7 +96,7 @@ const defaultTokens = [
     version: '1.0.0',
     isVerified: true,
     isActive: true,
-    adminPublicKey: '0x5528C065931f523CA9F3a6e49a911896fb1D2e6f',
+    adminAddress: '0x5528C065931f523CA9F3a6e49a911896fb1D2e6f',
     metadata: {
       decimals: 18,
       totalSupply: '1000000000000000000000000', // 1 milhão de tokens
@@ -118,7 +118,7 @@ const defaultTokens = [
     version: '1.0.0',
     isVerified: true,
     isActive: true,
-    adminPublicKey: '0x5528C065931f523CA9F3a6e49a911896fb1D2e6f',
+    adminAddress: '0x5528C065931f523CA9F3a6e49a911896fb1D2e6f',
     metadata: {
       decimals: 18,
       totalSupply: '1000000000000000000000000', // 1 milhão de tokens
@@ -140,7 +140,7 @@ const defaultTokens = [
     version: '1.0.0',
     isVerified: true,
     isActive: true,
-    adminPublicKey: '0x5528C065931f523CA9F3a6e49a911896fb1D2e6f',
+    adminAddress: '0x5528C065931f523CA9F3a6e49a911896fb1D2e6f',
     metadata: {
       decimals: 18,
       totalSupply: '1000000000000000000000000000', // 1 bilhão de tokens

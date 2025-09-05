@@ -2,6 +2,7 @@ generator client {
   provider      = "prisma-client-js"
   output        = "../src/generated/prisma"
   binaryTargets = ["native", "linux-musl-openssl-3.0.x", "debian-openssl-3.0.x"]
+  jsonProtocol  = "js"
 }
 
 datasource db {
@@ -20,11 +21,9 @@ model Company {
   alias            String?          @unique @db.VarChar(50)
   companyBrandings CompanyBranding?
   documents        Document[]
-  requestLogs      RequestLog[]
   transactions     Transaction[]
   userActions      UserAction[]
   userCompanies    UserCompany[]
-  webhooks         Webhook[]
 
   @@index([isActive], map: "idx_companies_active")
   @@index([lastActivityAt], map: "idx_companies_last_activity")
@@ -64,7 +63,6 @@ model User {
   deployedBrandings      CompanyBranding[] @relation("CompanyBrandingDeployer")
   earnings               Earnings[]
   notifications          Notification[]
-  requestLogs            RequestLog[]
   transactions           Transaction[]
   userActions            UserAction[]
   approvedUserCompanies  UserCompany[]     @relation("UserCompanyApprover")
@@ -75,7 +73,6 @@ model User {
   userPixKeys            UserPixKey[]
   userTaxes              UserTaxes?
   userTwoFactors         UserTwoFactor[]
-  withdrawals            Withdrawal[]
 
   @@index([email], map: "idx_users_email")
   @@index([cpf], map: "idx_users_cpf")
@@ -110,7 +107,7 @@ model Transaction {
   userId                  String?            @map("user_id") @db.Uuid
   transactionType         TransactionType    @map("transaction_type")
   status                  TransactionStatus  @default(pending)
-  amount                  Decimal?           @db.Decimal(15, 2)
+  amount                  Decimal?           @db.Decimal(20, 8)
   currency                String?            @db.VarChar(5)
   network                 Network?
   contractAddress         String?            @map("contract_address") @db.VarChar(42)
@@ -137,8 +134,8 @@ model Transaction {
   blockchain_block_number BigInt?
   blockchain_confirmed_at DateTime?          @db.Timestamptz(6)
   blockchain_failed_at    DateTime?          @db.Timestamptz(6)
-  fee                     Decimal?           @default(0) @db.Decimal(15, 2)
-  net_amount              Decimal?           @db.Decimal(15, 2)
+  fee                     Decimal?           @default(0) @db.Decimal(15, 8)
+  net_amount              Decimal?           @db.Decimal(20, 8)
   operation_type          String?            @db.VarChar(50)
   company                 Company            @relation(fields: [companyId], references: [id])
   user                    User?              @relation(fields: [userId], references: [id])
@@ -200,82 +197,9 @@ model SmartContract {
   @@map("smart_contracts")
 }
 
-model Stake {
-  id        String   @id @default(uuid()) @db.Uuid
-  companyId String   @map("company_id") @db.Uuid
-  name      String   @db.VarChar(255)
-  address   String   @unique @db.VarChar(42)
-  network   Network
-  abi       Json
-  isActive  Boolean  @default(true) @map("is_active")
-  metadata  Json?
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  @@index([address], map: "idx_stakes_address")
-  @@index([network], map: "idx_stakes_network")
-  @@index([isActive], map: "idx_stakes_active")
-  @@map("stakes")
-}
 
-model RequestLog {
-  id           String   @id @default(uuid()) @db.Uuid
-  companyId    String   @map("company_id") @db.Uuid
-  userId       String?  @map("user_id") @db.Uuid
-  method       String   @db.VarChar(10)
-  path         String   @db.VarChar(500)
-  statusCode   Int      @map("status_code")
-  responseTime Int      @map("response_time")
-  userAgent    String?  @map("user_agent")
-  ipAddress    String   @map("ip_address") @db.VarChar(45)
-  requestBody  Json?    @map("request_body")
-  responseBody Json?    @map("response_body")
-  error        Json?
-  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  company      Company  @relation(fields: [companyId], references: [id])
-  user         User?    @relation(fields: [userId], references: [id])
 
-  @@index([companyId], map: "idx_request_logs_company_id")
-  @@index([userId], map: "idx_request_logs_user_id")
-  @@index([createdAt], map: "idx_request_logs_created_at")
-  @@map("request_logs")
-}
-
-model PasswordReset {
-  id        String   @id @default(uuid()) @db.Uuid
-  email     String   @db.VarChar(255)
-  token     String   @unique @db.VarChar(255)
-  expiresAt DateTime @map("expires_at") @db.Timestamptz(6)
-  used      Boolean  @default(false)
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-
-  @@index([email], map: "idx_password_resets_email")
-  @@index([token], map: "idx_password_resets_token")
-  @@map("password_resets")
-}
-
-model Webhook {
-  id            String    @id @default(uuid()) @db.Uuid
-  companyId     String    @map("company_id") @db.Uuid
-  name          String    @db.VarChar(100)
-  url           String    @db.VarChar(500)
-  events        Json      @default("[]") @db.Json
-  secret        String    @db.VarChar(255)
-  isActive      Boolean   @default(true) @map("is_active")
-  retryCount    Int       @default(3) @map("retry_count")
-  timeout       Int       @default(30000)
-  lastTriggered DateTime? @map("last_triggered") @db.Timestamptz(6)
-  lastSuccess   DateTime? @map("last_success") @db.Timestamptz(6)
-  lastError     String?   @map("last_error")
-  totalTriggers Int       @default(0) @map("total_triggers")
-  totalSuccess  Int       @default(0) @map("total_success")
-  totalErrors   Int       @default(0) @map("total_errors")
-  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
-  company       Company   @relation(fields: [companyId], references: [id])
-
-  @@map("webhooks")
-}
 
 model Document {
   id             String           @id @default(uuid()) @db.Uuid
@@ -403,39 +327,12 @@ model EmailTemplate {
   isActive    Boolean    @default(true) @map("is_active")
   createdAt   DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt   DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
-  emailLogs   EmailLog[]
 
   @@index([name], map: "idx_email_templates_name")
   @@index([isActive], map: "idx_email_templates_active")
   @@map("email_templates")
 }
 
-model EmailLog {
-  id           String         @id @default(uuid()) @db.Uuid
-  templateId   String?        @map("template_id") @db.Uuid
-  toEmail      String         @map("to_email") @db.VarChar(255)
-  fromEmail    String         @map("from_email") @db.VarChar(255)
-  subject      String         @db.VarChar(255)
-  status       EmailStatus    @default(pending)
-  providerId   String?        @map("provider_id") @db.VarChar(255)
-  errorMessage String?        @map("error_message")
-  sentAt       DateTime?      @map("sent_at") @db.Timestamptz(6)
-  deliveredAt  DateTime?      @map("delivered_at") @db.Timestamptz(6)
-  openedAt     DateTime?      @map("opened_at") @db.Timestamptz(6)
-  clickedAt    DateTime?      @map("clicked_at") @db.Timestamptz(6)
-  bounced      Boolean        @default(false)
-  bouncedAt    DateTime?      @map("bounced_at") @db.Timestamptz(6)
-  metadata     Json?
-  createdAt    DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt    DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
-  template     EmailTemplate? @relation(fields: [templateId], references: [id])
-
-  @@index([toEmail], map: "idx_email_logs_to_email")
-  @@index([status], map: "idx_email_logs_status")
-  @@index([createdAt], map: "idx_email_logs_created_at")
-  @@index([templateId], map: "idx_email_logs_template_id")
-  @@map("email_logs")
-}
 
 model CompanyBranding {
   id                 String      @id @default(uuid()) @db.Uuid
@@ -502,31 +399,6 @@ model Notification {
   @@map("notifications")
 }
 
-model Withdrawal {
-  id               String           @id @default(uuid()) @db.Uuid
-  userId           String           @map("user_id") @db.Uuid
-  amount           Decimal          @db.Decimal(15, 2)
-  fee              Decimal          @db.Decimal(15, 2)
-  netAmount        Decimal          @map("net_amount") @db.Decimal(15, 2)
-  pixKey           String           @map("pix_key") @db.VarChar(255)
-  pixKeyType       String           @map("pix_key_type") @db.VarChar(20)
-  status           WithdrawalStatus @default(PENDING)
-  burnTxHash       String?          @map("burn_tx_hash") @db.VarChar(66)
-  pixTransactionId String?          @map("pix_transaction_id") @db.VarChar(255)
-  pixEndToEndId    String?          @map("pix_end_to_end_id") @db.VarChar(32)
-  errorMessage     String?          @map("error_message")
-  metadata         Json?
-  createdAt        DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt        DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
-  completedAt      DateTime?        @map("completed_at") @db.Timestamptz(6)
-  user             User             @relation(fields: [userId], references: [id])
-
-  @@index([userId], map: "idx_withdrawals_user_id")
-  @@index([status], map: "idx_withdrawals_status")
-  @@index([createdAt], map: "idx_withdrawals_created")
-  @@index([pixTransactionId], map: "idx_withdrawals_pix_transaction")
-  @@map("withdrawals")
-}
 
 model Earnings {
   id               String   @id @default(uuid()) @db.Uuid
@@ -603,6 +475,7 @@ model UserTaxes {
   updatedAt          DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
   depositFee         Float     @default(3.0) @map("deposit_fee")
   withdrawFee        Float     @default(5.0) @map("withdraw_fee")
+  pixValidation      Float     @default(1.0) @map("pix_validation")
   user               User      @relation(fields: [userId], references: [id])
 
   @@index([userId], map: "idx_user_taxes_user_id")
@@ -616,14 +489,6 @@ model UserPixKey {
   userId           String      @map("user_id") @db.Uuid
   keyType          PixKeyType  @map("key_type")
   keyValue         String      @map("key_value") @db.VarChar(255)
-  bankCode         String      @map("bank_code") @db.VarChar(10)
-  bankName         String      @map("bank_name") @db.VarChar(255)
-  bankLogo         String?     @map("bank_logo")
-  agency           String      @db.VarChar(20)
-  agencyDigit      String?     @map("agency_digit") @db.VarChar(2)
-  accountNumber    String      @map("account_number") @db.VarChar(20)
-  accountDigit     String      @map("account_digit") @db.VarChar(2)
-  accountType      AccountType @default(corrente) @map("account_type")
   holderName       String      @map("holder_name") @db.VarChar(255)
   holderDocument   String      @map("holder_document") @db.VarChar(20)
   isVerified       Boolean     @default(false) @map("is_verified")
@@ -659,6 +524,7 @@ enum TransactionType {
   unstake
   exchange
   stake_reward
+  fee
 }
 
 enum TransactionStatus {
@@ -778,6 +644,7 @@ enum UserActionType {
   stake_created
   stake_withdrawn
   reward_claimed
+  distributeReward
   api_key_created
   api_key_deleted
   suspicious_activity
@@ -829,9 +696,3 @@ enum PixKeyType {
   random
 }
 
-enum AccountType {
-  corrente
-  poupanca
-  pagamentos
-  salario
-}

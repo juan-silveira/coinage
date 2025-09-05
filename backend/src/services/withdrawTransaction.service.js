@@ -180,6 +180,8 @@ class WithdrawTransactionService {
    */
   async updateWithPixData(transactionId, pixData) {
     try {
+      console.log('🔍 [updateWithPixData] Iniciando atualização:', { transactionId, pixData });
+      
       if (!this.prisma) await this.init();
 
       const transaction = await this.prisma.transaction.findUnique({
@@ -187,8 +189,16 @@ class WithdrawTransactionService {
       });
 
       if (!transaction) {
+        console.error('❌ [updateWithPixData] Transação não encontrada:', transactionId);
         throw new Error('Transação não encontrada');
       }
+      
+      console.log('🔍 [updateWithPixData] Transação encontrada:', {
+        id: transaction.id,
+        status: transaction.status,
+        blockchain_status: transaction.blockchain_status,
+        pix_status: transaction.pix_status
+      });
 
       const updateData = {
         // Atualizar status PIX
@@ -213,16 +223,26 @@ class WithdrawTransactionService {
 
       // Se blockchain também está confirmado, marcar transação como completa
       if (transaction.blockchain_status === 'confirmed') {
+        console.log('🎯 [updateWithPixData] Blockchain confirmado, atualizando status para confirmed');
         updateData.status = 'confirmed';
         updateData.confirmedAt = new Date();
+      } else {
+        console.log('⚠️ [updateWithPixData] Blockchain ainda não confirmado:', transaction.blockchain_status);
       }
+
+      console.log('🔍 [updateWithPixData] Dados que serão atualizados:', updateData);
 
       const updated = await this.prisma.transaction.update({
         where: { id: transactionId },
         data: updateData
       });
 
-      console.log(`✅ Transação atualizada com dados do PIX: ${transactionId}`);
+      console.log(`✅ [updateWithPixData] Transação atualizada com sucesso:`, {
+        id: updated.id,
+        status: updated.status,
+        blockchain_status: updated.blockchain_status,
+        pix_status: updated.pix_status
+      });
       return updated;
 
     } catch (error) {

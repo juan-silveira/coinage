@@ -203,14 +203,6 @@ const PixKeyForm = ({
       const pixKeyData = {
         keyType: pixKeyType,
         keyValue: pixKeyValue.replace(/\D/g, ''),
-        bankCode: bankData.bankCode,
-        bankName: bankData.bankName,
-        bankLogo: bankData.bankLogo,
-        agency: bankData.agency,
-        agencyDigit: bankData.agencyDigit,
-        accountNumber: bankData.accountNumber,
-        accountDigit: bankData.accountDigit,
-        accountType: bankData.accountType,
         holderName: bankData.holderName,
         holderDocument: bankData.holderDocument.replace(/\D/g, ''),
         isDefault: existingPixKeys.length === 0
@@ -255,7 +247,9 @@ const PixKeyForm = ({
   const handleNextStep = async () => {
     const isValidKey = await validatePixKey();
     if (!isValidKey) return;
-    setStep(2);
+    
+    // Skip banking step - save directly
+    await handleSavePixKey();
   };
 
   const handleBankSelect = (bank) => {
@@ -365,9 +359,8 @@ const PixKeyForm = ({
               )}
               
               {pixKeyType === 'cpf' && (pixKeyValue || user?.cpf) && (
-                <Button onClick={handleNextStep} className="flex-1">
-                  Próxima Etapa
-                  <Icon icon="heroicons:arrow-right" className="h-5 w-5 ml-2" />
+                <Button onClick={handleNextStep} disabled={loading} className="flex-1">
+                  {loading ? 'Salvando...' : 'Cadastrar Chave PIX'}
                 </Button>
               )}
 
@@ -383,9 +376,8 @@ const PixKeyForm = ({
               )}
 
               {pixKeyType !== 'cpf' && isValid === true && (
-                <Button onClick={handleNextStep} className="flex-1">
-                  Próxima Etapa
-                  <Icon icon="heroicons:arrow-right" className="h-5 w-5 ml-2" />
+                <Button onClick={handleNextStep} disabled={loading} className="flex-1">
+                  {loading ? 'Salvando...' : 'Cadastrar Chave PIX'}
                 </Button>
               )}
             </div>

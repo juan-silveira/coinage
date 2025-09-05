@@ -136,8 +136,14 @@ class UserTaxesService {
     try {
       const userTaxes = await this.getUserTaxes(userId);
       
+      console.log('🔍 [UserTaxesService] userTaxes completo:', userTaxes);
+      console.log('🔍 [UserTaxesService] withdrawFee do banco:', userTaxes.withdrawFee);
+      console.log('🔍 [UserTaxesService] tipo:', typeof userTaxes.withdrawFee);
+      
       // Usar taxa fixa do banco de dados (campo withdrawFee)
       const fee = userTaxes.withdrawFee || 1.0; // Fallback para R$ 1,00
+      
+      console.log('🔍 [UserTaxesService] taxa calculada:', fee);
 
       return {
         fee: parseFloat(fee.toFixed(2)),

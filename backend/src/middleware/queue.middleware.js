@@ -1,5 +1,13 @@
 const queueService = require('../services/queue.service');
 const { ethers } = require('ethers');
+const crypto = require('crypto');
+
+/**
+ * Gera um ID único para operações da fila
+ */
+const generateUniqueId = () => {
+  return crypto.randomUUID();
+};
 
 /**
  * Middleware para enfileirar operações externas automaticamente

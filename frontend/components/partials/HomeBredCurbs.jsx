@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import Icon from "@/components/ui/Icon";
 import Card from "@/components/ui/Card";
 import useCachedBalances from "@/hooks/useCachedBalances";
+import { BalanceDisplay } from "@/utils/balanceUtils";
 
 const HomeBredCurbs = ({ title }) => {
   const [value, setValue] = useState({
@@ -38,44 +39,10 @@ const HomeBredCurbs = ({ title }) => {
     setValue(newValue);
   };
 
-  // VALORES DE EMERGÊNCIA para exibição - ZERADOS PARA SEGURANÇA
-  const emergencyValues = {
-    [getCorrectAzeSymbol()]: '0.000000',
-    'cBRL': '0.000000',
-    'STT': '0.000000'
-  };
-
   // Função para obter saldo com proteção
   const getSafeBalance = (token) => {
     const balance = getBalance(token);
-    const numericBalance = parseFloat(balance);
-    
-    // Se saldo é 0 ou inválido, usar valor de emergência
-    if (numericBalance === 0 || isNaN(numericBalance)) {
-      return emergencyValues[token] || '0';
-    }
-    
-    return balance;
-  };
-
-  // Formatar os saldos usando o hook useCachedBalances
-  const formatForDisplay = (value) => {
-    // Garante que o valor de entrada seja tratado como string
-    const stringValue = String(value);
-
-    // 1. Separa a parte inteira da parte decimal
-    const parts = stringValue.split(".");
-    const integerPart = parts[0];
-    const decimalPart = parts[1] || ""; // Usa string vazia se não houver decimais
-
-    // 2. Formata a parte inteira com os separadores de milhar do padrão brasileiro ('pt-BR')
-    const formattedIntegerPart = Number(integerPart).toLocaleString("pt-BR");
-
-    // 3. Retorna a parte inteira formatada, unida à parte decimal com uma vírgula
-    // Se não houver parte decimal, retorna apenas a parte inteira formatada
-    return decimalPart
-      ? `${formattedIntegerPart},${decimalPart}`
-      : formattedIntegerPart;
+    return balance || '0';
   };
 
   return (
@@ -95,15 +62,14 @@ const HomeBredCurbs = ({ title }) => {
               <div className="text-xs">
                 Saldo {getCorrectAzeSymbol()}
               </div>
-              <div className="balance font-bold">
+              <div className="font-bold">
                 {shouldShowSkeleton ? (
                   <div className="h-4 w-20 bg-gradient-to-r from-slate-200 to-slate-300 dark:from-slate-600 dark:to-slate-500 rounded animate-pulse"></div>
                 ) : (
-                  <>
-                    {formatForDisplay(getSafeBalance(getCorrectAzeSymbol()))}
-                    {/* {" "}
-                  <span className="text-xs">{getCorrectAzeSymbol()}</span> */}
-                  </>
+                  <BalanceDisplay 
+                    value={getSafeBalance(getCorrectAzeSymbol())} 
+                    showSymbol={false}
+                  />
                 )}
               </div>
             </div>
@@ -120,15 +86,14 @@ const HomeBredCurbs = ({ title }) => {
               <div className="text-xs">
                 Saldo cBRL
               </div>
-              <div className="balance font-bold">
+              <div className="font-bold">
                 {shouldShowSkeleton ? (
                   <div className="h-4 w-20 bg-gradient-to-r from-slate-200 to-slate-300 dark:from-slate-600 dark:to-slate-500 rounded animate-pulse"></div>
                 ) : (
-                  <>
-                    {formatForDisplay(getSafeBalance("cBRL"))}
-                    {/* {" "}
-                    <span className="text-xs">cBRL</span> */}
-                  </>
+                  <BalanceDisplay 
+                    value={getSafeBalance("cBRL")} 
+                    showSymbol={false}
+                  />
                 )}
               </div>
             </div>

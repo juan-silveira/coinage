@@ -654,4 +654,43 @@ router.post('/admin/unblock-user', authenticateToken, authController.unblockUser
  */
 router.post('/admin/block-user', authenticateToken, authController.blockUser);
 
+/**
+ * @swagger
+ * /api/auth/available-companies:
+ *   get:
+ *     summary: Listar empresas disponíveis
+ *     description: Lista todas as empresas ativas disponíveis para login (público)
+ *     tags: [Authentication, Companies]
+ *     responses:
+ *       200:
+ *         description: Empresas disponíveis listadas com sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     companies:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           id:
+ *                             type: string
+ *                             format: uuid
+ *                           name:
+ *                             type: string
+ *                           alias:
+ *                             type: string
+ *       500:
+ *         description: Erro interno do servidor
+ */
+router.get('/available-companies', authController.getAvailableCompanies);
+
 module.exports = router; 

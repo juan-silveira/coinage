@@ -8,108 +8,93 @@ const usePixKeys = () => {
   const [error, setError] = useState(null);
   const { showSuccess, showError } = useAlertContext();
 
-  // Carregar chaves PIX
+  // Carregar chaves PIX (apenas da API)
   const loadPixKeys = async () => {
     setLoading(true);
     setError(null);
     
     try {
-      // Tentar carregar da API
+      // Carregar apenas da API (sem fallback para localStorage)
       const response = await pixKeysService.getPixKeys();
       if (response?.success) {
+        console.log('✅ [usePixKeys] Chaves PIX carregadas da API:', response.data.pixKeys.length);
         setPixKeys(response.data.pixKeys);
-        return;
+        // Limpar dados antigos do localStorage se existirem
+        localStorage.removeItem('userPixKeys');
+      } else {
+        console.log('⚠️ [usePixKeys] API retornou sem sucesso:', response?.message);
+        setPixKeys([]);
       }
     } catch (apiError) {
-      // Silenciar o log quando é esperado que não haja dados
-      // console.warn('API não disponível, usando dados locais');
-    }
-
-    // Fallback: carregar do localStorage
-    try {
-      const localKeys = JSON.parse(localStorage.getItem('userPixKeys') || '[]');
-      setPixKeys(localKeys);
-    } catch (localError) {
-      setError('Erro ao carregar chaves PIX');
+      console.error('❌ [usePixKeys] Erro ao carregar da API:', apiError);
+      setError('Erro ao carregar chaves PIX do servidor');
       setPixKeys([]);
     } finally {
       setLoading(false);
     }
   };
 
-  // Adicionar nova chave PIX
+  // Adicionar nova chave PIX (apenas via API)
   const addPixKey = async (pixKeyData) => {
     try {
-      // Tentar salvar na API
+      console.log('🔄 [usePixKeys] Criando nova chave PIX via API:', pixKeyData);
       const response = await pixKeysService.createPixKey(pixKeyData);
       if (response?.success) {
-        await loadPixKeys();
+        console.log('✅ [usePixKeys] Chave PIX criada com sucesso:', response.data.pixKey.id);
+        await loadPixKeys(); // Recarregar da API
         showSuccess('Chave PIX cadastrada com sucesso');
         return response.data.pixKey;
+      } else {
+        throw new Error(response?.message || 'Erro ao criar chave PIX');
       }
     } catch (apiError) {
-      // console.warn('API não disponível, salvando localmente');
+      console.error('❌ [usePixKeys] Erro ao criar chave PIX:', apiError);
+      const errorMessage = apiError.response?.data?.message || apiError.message || 'Erro ao cadastrar chave PIX';
+      showError(errorMessage);
+      throw apiError;
     }
-
-    // Fallback: salvar no localStorage
-    const newKey = {
-      ...pixKeyData,
-      id: Date.now().toString(),
-      createdAt: new Date().toISOString()
-    };
-    
-    const localKeys = [...pixKeys, newKey];
-    localStorage.setItem('userPixKeys', JSON.stringify(localKeys));
-    setPixKeys(localKeys);
-    showSuccess('Chave PIX salva localmente');
-    return newKey;
   };
 
-  // Remover chave PIX
+  // Remover chave PIX (apenas via API)
   const removePixKey = async (pixKeyId) => {
     try {
-      // Tentar remover da API
+      console.log('🔄 [usePixKeys] Removendo chave PIX via API:', pixKeyId);
       const response = await pixKeysService.deletePixKey(pixKeyId);
       if (response?.success) {
-        await loadPixKeys();
+        console.log('✅ [usePixKeys] Chave PIX removida com sucesso');
+        await loadPixKeys(); // Recarregar da API
         showSuccess('Chave PIX removida');
         return true;
+      } else {
+        throw new Error(response?.message || 'Erro ao remover chave PIX');
       }
     } catch (apiError) {
-      // console.warn('API não disponível, removendo localmente');
+      console.error('❌ [usePixKeys] Erro ao remover chave PIX:', apiError);
+      const errorMessage = apiError.response?.data?.message || apiError.message || 'Erro ao remover chave PIX';
+      showError(errorMessage);
+      throw apiError;
     }
-
-    // Fallback: remover do localStorage
-    const updatedKeys = pixKeys.filter(key => key.id !== pixKeyId);
-    localStorage.setItem('userPixKeys', JSON.stringify(updatedKeys));
-    setPixKeys(updatedKeys);
-    showSuccess('Chave PIX removida');
-    return true;
   };
 
-  // Definir chave padrão
+  // Definir chave padrão (apenas via API)
   const setDefaultPixKey = async (pixKeyId) => {
     try {
-      // Tentar atualizar na API
+      console.log('🔄 [usePixKeys] Definindo chave PIX padrão via API:', pixKeyId);
       const response = await pixKeysService.setDefaultPixKey(pixKeyId);
       if (response?.success) {
-        await loadPixKeys();
+        console.log('✅ [usePixKeys] Chave PIX padrão definida com sucesso');
+        await loadPixKeys(); // Recarregar da API
         showSuccess('Chave PIX definida como padrão');
         return true;
+      } else {
+        throw new Error(response?.message || 'Erro ao definir chave padrão');
       }
     } catch (apiError) {
-      // console.warn('API não disponível, atualizando localmente');
+      console.error('❌ [usePixKeys] Erro ao definir chave padrão:', apiError);
+      const errorMessage = apiError.response?.data?.message || apiError.message || 'Erro ao definir chave padrão';
+      showError(errorMessage);
+      throw apiError;
     }
-
-    // Fallback: atualizar no localStorage
-    const updatedKeys = pixKeys.map(key => ({
-      ...key,
-      isDefault: key.id === pixKeyId
-    }));
-    localStorage.setItem('userPixKeys', JSON.stringify(updatedKeys));
-    setPixKeys(updatedKeys);
-    showSuccess('Chave PIX definida como padrão');
-    return true;
   };
 
   // Obter chave PIX padrão

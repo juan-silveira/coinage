@@ -1,4 +1,5 @@
 const tokenService = require('../services/token.service');
+const { ethers } = require('ethers');
 
 /**
  * Controller para gerenciamento de tokens ERC20
@@ -71,12 +72,7 @@ class TokenController {
         });
       }
 
-      if (!gasPayer) {
-        return res.status(400).json({
-          success: false,
-          message: 'Endereço do pagador de gás é obrigatório'
-        });
-      }
+      // gasPayer is now optional - will use admin from contract or fallback
 
       const result = await tokenService.mintToken(
         contractAddress, 
@@ -135,12 +131,7 @@ class TokenController {
         });
       }
 
-      if (!gasPayer) {
-        return res.status(400).json({
-          success: false,
-          message: 'Endereço do pagador de gás é obrigatório'
-        });
-      }
+      // gasPayer is now optional - will use admin from contract or fallback
 
       const result = await tokenService.burnFromToken(
         contractAddress, 
@@ -207,12 +198,7 @@ class TokenController {
         });
       }
 
-      if (!gasPayer) {
-        return res.status(400).json({
-          success: false,
-          message: 'Endereço do pagador de gás é obrigatório'
-        });
-      }
+      // gasPayer is now optional - will use admin from contract or fallback
 
       const result = await tokenService.transferFromGasless(
         contractAddress, 
@@ -245,7 +231,7 @@ class TokenController {
       const { 
         address, 
         network = 'testnet',
-        adminPublicKey,
+        adminAddress,
         website,
         description
       } = req.body;
@@ -257,18 +243,18 @@ class TokenController {
         });
       }
 
-      // adminPublicKey é opcional - pode ser definido posteriormente
-      if (adminPublicKey && !ethers.isAddress(adminPublicKey)) {
+      // adminAddress é opcional - pode ser definido posteriormente
+      if (adminAddress && !ethers.isAddress(adminAddress)) {
         return res.status(400).json({
           success: false,
-          message: 'adminPublicKey inválido se fornecido'
+          message: 'adminAddress inválido se fornecido'
         });
       }
 
       const tokenData = {
         address,
         network,
-        adminPublicKey,
+        adminAddress,
         website,
         description
       };

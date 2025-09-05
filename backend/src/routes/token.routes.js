@@ -127,7 +127,7 @@ const tokenController = require('../controllers/token.controller');
  *       type: object
  *       required:
  *         - address
- *         - adminPublicKey
+ *         - adminAddress
  *       properties:
  *         address:
  *           type: string
@@ -138,10 +138,10 @@ const tokenController = require('../controllers/token.controller');
  *           enum: [mainnet, testnet]
  *           default: testnet
  *           description: Rede do token
- *         adminPublicKey:
+ *         adminAddress:
  *           type: string
  *           pattern: '^0x[a-fA-F0-9]{40}$'
- *           description: PublicKey do admin do token
+ *           description: Address do admin do token
  *         website:
  *           type: string
  *           description: Website do token
@@ -703,7 +703,7 @@ router.get('/test/service', tokenController.testService);
  *                             type: boolean
  *                           metadata:
  *                             type: object
- *                           adminPublicKey:
+ *                           adminAddress:
  *                             type: string
  *                           createdAt:
  *                             type: string

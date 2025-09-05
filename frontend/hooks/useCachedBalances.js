@@ -230,24 +230,24 @@ export const useCachedBalances = () => {
 
   // VALORES DE EMERGÊNCIA para useCachedBalances - Valores zerados para novos usuários
   const emergencyValues = {
-    'AZE-t': '0.000000',
-    'AZE': '0.000000',
-    'cBRL': '0.000000',
-    'STT': '0.000000'
+    'AZE-t': '0',
+    'AZE': '0',
+    'cBRL': '0',
+    'STT': '0'
   };
 
   // Funções de conveniência COM PROTEÇÃO TOTAL
   const getBalance = useCallback((symbol) => {
     if (!cachedBalances?.balancesTable) {
-      return emergencyValues[symbol] || '0.000000';
+      return emergencyValues[symbol] || '0';
     }
     
     const balance = cachedBalances.balancesTable[symbol];
     if (!balance || balance === '0' || balance === 0) {
-      return emergencyValues[symbol] || '0.000000';
+      return emergencyValues[symbol] || '0';
     }
     
-    return parseFloat(balance).toFixed(6);
+    return balance; // Return raw balance for BalanceDisplay to format
   }, [cachedBalances]);
 
   const formatBalance = useCallback((balance) => {

@@ -26,46 +26,6 @@ module.exports = (sequelize) => {
       allowNull: false,
       field: 'key_value'
     },
-    bankCode: {
-      type: DataTypes.STRING(10),
-      allowNull: false,
-      field: 'bank_code'
-    },
-    bankName: {
-      type: DataTypes.STRING(255),
-      allowNull: false,
-      field: 'bank_name'
-    },
-    bankLogo: {
-      type: DataTypes.TEXT,
-      allowNull: true,
-      field: 'bank_logo'
-    },
-    agency: {
-      type: DataTypes.STRING(20),
-      allowNull: false
-    },
-    agencyDigit: {
-      type: DataTypes.STRING(2),
-      allowNull: true,
-      field: 'agency_digit'
-    },
-    accountNumber: {
-      type: DataTypes.STRING(20),
-      allowNull: false,
-      field: 'account_number'
-    },
-    accountDigit: {
-      type: DataTypes.STRING(2),
-      allowNull: false,
-      field: 'account_digit'
-    },
-    accountType: {
-      type: DataTypes.ENUM('corrente', 'poupanca', 'pagamentos', 'salario'),
-      allowNull: false,
-      defaultValue: 'corrente',
-      field: 'account_type'
-    },
     holderName: {
       type: DataTypes.STRING(255),
       allowNull: false,
@@ -148,26 +108,6 @@ module.exports = (sequelize) => {
     }
   };
 
-  UserPixKey.prototype.getAccountDisplay = function() {
-    const agency = this.agencyDigit 
-      ? `${this.agency}-${this.agencyDigit}`
-      : this.agency;
-    
-    const account = `${this.accountNumber}-${this.accountDigit}`;
-    
-    const typeMap = {
-      'corrente': 'Conta corrente',
-      'poupanca': 'Conta poupança',
-      'pagamentos': 'Conta de pagamentos',
-      'salario': 'Conta salário'
-    };
-
-    return {
-      agency,
-      account,
-      type: typeMap[this.accountType] || 'Conta corrente'
-    };
-  };
 
   // Métodos estáticos
   UserPixKey.findByUser = function(userId, options = {}) {

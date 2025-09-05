@@ -15,36 +15,12 @@ const createPixKeyValidation = [
     .withMessage('Tipo de chave inválido'),
   body('keyValue')
     .notEmpty()
-    .withMessage('Valor da chave é obrigatório'),
-  body('bankCode')
-    .notEmpty()
-    .withMessage('Código do banco é obrigatório'),
-  body('bankName')
-    .notEmpty()
-    .withMessage('Nome do banco é obrigatório'),
-  body('agency')
-    .notEmpty()
-    .withMessage('Agência é obrigatória'),
-  body('accountNumber')
-    .notEmpty()
-    .withMessage('Número da conta é obrigatório'),
-  body('accountDigit')
-    .notEmpty()
-    .withMessage('Dígito da conta é obrigatório'),
-  body('accountType')
-    .isIn(['corrente', 'poupanca', 'pagamentos', 'salario'])
-    .withMessage('Tipo de conta inválido'),
-  body('holderName')
-    .notEmpty()
-    .withMessage('Nome do titular é obrigatório'),
-  body('holderDocument')
-    .notEmpty()
-    .withMessage('Documento do titular é obrigatório')
+    .withMessage('Valor da chave é obrigatório')
 ];
 
 const pixKeyIdValidation = [
   param('pixKeyId')
-    .isInt({ min: 1 })
+    .isUUID()
     .withMessage('ID da chave PIX inválido')
 ];
 
@@ -66,7 +42,7 @@ const pixKeyIdValidation = [
  *       500:
  *         description: Erro interno do servidor
  */
-router.get('/', pixKeysController.getUserPixKeys);
+router.get('/', pixKeysController.getUserPixKeys.bind(pixKeysController));
 
 /**
  * @swagger
@@ -85,12 +61,6 @@ router.get('/', pixKeysController.getUserPixKeys);
  *             required:
  *               - keyType
  *               - keyValue
- *               - bankCode
- *               - bankName
- *               - agency
- *               - accountNumber
- *               - accountDigit
- *               - accountType
  *               - holderName
  *               - holderDocument
  *             properties:
@@ -99,23 +69,6 @@ router.get('/', pixKeysController.getUserPixKeys);
  *                 enum: [cpf, email, phone, random]
  *               keyValue:
  *                 type: string
- *               bankCode:
- *                 type: string
- *               bankName:
- *                 type: string
- *               bankLogo:
- *                 type: string
- *               agency:
- *                 type: string
- *               agencyDigit:
- *                 type: string
- *               accountNumber:
- *                 type: string
- *               accountDigit:
- *                 type: string
- *               accountType:
- *                 type: string
- *                 enum: [corrente, poupanca, pagamentos, salario]
  *               holderName:
  *                 type: string
  *               holderDocument:
@@ -132,7 +85,7 @@ router.get('/', pixKeysController.getUserPixKeys);
  *       500:
  *         description: Erro interno do servidor
  */
-router.post('/', createPixKeyValidation, validateRequest, pixKeysController.createPixKey);
+router.post('/', createPixKeyValidation, validateRequest, pixKeysController.createPixKey.bind(pixKeysController));
 
 /**
  * @swagger
@@ -156,7 +109,7 @@ router.post('/', createPixKeyValidation, validateRequest, pixKeysController.crea
  *       500:
  *         description: Erro interno do servidor
  */
-router.put('/:pixKeyId', pixKeyIdValidation, validateRequest, pixKeysController.updatePixKey);
+router.put('/:pixKeyId', pixKeyIdValidation, validateRequest, (req, res) => pixKeysController.updatePixKey(req, res));
 
 /**
  * @swagger
@@ -180,7 +133,7 @@ router.put('/:pixKeyId', pixKeyIdValidation, validateRequest, pixKeysController.
  *       500:
  *         description: Erro interno do servidor
  */
-router.delete('/:pixKeyId', pixKeyIdValidation, validateRequest, pixKeysController.deletePixKey);
+router.delete('/:pixKeyId', pixKeyIdValidation, validateRequest, (req, res) => pixKeysController.deletePixKey(req, res));
 
 /**
  * @swagger
@@ -204,7 +157,7 @@ router.delete('/:pixKeyId', pixKeyIdValidation, validateRequest, pixKeysControll
  *       500:
  *         description: Erro interno do servidor
  */
-router.patch('/:pixKeyId/set-default', pixKeyIdValidation, validateRequest, pixKeysController.setDefaultPixKey);
+router.patch('/:pixKeyId/set-default', pixKeyIdValidation, validateRequest, (req, res) => pixKeysController.setDefaultPixKey(req, res));
 
 /**
  * @swagger
@@ -228,6 +181,113 @@ router.patch('/:pixKeyId/set-default', pixKeyIdValidation, validateRequest, pixK
  *       500:
  *         description: Erro interno do servidor
  */
-router.post('/:pixKeyId/verify', pixKeyIdValidation, validateRequest, pixKeysController.verifyPixKey);
+router.post('/:pixKeyId/verify', pixKeyIdValidation, validateRequest, (req, res) => pixKeysController.verifyPixKey(req, res));
+
+/**
+ * @swagger
+ * /api/pix-keys/validation-history:
+ *   get:
+ *     summary: Obter histórico de validações PIX
+ *     tags: [PIX Keys]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Histórico de validações carregado
+ *       500:
+ *         description: Erro interno do servidor
+ */
+router.get('/validation-history', (req, res) => pixKeysController.getValidationHistory(req, res));
+
+/**
+ * @swagger
+ * /api/pix-keys/validation-costs:
+ *   get:
+ *     summary: Obter custos de validações PIX
+ *     tags: [PIX Keys]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: days
+ *         schema:
+ *           type: integer
+ *           default: 30
+ *         description: Número de dias para calcular
+ *     responses:
+ *       200:
+ *         description: Custos calculados com sucesso
+ *       500:
+ *         description: Erro interno do servidor
+ */
+router.get('/validation-costs', (req, res) => pixKeysController.getValidationCosts(req, res));
+
+/**
+ * @swagger
+ * /api/pix-keys/validation-health:
+ *   get:
+ *     summary: Health check do serviço de validação PIX
+ *     tags: [PIX Keys]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Status do serviço
+ *       500:
+ *         description: Erro interno do servidor
+ */
+router.get('/validation-health', (req, res) => pixKeysController.validationHealthCheck(req, res));
+
+/**
+ * @swagger
+ * /api/pix-keys/{pixKeyId}/validate-for-withdraw:
+ *   post:
+ *     summary: Validar chave PIX para saque (cobra taxa se necessário)
+ *     tags: [PIX Keys]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: pixKeyId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     responses:
+ *       200:
+ *         description: Chave PIX validada com sucesso
+ *       400:
+ *         description: Erro na validação
+ *       404:
+ *         description: Chave PIX não encontrada
+ *       500:
+ *         description: Erro interno do servidor
+ */
+router.post('/:pixKeyId/validate-for-withdraw', pixKeyIdValidation, validateRequest, (req, res) => pixKeysController.validateForWithdraw(req, res));
+
+/**
+ * @swagger
+ * /api/pix-keys/{pixKeyId}/check-validation:
+ *   get:
+ *     summary: Verificar se chave PIX precisa de validação paga
+ *     tags: [PIX Keys]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: pixKeyId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     responses:
+ *       200:
+ *         description: Status da validação verificado
+ *       404:
+ *         description: Chave PIX não encontrada
+ *       500:
+ *         description: Erro interno do servidor
+ */
+router.get('/:pixKeyId/check-validation', pixKeyIdValidation, validateRequest, (req, res) => pixKeysController.checkValidationNeeded(req, res));
 
 module.exports = router;

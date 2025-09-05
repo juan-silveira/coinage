@@ -25,7 +25,7 @@ export const calculateTokenValueBRL = (balance, symbol) => {
   return parseFloat(balance) * price;
 };
 
-// Função para formatar valor em BRL
+// Função para formatar valor em BRL (2 casas decimais para valores em BRL)
 export const formatCurrency = (value) => {
   if (!value || isNaN(value)) return 'R$ 0,00';
   
@@ -35,5 +35,27 @@ export const formatCurrency = (value) => {
     currency: 'BRL',
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
+  }).format(numericValue);
+};
+
+// Função para formatar valor em BRL com mais precisão (até 8 casas decimais para valores de tokens)
+export const formatCurrencyPrecise = (value, maxDecimals = 8) => {
+  if (!value || isNaN(value)) return 'R$ 0,00';
+  
+  const numericValue = parseFloat(value);
+  
+  // Se o valor for muito pequeno, usar mais casas decimais
+  let decimals = 2;
+  if (numericValue < 0.01) {
+    decimals = Math.min(maxDecimals, 8);
+  } else if (numericValue < 1) {
+    decimals = Math.min(maxDecimals, 4);
+  }
+  
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: decimals
   }).format(numericValue);
 };

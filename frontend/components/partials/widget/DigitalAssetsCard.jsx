@@ -5,6 +5,7 @@ import Icon from "@/components/ui/Icon";
 import useCachedBalances from "@/hooks/useCachedBalances";
 import useConfig from "@/hooks/useConfig";
 import { getTokenPrice, formatCurrency as formatCurrencyHelper } from "@/constants/tokenPrices";
+import { BalanceDisplay } from "@/utils/balanceUtils";
 
 const DigitalAssetsCard = () => {
   const [activeIndex, setActiveIndex] = useState(null);
@@ -57,11 +58,6 @@ const DigitalAssetsCard = () => {
     digital: "Renda Digital"
   };
 
-  // Função para formatar saldo
-  const formatBalance = (balance) => {
-    if (!balance || balance === '0' || balance === 0) return '0.000000';
-    return parseFloat(balance).toFixed(6);
-  };
 
   // Usar formatação centralizada
   const formatCurrency = formatCurrencyHelper;
@@ -90,7 +86,6 @@ const DigitalAssetsCard = () => {
 
       tokens.forEach(symbol => {
         const balance = getBalance(symbol);
-        const formattedBalance = formatBalance(balance);
         const valueBRL = calculateValueBRL(balance, symbol);
         
         // Extrair valor numérico para cálculo do total
@@ -101,7 +96,7 @@ const DigitalAssetsCard = () => {
         categoryData.data.push({
           symbol: symbol,
           name: getTokenName(symbol),
-          available: `${formattedBalance} ${symbol}`,
+          balance: balance, // Store raw balance for BalanceDisplay
           valueBRL: valueBRL
         });
       });
@@ -259,7 +254,7 @@ const DigitalAssetsCard = () => {
                               {item.name}
                             </td>
                             <td className="px-4 py-3 whitespace-nowrap text-sm text-slate-900 dark:text-white">
-                              {item.available}
+                              <BalanceDisplay value={item.balance} symbol={item.symbol} />
                             </td>
                             <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-slate-900 dark:text-white">
                               {item.valueBRL}
