@@ -231,9 +231,7 @@ class WithdrawService {
             cBrlBalance: cBrlBalance,
             totalBurnAmount: amount, // Amount burned from blockchain (not including fee)
             pixPaymentAmount: netAmount, // Amount user will receive via PIX  
-            pixKeyId: userPixKey ? userPixKey.id : null,
-            bankCode: userPixKey ? userPixKey.bankCode : null,
-            bankName: userPixKey ? userPixKey.bankName : null
+            pixKeyId: userPixKey ? userPixKey.id : null
           }
         }
       });

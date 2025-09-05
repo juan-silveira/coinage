@@ -4,29 +4,46 @@ const prisma = new PrismaClient();
 
 async function fixCurrentCompany() {
   try {
-    console.log('🔄 Corrigindo empresa atual...');
+    console.log('🔄 Corrigindo empresa atual para NAVI...');
 
-    // Ivan Alberton user ID
-    const userId = 'cf16c7f4-f9e7-41ea-a735-3c6e5c9d976c';
-
-    // Buscar empresa Coinage
-    const coinageCompany = await prisma.company.findUnique({
-      where: { alias: 'coinage' }
+    // Buscar o usuário Ivan
+    const ivan = await prisma.user.findUnique({
+      where: { email: 'ivan.alberton@navi.inf.br' },
+      include: {
+        userCompanies: {
+          include: {
+            company: true
+          },
+          orderBy: { lastAccessAt: 'desc' }
+        }
+      }
     });
 
-    if (!coinageCompany) {
-      console.error('❌ Empresa Coinage não encontrada');
+    if (!ivan) {
+      console.error('❌ Usuário Ivan não encontrado');
       return;
     }
 
-    console.log('✅ Empresa Coinage encontrada:', coinageCompany.id, coinageCompany.name);
+    console.log(`✅ Usuário encontrado: ${ivan.name} (${ivan.email})`);
 
-    // Atualizar lastAccessAt da Coinage para agora
-    const updatedCoinage = await prisma.userCompany.update({
+    // Buscar empresa Navi
+    const naviCompany = await prisma.company.findUnique({
+      where: { alias: 'navi' }
+    });
+
+    if (!naviCompany) {
+      console.error('❌ Empresa Navi não encontrada');
+      return;
+    }
+
+    console.log('✅ Empresa Navi encontrada:', naviCompany.id, naviCompany.name);
+
+    // Atualizar lastAccessAt da Navi para agora (tornando-a atual)
+    const updatedNavi = await prisma.userCompany.update({
       where: {
         userId_companyId: {
-          userId: userId,
-          companyId: coinageCompany.id
+          userId: ivan.id,
+          companyId: naviCompany.id
         }
       },
       data: {
@@ -34,19 +51,19 @@ async function fixCurrentCompany() {
       }
     });
 
-    console.log('✅ LastAccessAt da Coinage atualizado:', updatedCoinage.lastAccessAt);
+    console.log('✅ LastAccessAt da Navi atualizado:', updatedNavi.lastAccessAt);
 
-    // Atualizar lastAccessAt da Navi para uma data anterior
-    const naviCompany = await prisma.company.findUnique({
-      where: { alias: 'navi' }
+    // Atualizar lastAccessAt da Coinage para uma data anterior
+    const coinageCompany = await prisma.company.findUnique({
+      where: { alias: 'coinage' }
     });
 
-    if (naviCompany) {
-      const updatedNavi = await prisma.userCompany.update({
+    if (coinageCompany) {
+      const updatedCoinage = await prisma.userCompany.update({
         where: {
           userId_companyId: {
-            userId: userId,
-            companyId: naviCompany.id
+            userId: ivan.id,
+            companyId: coinageCompany.id
           }
         },
         data: {
@@ -54,10 +71,23 @@ async function fixCurrentCompany() {
         }
       });
 
-      console.log('✅ LastAccessAt da Navi atualizado para:', updatedNavi.lastAccessAt);
+      console.log('✅ LastAccessAt da Coinage atualizado para:', updatedCoinage.lastAccessAt);
     }
 
-    console.log('✅ Empresa atual corrigida para Coinage!');
+    console.log('✅ Empresa atual corrigida para NAVI!');
+
+    // Mostrar status atual
+    const updatedUserCompanies = await prisma.userCompany.findMany({
+      where: { userId: ivan.id },
+      include: { company: true },
+      orderBy: { lastAccessAt: 'desc' }
+    });
+
+    console.log('\n📊 Empresas do usuário (ordenadas por último acesso):');
+    updatedUserCompanies.forEach((uc, index) => {
+      const current = index === 0 ? ' [ATUAL]' : '';
+      console.log(`  ${index + 1}. ${uc.company.name} (${uc.company.alias}) - ${uc.role}${current}`);
+    });
 
   } catch (error) {
     console.error('❌ Erro ao corrigir empresa atual:', error);

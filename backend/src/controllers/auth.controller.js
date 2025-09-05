@@ -11,6 +11,7 @@ const userCacheService = require('../services/userCache.service');
 const userService = require('../services/user.service');
 const userActionsService = require('../services/userActions.service');
 const userCompanyService = require('../services/userCompany.service');
+const { DEFAULT_USER_TAXES } = require('../config/defaultTaxes');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const { validatePassword } = require('../utils/passwordValidation');
@@ -35,7 +36,7 @@ const login = async (req, res) => {
   const prisma = getPrisma();
   
   try {
-    const { email, password } = req.body;
+    const { email, password, company_alias } = req.body;
     const companyIP = req.ip || req.connection.remoteAddress;
     const userAgent = req.get('User-Agent');
     
@@ -204,50 +205,99 @@ const login = async (req, res) => {
       }
     }
 
-    // Obter empresa atual do usuário para registrar no login
+    // Obter empresa atual baseada no company_alias fornecido no login
     let currentCompany = null;
     try {
-      currentCompany = await userCompanyService.getCurrentCompany(user.id);
-      
-      // Se não há empresa atual (primeiro login ou sem lastAccessAt), usar a primeira empresa ativa
-      if (!currentCompany) {
-        const userWithCompanies = await getPrisma().user.findUnique({
-          where: { id: user.id },
-          include: {
-            userCompanies: {
-              where: {
-                status: 'active',
-                company: { isActive: true }
-              },
-              include: {
-                company: true
-              },
-              orderBy: { linkedAt: 'asc' } // Primeira empresa vinculada
-            }
-          }
+      if (company_alias) {
+        // Buscar empresa pelo alias fornecido
+        const targetCompany = await prisma.company.findUnique({
+          where: { alias: company_alias }
         });
-        
-        if (userWithCompanies?.userCompanies?.length > 0) {
-          const firstCompany = userWithCompanies.userCompanies[0];
-          currentCompany = {
-            id: firstCompany.company.id,
-            name: firstCompany.company.name,
-            alias: firstCompany.company.alias,
-            isActive: firstCompany.company.isActive
-          };
-          
-          // Atualizar lastAccessAt para esta empresa
-          await getPrisma().userCompany.update({
+
+        if (targetCompany) {
+          // Verificar se o usuário tem acesso a esta empresa
+          const userCompanyAccess = await prisma.userCompany.findUnique({
             where: {
               userId_companyId: {
                 userId: user.id,
-                companyId: currentCompany.id
+                companyId: targetCompany.id
+              },
+              status: 'active'
+            }
+          });
+
+          if (userCompanyAccess) {
+            currentCompany = {
+              id: targetCompany.id,
+              name: targetCompany.name,
+              alias: targetCompany.alias,
+              isActive: targetCompany.isActive
+            };
+
+            // Atualizar lastAccessAt para esta empresa (definindo como atual)
+            await prisma.userCompany.update({
+              where: {
+                userId_companyId: {
+                  userId: user.id,
+                  companyId: currentCompany.id
+                }
+              },
+              data: { lastAccessAt: new Date() }
+            });
+
+            console.log(`🏢 Login: Empresa definida via alias "${company_alias}": ${currentCompany.name}`);
+          } else {
+            console.warn(`⚠️ Usuário ${user.email} não tem acesso à empresa "${company_alias}"`);
+          }
+        } else {
+          console.warn(`⚠️ Empresa com alias "${company_alias}" não encontrada`);
+        }
+      }
+
+      // Se não foi possível definir via alias, usar a lógica atual (lastAccessAt)
+      if (!currentCompany) {
+        currentCompany = await userCompanyService.getCurrentCompany(user.id);
+        
+        // Se ainda não há empresa atual, usar a primeira empresa ativa
+        if (!currentCompany) {
+          const userWithCompanies = await prisma.user.findUnique({
+            where: { id: user.id },
+            include: {
+              userCompanies: {
+                where: {
+                  status: 'active',
+                  company: { isActive: true }
+                },
+                include: {
+                  company: true
+                },
+                orderBy: { linkedAt: 'asc' } // Primeira empresa vinculada
               }
-            },
-            data: { lastAccessAt: new Date() }
+            }
           });
           
-          console.log(`📅 Login: Definindo empresa padrão para ${user.name}: ${currentCompany.name}`);
+          if (userWithCompanies?.userCompanies?.length > 0) {
+            const firstCompany = userWithCompanies.userCompanies[0];
+            currentCompany = {
+              id: firstCompany.company.id,
+              name: firstCompany.company.name,
+              alias: firstCompany.company.alias,
+              isActive: firstCompany.company.isActive
+            };
+            
+            // Atualizar lastAccessAt para esta empresa
+            await prisma.userCompany.update({
+              where: {
+                userId_companyId: {
+                  userId: user.id,
+                  companyId: currentCompany.id
+                }
+              },
+              data: { lastAccessAt: new Date() }
+            });
+            
+            console.log(`📅 Login: Definindo empresa padrão para ${user.name}: ${currentCompany.name}`);
+          }
         }
       }
     } catch (error) {
@@ -922,6 +972,20 @@ const register = async (req, res) => {
       }
     });
 
+    // Criar taxas padrão para o usuário
+    try {
+      await prisma.userTaxes.create({
+        data: {
+          userId: user.id,
+          ...DEFAULT_USER_TAXES
+        }
+      });
+      console.log(`✅ Taxas padrão aplicadas ao usuário: ${user.email}`);
+    } catch (taxError) {
+      console.error('❌ Erro ao criar taxas padrão para usuário:', taxError);
+      // Não falhar o registro por erro de taxas
+    }
+
     // Se company_alias foi fornecido, vincular à empresa
     if (company_alias) {
       try {
@@ -1203,6 +1267,47 @@ const listBlockedUsers = async (req, res) => {
   }
 };
 
+/**
+ * Listar empresas disponíveis (público - para tela de login)
+ */
+const getAvailableCompanies = async (req, res) => {
+  const prisma = getPrisma();
+  
+  try {
+    const companies = await prisma.company.findMany({
+      where: {
+        isActive: true,
+        alias: {
+          not: null // Apenas empresas com alias definido
+        }
+      },
+      select: {
+        id: true,
+        name: true,
+        alias: true
+      },
+      orderBy: {
+        name: 'asc'
+      }
+    });
+
+    res.json({
+      success: true,
+      message: 'Empresas disponíveis listadas com sucesso',
+      data: {
+        companies
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Erro ao listar empresas disponíveis:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro interno do servidor'
+    });
+  }
+};
+
 module.exports = {
   login,
   register,
@@ -1217,5 +1322,6 @@ module.exports = {
   testBlacklist,
   blockUser,
   unblockUser,
-  listBlockedUsers
+  listBlockedUsers,
+  getAvailableCompanies
 };
