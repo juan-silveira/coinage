@@ -141,6 +141,7 @@ const startServer = () => {
       console.log('⚠️ Queue service: não disponível');
     }
     
+    
     // Tentar inicializar sistema completo (temporariamente desabilitado)
     try {
       // await initService.initializeSystem();
@@ -149,13 +150,8 @@ const startServer = () => {
       console.log('⚠️ Sistema: inicialização parcial (alguns serviços podem não estar disponíveis)');
     }
     
-    // Tentar inicializar tokens padrão
-    try {
-      // Este precisa ser ajustado para funcionar com Prisma
-      console.log('⚠️ Tokens padrão: aguardando migração para Prisma');
-    } catch (error) {
-      console.log('⚠️ Tokens padrão: não inicializados');
-    }
+    // Tokens serão gerenciados via frontend pelos administradores
+    console.log('ℹ️ Tokens serão gerenciados via interface administrativa');
 
     // Inicializar dados padrão
     console.log('🔍 Verificando dados padrão...');

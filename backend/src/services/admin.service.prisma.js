@@ -77,7 +77,15 @@ class AdminService {
       const existingAdmin = await this.prisma.user.findFirst({
         where: {
           email: config.email,
-          companyId: defaultCompany.id
+          userCompanies: {
+            some: {
+              companyId: defaultCompany.id,
+              role: 'ADMIN'
+            }
+          }
+        },
+        include: {
+          userCompanies: true
         }
       });
 
@@ -101,26 +109,21 @@ class AdminService {
           password: hashedPassword,
           publicKey: config.publicKey,
           privateKey: config.privateKey,
-          companyId: defaultCompany.id,
-          roles: config.roles,
-          permissions: {
-            wallets: { create: true, read: true, update: true, delete: true },
-            contracts: { create: true, read: true, update: true, delete: true },
-            transactions: { create: true, read: true, update: true, delete: true },
-            admin: {
-              fullAccess: true,
-              companies: { read: true, create: true, update: true, delete: true },
-              users: { read: true, create: true, update: true, delete: true }
-            }
-          },
-          canViewPrivateKeys: true,
-          privateKeyAccessLevel: 'all',
           isActive: true,
           isFirstAccess: false,
+          emailConfirmed: true,
           passwordChangedAt: new Date()
-        },
-        include: {
-          company: true
+        }
+      });
+
+      // Criar relacionamento UserCompany
+      await this.prisma.userCompany.create({
+        data: {
+          userId: adminUser.id,
+          companyId: defaultCompany.id,
+          role: 'ADMIN',
+          status: 'active',
+          linkedAt: new Date()
         }
       });
 
@@ -129,8 +132,7 @@ class AdminService {
       console.log(`✅ Usuário admin criado com sucesso:`);
       console.log(`   Nome: ${adminUser.name}`);
       console.log(`   Email: ${adminUser.email}`);
-      console.log(`   Company: ${adminUser.company.name}`);
-      console.log(`   Roles: ${adminUser.roles.join(', ')}`);
+      console.log(`   Company: ${defaultCompany.name}`);
       console.log(`   ID: ${adminUser.id}`);
 
       return adminUser;
@@ -154,9 +156,8 @@ class AdminService {
         throw new Error('Nome, email e senha são obrigatórios');
       }
 
-      if (!userData.companyId) {
-        userData.companyId = this.defaultCompanyId;
-      }
+      // Company ID will be handled through UserCompany relation
+      const companyId = userData.companyId || this.defaultCompanyId;
 
       // Hash da senha
       const hashedPassword = crypto.pbkdf2Sync(userData.password, userData.email, 10000, 64, 'sha512').toString('hex');
@@ -182,25 +183,20 @@ class AdminService {
           password: hashedPassword,
           publicKey: publicKey,
           privateKey: privateKey,
-          companyId: userData.companyId,
-          roles: userData.roles || ['ADMIN'],
-          permissions: userData.permissions || {
-            wallets: { create: true, read: true, update: true, delete: false },
-            contracts: { create: true, read: true, update: true, delete: false },
-            transactions: { create: true, read: true, update: false, delete: false },
-            admin: {
-              fullAccess: false,
-              companies: { read: true, create: false, update: true, delete: false },
-              users: { read: true, create: true, update: true, delete: false }
-            }
-          },
-          canViewPrivateKeys: userData.canViewPrivateKeys || false,
-          privateKeyAccessLevel: userData.privateKeyAccessLevel || 'company_users',
           isActive: true,
-          isFirstAccess: userData.isFirstAccess !== false
-        },
-        include: {
-          company: true
+          isFirstAccess: userData.isFirstAccess !== false,
+          emailConfirmed: true
+        }
+      });
+
+      // Criar relacionamento UserCompany
+      await this.prisma.userCompany.create({
+        data: {
+          userId: adminUser.id,
+          companyId: companyId,
+          role: 'ADMIN',
+          status: 'active',
+          linkedAt: new Date()
         }
       });
 
@@ -231,17 +227,22 @@ class AdminService {
       const skip = (page - 1) * limit;
       const take = parseInt(limit);
 
-      // Construir filtros
-      const where = {
-        OR: [
-          { roles: { hasEvery: ['SUPER_ADMIN'] } },
-          { roles: { hasEvery: ['APP_ADMIN'] } },
-          { roles: { hasEvery: ['ADMIN'] } }
-        ]
-      };
+      // Construir filtros para usuários com role ADMIN em UserCompany
+      const where = {};
 
       if (companyId) {
-        where.companyId = companyId;
+        where.userCompanies = {
+          some: {
+            companyId: companyId,
+            role: 'ADMIN'
+          }
+        };
+      } else {
+        where.userCompanies = {
+          some: {
+            role: 'ADMIN'
+          }
+        };
       }
 
       if (search) {

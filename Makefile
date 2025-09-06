@@ -1,81 +1,62 @@
-.PHONY: help start stop status dev frontend backend logs clean restart install test
+# Makefile - Projeto Coinage (Local)
+
+.PHONY: help run run-backend run-frontend services-status env-setup
+
+# Cores para output
+RED := \033[0;31m
+GREEN := \033[0;32m
+YELLOW := \033[1;33m
+NC := \033[0m
 
 # Variáveis
-COMPOSE_FILE = docker-compose.yml
-PROJECT_NAME = coinage
+BACKEND_DIR = backend
+FRONTEND_DIR = frontend
+ENV_FILE = .env
 
-# Comando padrão
-help: ## Mostra esta ajuda
-	@echo "🚀 Coinage - Comandos disponíveis:"
+help: ## Mostra este menu de ajuda
+	@echo "$(GREEN)Projeto Coinage - Comandos$(NC)"
+	@echo "run - Inicia o projeto completo"
+	@echo "run-backend - Inicia apenas o backend"  
+	@echo "run-frontend - Inicia apenas o frontend"
+	@echo "services-status - Verifica status dos servicos"
+
+env-setup: ## Configura o arquivo .env
+	@echo "$(GREEN)Configurando arquivo .env...$(NC)"
+	@if [ -f $(ENV_FILE) ]; then \
+		echo "$(GREEN)Arquivo .env encontrado na raiz$(NC)"; \
+	else \
+		echo "$(RED)Arquivo .env não encontrado!$(NC)"; \
+		exit 1; \
+	fi
+	@echo "$(GREEN)Arquivos .env configurados!$(NC)"
+
+services-status: ## Verifica o status dos serviços
+	@echo "$(YELLOW)Status dos servicos:$(NC)"
+	@echo -n "PostgreSQL: " && (sudo systemctl is-active postgresql >/dev/null 2>&1 && echo "$(GREEN)Rodando$(NC)" || echo "$(RED)Parado$(NC)")
+	@echo -n "Redis:      " && (sudo systemctl is-active redis-server >/dev/null 2>&1 && echo "$(GREEN)Rodando$(NC)" || echo "$(RED)Parado$(NC)")
+	@echo -n "RabbitMQ:   " && (sudo systemctl is-active rabbitmq-server >/dev/null 2>&1 && echo "$(GREEN)Rodando$(NC)" || echo "$(RED)Parado$(NC)")
+
+run-backend: ## Inicia apenas o backend
+	@echo "$(GREEN)Iniciando backend...$(NC)"
+	cd $(BACKEND_DIR) && npm run dev
+
+run-frontend: ## Inicia apenas o frontend
+	@echo "$(GREEN)Iniciando frontend...$(NC)"
+	cd $(FRONTEND_DIR) && yarn dev
+
+run: ## Inicia o projeto completo (backend e frontend)
+	@echo "$(GREEN)Iniciando Projeto Coinage$(NC)"
 	@echo ""
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2}'
-
-start: ## Inicia o backend (Docker) e frontend
-	@echo "🚀 Iniciando backend..."
-	@./scripts/start.sh
-	@echo "⏳ Aguardando backend iniciar..."
-	@sleep 10
-	@echo "🎨 Iniciando frontend..."
-	@cd frontend && ./start.sh
-
-stop: ## Para o backend (Docker)
-	@echo "🛑 Parando backend..."
-	@./scripts/stop.sh
-
-status: ## Mostra o status do backend
-	@echo "📊 Verificando status..."
-	@./scripts/status.sh
-
-dev: ## Inicia backend e frontend em desenvolvimento
-	@echo "🔧 Iniciando desenvolvimento..."
-	@make start
-
-frontend: ## Inicia apenas o frontend DashCode
-	@echo "🎨 Iniciando DashCode..."
-	@cd frontend && ./start.sh
-
-backend: ## Inicia apenas o backend
-	@echo "⚙️ Iniciando backend..."
-	@make start
-
-logs: ## Mostra os logs do backend
-	@echo "📋 Mostrando logs..."
-	@docker-compose logs -f
-
-clean: ## Limpa containers, volumes e imagens
-	@echo "🧹 Limpando tudo..."
-	@docker-compose down -v
-	@docker system prune -f
-	@echo "✅ Limpeza concluída!"
-
-restart: ## Reinicia o backend
-	@echo "🔄 Reiniciando backend..."
-	@docker-compose restart
-
-install: ## Instala dependências do DashCode
-	@echo "📦 Instalando dependências..."
-	@cd frontend && yarn install
-	@echo "✅ Dependências instaladas!"
-
-test: ## Executa testes do DashCode
-	@echo "🧪 Executando testes..."
-	@cd frontend && yarn test
-
-build: ## Constrói as imagens Docker
-	@echo "🔨 Construindo imagens..."
-	@docker-compose build
-
-health: ## Verifica saúde do backend
-	@echo "🏥 Verificando saúde do backend..."
-	@curl -s http://localhost:8800/api/health || echo "❌ Backend offline"
-
-setup: ## Configuração inicial do projeto
-	@echo "🔧 Configurando projeto..."
-	@make install
-	@make build
-	@echo "✅ Configuração concluída!"
-
-# Comando para desenvolvimento completo
-full-dev: ## Inicia desenvolvimento completo
-	@echo "🚀 Iniciando desenvolvimento completo..."
-	@make start 
+	@echo "$(YELLOW)Verificando servicos...$(NC)"
+	@make services-status
+	@echo ""
+	@echo "$(YELLOW)Configurando ambiente...$(NC)"
+	@make env-setup
+	@echo ""
+	@echo "$(GREEN)Iniciando aplicacao...$(NC)"
+	@echo "$(YELLOW)Backend:$(NC) http://localhost:8800"
+	@echo "$(YELLOW)Frontend:$(NC) http://localhost:3000"
+	@echo ""
+	@echo "$(YELLOW)Pressione Ctrl+C para parar$(NC)"
+	@echo ""
+	@make -j2 run-backend run-frontend

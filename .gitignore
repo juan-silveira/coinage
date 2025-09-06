@@ -180,3 +180,20 @@ backend/env.example
 backend/server.log
 backend/package-lock.json
 backend/node_modules/ 
+# Cleanup project files
+archive/
+*.backup
+.env.local
+.env.copy
+*-setup.sh
+*-services.sh
+fix-*.sh
+install-*.sh
+complete-*.sh
+MIGRATION_PLAN.md
+STAKE_IMPLEMENTATION.md
+
+# Database backups
+backup/
+*.sql
+backup_*.sql

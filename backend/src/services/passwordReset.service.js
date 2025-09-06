@@ -1,9 +1,8 @@
 const crypto = require('crypto');
 
-// Função para obter os modelos inicializados
-const getModels = () => {
-  return global.models;
-};
+// Função para obter Prisma
+const prismaConfig = require('../config/prisma');
+const getPrisma = () => prismaConfig.getPrisma();
 
 /**
  * Serviço para gerenciamento de recuperação de senha
@@ -14,9 +13,9 @@ class PasswordResetService {
    */
   static async initialize() {
     try {
-      const models = getModels();
-      if (!models.PasswordReset) {
-        console.log('⚠️ Modelo PasswordReset não encontrado, aguardando inicialização...');
+      const prisma = getPrisma();
+      if (!prisma) {
+        console.log('⚠️ Prisma não inicializado, aguardando...');
         return;
       }
       
