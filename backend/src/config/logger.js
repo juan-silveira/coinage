@@ -36,11 +36,13 @@ const consoleFormat = winston.format.combine(
 // Configuração dos transportes
 const transports = [];
 
-// Console (sempre ativo)
+// Console (otimizado para produção)
+const consoleLevel = process.env.NODE_ENV === 'production' ? 'warn' : 'debug';
 transports.push(
   new winston.transports.Console({
-    level: process.env.NODE_ENV === 'production' ? 'info' : 'debug',
-    format: consoleFormat
+    level: consoleLevel,
+    format: consoleFormat,
+    silent: process.env.DISABLE_CONSOLE_LOGS === 'true'
   })
 );
 
@@ -312,7 +314,31 @@ module.exports = {
     });
   },
   
-  createStructuredLog
+  createStructuredLog,
+  
+  // Controle dinâmico de logs para produção
+  isProductionMode: process.env.NODE_ENV === 'production',
+  
+  // Função para logs condicionais (só executa se não for produção)
+  devLog: (level, message, meta = {}) => {
+    if (process.env.NODE_ENV !== 'production') {
+      logger[level](message, meta);
+    }
+  },
+  
+  // Função para definir nível de log dinamicamente
+  setLogLevel: (level) => {
+    logger.level = level;
+    console.log(`📊 Log level alterado para: ${level}`);
+  },
+  
+  // Função para verificar se deve logar (baseado em ambiente)
+  shouldLog: (level = 'debug') => {
+    if (process.env.NODE_ENV === 'production') {
+      return ['error', 'warn', 'info'].includes(level);
+    }
+    return true; // Development - log tudo
+  }
 };
 
 // Configurar manipuladores de erro global

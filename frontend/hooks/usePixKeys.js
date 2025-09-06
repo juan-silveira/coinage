@@ -17,12 +17,12 @@ const usePixKeys = () => {
       // Carregar apenas da API (sem fallback para localStorage)
       const response = await pixKeysService.getPixKeys();
       if (response?.success) {
-        console.log('✅ [usePixKeys] Chaves PIX carregadas da API:', response.data.pixKeys.length);
+        // console.log('✅ [usePixKeys] Chaves PIX carregadas da API:', response.data.pixKeys.length);
         setPixKeys(response.data.pixKeys);
         // Limpar dados antigos do localStorage se existirem
         localStorage.removeItem('userPixKeys');
       } else {
-        console.log('⚠️ [usePixKeys] API retornou sem sucesso:', response?.message);
+        // console.log('⚠️ [usePixKeys] API retornou sem sucesso:', response?.message);
         setPixKeys([]);
       }
     } catch (apiError) {
@@ -37,10 +37,10 @@ const usePixKeys = () => {
   // Adicionar nova chave PIX (apenas via API)
   const addPixKey = async (pixKeyData) => {
     try {
-      console.log('🔄 [usePixKeys] Criando nova chave PIX via API:', pixKeyData);
+      // console.log('🔄 [usePixKeys] Criando nova chave PIX via API:', pixKeyData);
       const response = await pixKeysService.createPixKey(pixKeyData);
       if (response?.success) {
-        console.log('✅ [usePixKeys] Chave PIX criada com sucesso:', response.data.pixKey.id);
+        // console.log('✅ [usePixKeys] Chave PIX criada com sucesso:', response.data.pixKey.id);
         await loadPixKeys(); // Recarregar da API
         showSuccess('Chave PIX cadastrada com sucesso');
         return response.data.pixKey;

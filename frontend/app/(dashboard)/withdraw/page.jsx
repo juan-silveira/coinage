@@ -151,23 +151,23 @@ const WithdrawPage = () => {
   // Buscar taxa real do backend quando o valor mudar (com debounce)
   useEffect(() => {
     const amount = getNumericValue();
-    console.log('🔍 [useEffect] Valor mudou:', amount, 'withdrawAmount:', withdrawAmount);
+    // console.log('🔍 [useEffect] Valor mudou:', amount, 'withdrawAmount:', withdrawAmount);
     
     if (amount > 0) {
-      console.log('🔍 [useEffect] Valor > 0, iniciando busca da taxa');
+      // console.log('🔍 [useEffect] Valor > 0, iniciando busca da taxa');
       setFeeLoading(true);
       // Debounce para evitar muitas chamadas
       const timeoutId = setTimeout(() => {
-        console.log('🔍 [useEffect] Timeout executado, chamando fetchWithdrawFee');
+        // console.log('🔍 [useEffect] Timeout executado, chamando fetchWithdrawFee');
         fetchWithdrawFee(amount);
       }, 500); // Esperar 500ms após parar de digitar
       
       return () => {
-        console.log('🔍 [useEffect] Cleanup - cancelando timeout');
+        // console.log('🔍 [useEffect] Cleanup - cancelando timeout');
         clearTimeout(timeoutId);
       };
     } else {
-      console.log('🔍 [useEffect] Valor <= 0, resetando net amount');
+      // console.log('🔍 [useEffect] Valor <= 0, resetando net amount');
       setNetAmount(0);
       setFeeLoading(false);
     }

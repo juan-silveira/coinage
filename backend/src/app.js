@@ -4,7 +4,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const swaggerUi = require('swagger-ui-express');
-require('dotenv').config();
+require('dotenv').config({ path: path.join(__dirname, '../../.env') });
 
 // Importar configuração do Swagger
 const swaggerSpecs = require('./config/swagger');
@@ -954,6 +954,8 @@ app.use('/api/notifications', notificationRoutes);
 // Rotas de sincronização de balances (com autenticação JWT)
 const balanceSyncRoutes = require('./routes/balanceSync.routes');
 app.use('/api/balance-sync', balanceSyncRoutes);
+
+// Rotas de atualização automática de saldos (com autenticação JWT)
 
 // Rotas de monitoramento de saldos de tokens
 app.use('/api/token-amounts', tokenAmountRoutes);

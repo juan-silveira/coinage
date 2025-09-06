@@ -74,7 +74,7 @@ const useCurrencyMask = (initialValue = '') => {
     if (typeof val === 'number') return val;
     
     const stringVal = val.toString().trim();
-    console.log('🔍 [getNumericValue] INPUT:', stringVal);
+    // console.log('🔍 [getNumericValue] INPUT:', stringVal);
     
     // Detectar formato brasileiro (tem vírgula como separador decimal)
     if (stringVal.includes(',')) {
@@ -85,7 +85,7 @@ const useCurrencyMask = (initialValue = '') => {
         .replace(',', '.'); // Converte vírgula decimal para ponto
       
       const result = parseFloat(cleanValue);
-      console.log('🔍 [getNumericValue] BRASILEIRO - Clean:', cleanValue, 'Result:', result);
+      // console.log('🔍 [getNumericValue] BRASILEIRO - Clean:', cleanValue, 'Result:', result);
       return isNaN(result) ? 0 : result;
     } else {
       // Formato sem vírgula - pode ser número simples ou com ponto
@@ -102,24 +102,24 @@ const useCurrencyMask = (initialValue = '') => {
         if (parts.length === 2 && parts[1].length === 3 && parts[1] === '000') {
           // É separador de milhares: "1.000" = 1000
           const result = parseInt(parts[0]) * 1000;
-          console.log('🔍 [getNumericValue] MILHARES - Clean:', cleanValue, 'Result:', result);
+          // console.log('🔍 [getNumericValue] MILHARES - Clean:', cleanValue, 'Result:', result);
           return result;
         } else if (parts.length === 2 && parts[1].length <= 2) {
           // É decimal americano: "10.50" = 10.5
           const result = parseFloat(cleanValue);
-          console.log('🔍 [getNumericValue] AMERICANO - Clean:', cleanValue, 'Result:', result);
+          // console.log('🔍 [getNumericValue] AMERICANO - Clean:', cleanValue, 'Result:', result);
           return isNaN(result) ? 0 : result;
         } else {
           // Múltiplos pontos ou formato estranho - tratar como milhares
           const onlyDigits = cleanValue.replace(/\./g, '');
           const result = parseInt(onlyDigits);
-          console.log('🔍 [getNumericValue] MULTIPLOS PONTOS - Clean:', onlyDigits, 'Result:', result);
+          // console.log('🔍 [getNumericValue] MULTIPLOS PONTOS - Clean:', onlyDigits, 'Result:', result);
           return isNaN(result) ? 0 : result;
         }
       } else {
         // Apenas dígitos: "1000" = 1000
         const result = parseInt(cleanValue);
-        console.log('🔍 [getNumericValue] INTEIRO - Clean:', cleanValue, 'Result:', result);
+        // console.log('🔍 [getNumericValue] INTEIRO - Clean:', cleanValue, 'Result:', result);
         return isNaN(result) ? 0 : result;
       }
     }
@@ -129,7 +129,7 @@ const useCurrencyMask = (initialValue = '') => {
   const isValidAmount = useCallback((val = value) => {
     const numericValue = getNumericValue(val);
     const isValid = numericValue >= 10;
-    console.log('🔍 [isValidAmount] Value:', val, 'Numeric:', numericValue, 'Valid:', isValid, '>=10?', numericValue >= 10);
+    // console.log('🔍 [isValidAmount] Value:', val, 'Numeric:', numericValue, 'Valid:', isValid, '>=10?', numericValue >= 10);
     return isValid;
   }, [value, getNumericValue]);
 

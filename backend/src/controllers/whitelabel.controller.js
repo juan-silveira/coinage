@@ -642,38 +642,38 @@ const registerNewUser = async (req, res) => {
  */
 const linkExistingUser = async (req, res) => {
   try {
-    console.log('🚀 [WhitelabelController] Iniciando linkExistingUser...');
-    console.log('🚀 [WhitelabelController] Body:', req.body);
+    // console.log('🚀 [WhitelabelController] Iniciando linkExistingUser...');
+    // console.log('🚀 [WhitelabelController] Body:', req.body);
     
     const { userId, password, companyAlias } = req.body;
 
     if (!userId || !password || !companyAlias) {
-      console.log('❌ [WhitelabelController] Dados obrigatórios faltando');
+      // console.log('❌ [WhitelabelController] Dados obrigatórios faltando');
       return res.status(400).json({
         success: false,
         message: 'UserId, senha e company alias são obrigatórios'
       });
     }
 
-    console.log('✅ [WhitelabelController] Dados válidos, chamando serviço...');
+    // console.log('✅ [WhitelabelController] Dados válidos, chamando serviço...');
     const result = await whitelabelService.linkExistingUserToCompany(
       userId,
       password,
       companyAlias
     );
 
-    console.log('📋 [WhitelabelController] Resultado do serviço:', result);
+    // console.log('📋 [WhitelabelController] Resultado do serviço:', result);
 
     if (!result.success) {
-      console.log('❌ [WhitelabelController] Falha no serviço, retornando 401');
+      // console.log('❌ [WhitelabelController] Falha no serviço, retornando 401');
       return res.status(401).json(result);
     }
 
-    console.log('✅ [WhitelabelController] Sucesso, retornando resultado');
+    // console.log('✅ [WhitelabelController] Sucesso, retornando resultado');
     res.json(result);
 
   } catch (error) {
-    console.error('❌ [WhitelabelController] Erro ao vincular usuário existente:', error);
+    // console.error('❌ [WhitelabelController] Erro ao vincular usuário existente:', error);
     res.status(500).json({
       success: false,
       message: 'Erro interno do servidor'

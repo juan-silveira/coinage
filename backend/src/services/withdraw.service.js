@@ -20,9 +20,23 @@ class WithdrawService {
   }
 
   async init() {
-    this.prisma = prismaConfig.getPrisma();
-    // Initialize transaction service
-    await transactionService.initialize();
+    try {
+      // Garantir que o Prisma está inicializado
+      await prismaConfig.initialize();
+      this.prisma = prismaConfig.getPrisma();
+      
+      if (!this.prisma) {
+        throw new Error('Falha ao inicializar conexão com banco de dados');
+      }
+      
+      // Initialize transaction service
+      await transactionService.initialize();
+      
+      console.log('✅ WithdrawService inicializado com sucesso');
+    } catch (error) {
+      console.error('❌ Erro ao inicializar WithdrawService:', error);
+      throw error;
+    }
   }
 
   /**
@@ -125,7 +139,10 @@ class WithdrawService {
    */
   async initiateWithdrawal(amount, pixKey, userId) {
     try {
-      if (!this.prisma) await this.init();
+      // Garantir inicialização do Prisma
+      if (!this.prisma) {
+        await this.init();
+      }
       
       // Validações
       if (amount < this.minWithdrawal) {
@@ -139,12 +156,17 @@ class WithdrawService {
       // Buscar PIX key no banco de dados se for fornecida
       let userPixKey = null;
       if (pixKey) {
-        userPixKey = await this.prisma.userPixKey.findFirst({
-          where: {
-            userId: userId,
-            keyValue: pixKey
-          }
-        });
+        try {
+          userPixKey = await this.prisma.userPixKey.findFirst({
+            where: {
+              userId: userId,
+              keyValue: pixKey
+            }
+          });
+        } catch (pixError) {
+          console.log('⚠️ Erro ao buscar PIX key (ignorando):', pixError.message);
+          // Se não conseguir buscar PIX key, continue com validação tradicional
+        }
         
         if (!userPixKey) {
           // Se não encontrou pela keyValue, usar validação tradicional
